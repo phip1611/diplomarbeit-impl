@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+
+// This script analyzes the output from strace and shows what 
+// system calls are used and how often. It orders them 
+// alphabetically.
+//
+// 1) execute strace
+// 2) redirect stderr to stdout
+// 3) pipe to this script
+//
+// Invoke like this:
+// $ trace ./C/static_hello_world_musl 2>&1 | ./strace_overview.msj
+
+
+
+// invoke async function
+init().catch(err => console.err(err));
+
+async function init() {
+	const fs = require("fs");
+	const stdinBuffer = fs.readFileSync(0); // STDIN_FILENO = 0
+    const straceOutput = stdinBuffer.toString();
+    const lines = straceOutput.split('\n')
+	const syscalls = lines
+    	// remove last empty new line
+    	.filter(l => l !== '')
+	    // only keep lines that start with [a-z] => the real syscalls
+	    // l[0] is first letter
+	    .filter(l => l[0] >= 'a' && l[0] <= 'z')
+	    // only keep name of syscall
+	    .map(l => l.split('(')[0]);
+
+    // console.dir(syscalls);
+
+	const syscall_map = new Map();
+	syscalls.forEach(syscall => {
+		let counter = 1;
+		if (syscall_map.has(syscall)) {
+			counter += syscall_map.get(syscall);
+		}
+		syscall_map.set(syscall, counter)
+	});
+	// sort alphabetically
+	const sorted_map = new Map([...syscall_map.entries()].sort());
+	sorted_map.forEach((value, key) => {
+		console.log(`${key} (${value}x)`);
+	});
+}
+

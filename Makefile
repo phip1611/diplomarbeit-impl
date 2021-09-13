@@ -4,4 +4,5 @@ all: static-hello-world
 .PHONY: static-hello-world
 
 static-hello-world:
-	cd static-hello-world && make
+	# https://www.gnu.org/software/make/manual/html_node/MAKE-Variable.html
+	cd static-hello-world && $(MAKE)

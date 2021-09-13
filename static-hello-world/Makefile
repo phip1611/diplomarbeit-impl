@@ -1,10 +1,10 @@
-SOURCE=hello_world.c
-MUSL_GCC=/usr/local/musl/bin/musl-gcc
 
-static-hello-world: static_hello_world_libc static_hello_world_musl
+all: c rust
 
-static_hello_world_libc: $(SOURCE)
-	gcc -static -o $@ $+
+.PHONY: c rust
 
-static_hello_world_musl: $(SOURCE)
-	$(MUSL_GCC) -static -o $@ $+
+c:
+	cd C && $(MAKE)
+
+rust:
+	cd Rust && $(MAKE)
