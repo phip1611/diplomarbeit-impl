@@ -8,3 +8,6 @@ publish = false # prevent accidentaly publishing
 
 [dependencies]
 roottask-lib = { path = "../roottask-lib" }
+x86 = "0.41.0"
+log = { version = "0.4.14", default-features = false }
+arrayvec = { version = "0.7.1", default-features = false }

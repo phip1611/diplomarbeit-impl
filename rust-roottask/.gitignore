@@ -2,3 +2,5 @@
 .vscode
 
 /roottask-bin
+
+qemu_debugcon.txt

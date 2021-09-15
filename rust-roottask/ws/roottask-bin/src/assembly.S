@@ -1,13 +1,11 @@
+# GNU assembler with intel syntax by default.
+
 # This is a barely documented feature of Rust.
 # Via the `global_asm!`-macro one can include assembly source files
 # in the "native assembly syntax flavor of the compiling machine",
 # i.e. GNU Assembler on Linux.
 
 # The ability of Rust to include global assembly is poorly documented.
-# It uses GAS (GNU Assembly) syntax
-
-# . intel_syntax noprefix
-# is already the default => compiler warning
 
 .code64
 
@@ -32,8 +30,8 @@ start:
 
     # set up stack
     # OFFSET is like "moveabs" in AT&T syntax
-    mov  rsp,    OFFSET stack_top
-    mov  rbp,    OFFSET stack_top
+    mov     rsp,    OFFSET stack_top
+    mov     rbp,    OFFSET stack_top
 
     jmp roottask_rust_entry
 

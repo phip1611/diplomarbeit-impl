@@ -1,15 +1,32 @@
-#![no_std]
-// TODO include this as soon as a first stable RC is there
-// #![deny(missing_docs)]
+#![cfg_attr(not(test), no_std)]
+#![deny(
+    clippy::all,
+    clippy::cargo,
+    clippy::nursery,
+    // clippy::restriction,
+    // clippy::pedantic
+)]
+// now allow a few rules which are denied by the above statement
+// --> they are ridiculous and not necessary
+#![allow(
+    clippy::suboptimal_flops,
+    clippy::redundant_pub_crate,
+    clippy::fallible_impl_from
+)]
 #![deny(missing_debug_implementations)]
-#![deny(clippy::all)]
+#![deny(rustdoc::all)]
+#![feature(asm)]
 
-#[allow(unused_imports)]
-#[macro_use]
-extern crate alloc;
-
+#[allow(unused)]
 #[cfg_attr(test, macro_use)]
 #[cfg(test)]
 extern crate std;
 
+#[allow(unused)]
+#[macro_use]
+extern crate alloc;
 
+pub mod hedron;
+pub mod hrstd;
+pub mod hw;
+pub mod syscall;
