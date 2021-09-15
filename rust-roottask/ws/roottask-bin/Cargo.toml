@@ -1,0 +1,10 @@
+[package]
+name = "roottask-bin"
+description = "See README.md"
+version = "0.1.0"
+authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
+edition = "2018"
+publish = false # prevent accidentaly publishing
+
+[dependencies]
+roottask-lib = { path = "../roottask-lib" }

@@ -1,0 +1,9 @@
+# With this file, another toolchain to the currently selected one will be used.
+# https://rust-lang.github.io/rustup/overrides.html
+
+[toolchain]
+# see README.md why this version was chosen
+channel = "nightly-2021-09-06"
+# see https://rust-lang.github.io/rustup/concepts/components.html
+# for value you can put here
+components = ["rustfmt", "rustc", "rust-src", "cargo", "rust-std", "rust-docs", "clippy" ]

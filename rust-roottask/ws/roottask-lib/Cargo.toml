@@ -1,0 +1,12 @@
+[package]
+name = "roottask-lib"
+description = "See README.md"
+version = "0.1.0"
+authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
+edition = "2018"
+publish = false # prevent accidentaly publishing
+
+[dependencies]
+log = { version = "0.4.14", default-features = false }
+# mathematic operations, like sinus and logarithm
+libm = "0.2.1"
