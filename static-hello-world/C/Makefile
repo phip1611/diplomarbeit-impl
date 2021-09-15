@@ -8,3 +8,9 @@ static_hello_world_libc: $(SOURCE)
 
 static_hello_world_musl: $(SOURCE)
 	$(MUSL_GCC) -static -o $@ $+
+
+.PHONY: clean
+
+clean:
+	rm -f static_hello_world_libc
+	rm -f static_hello_world_musl
