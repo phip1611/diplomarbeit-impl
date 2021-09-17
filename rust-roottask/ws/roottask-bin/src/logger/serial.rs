@@ -1,19 +1,10 @@
 //! Serial logger.
 
-use arrayvec::ArrayString;
-use log::{
-    Log,
-    Metadata,
-    Record,
-};
 use roottask_lib::hedron::capability::{
     CapSel,
     CrdPortIO,
 };
-use roottask_lib::hrstd::io_port::{
-    request_io_port,
-    request_io_ports,
-};
+use roottask_lib::hrstd::io_port::request_io_ports;
 use roottask_lib::hw::serial_port::{
     init_serial,
     snd_serial,
@@ -25,13 +16,11 @@ use roottask_lib::hw::serial_port::{
 pub struct SerialLogger;
 
 impl SerialLogger {
-    const DEBUGCON_PORT: u16 = 0xe9;
-
     /// Initializes the serial logger for the roottask.
     /// Requests access to the necessary I/O ports.
     pub fn init(root_pd_sel: CapSel) -> Result<(), ()> {
         // order 3: 2^3 = 8 => we need ports [port..port+8]
-        request_io_ports(root_pd_sel, CrdPortIO::new(COM1_IO_PORT, 3));
+        request_io_ports(root_pd_sel, CrdPortIO::new(COM1_IO_PORT, 3)).map_err(|_| ())?;
         init_serial()
     }
 

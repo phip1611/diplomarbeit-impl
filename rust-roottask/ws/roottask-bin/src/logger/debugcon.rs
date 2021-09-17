@@ -1,9 +1,3 @@
-use arrayvec::ArrayString;
-use log::{
-    Log,
-    Metadata,
-    Record,
-};
 use roottask_lib::hedron::capability::CapSel;
 use roottask_lib::hrstd::io_port::request_io_port;
 use x86::io::outb;

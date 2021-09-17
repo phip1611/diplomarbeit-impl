@@ -38,13 +38,27 @@ impl GenericLogger {
     /// Builds the formatted error message.
     fn fmt_msg(record: &Record) -> ArrayString<256> {
         // TODO once allocation works, make this dynamic?!
+        //  but think about fallbac kfor allocation errors; maybe we need to fallback to stack buffer
         let mut buf = ArrayString::<256>::new();
 
         let res = writeln!(
             &mut buf,
             "[{:>5}] {:>15}@{}: {}",
             record.level(),
-            record.file().unwrap_or("<unknown file>"),
+            record
+                .file()
+                // remove full path
+                .map(|f| {
+                    let index = f.find("/src");
+                    if let Some(index) = index {
+                        // skip slash
+                        let index = index + 1;
+                        &f[index..]
+                    } else {
+                        f
+                    }
+                })
+                .unwrap_or("<unknown file>"),
             record.line().unwrap_or(0),
             record.args()
         );
@@ -81,10 +95,10 @@ impl Log for GenericLogger {
         let msg = Self::fmt_msg(record);
 
         if let Some(l) = self.debugcon.lock().as_ref() {
-            l.write(msg.as_str());
+            l.write(msg.as_str()).unwrap();
         }
         if let Some(l) = self.serial.lock().as_ref() {
-            l.write(msg.as_str());
+            l.write(msg.as_str()).unwrap();
         }
     }
 

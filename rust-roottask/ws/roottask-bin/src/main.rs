@@ -7,6 +7,7 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
+#![feature(const_mut_refs)]
 #![deny(
     clippy::all,
     clippy::cargo,
@@ -24,11 +25,12 @@
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
 
+// any global definitions required to be in assembly
 global_asm!(include_str!("assembly.S"));
 
 mod logger;
 mod panic;
-mod rootask_alloc; // any global definitions required to be in assembly
+mod roottask_alloc;
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -36,13 +38,10 @@ extern crate alloc;
 
 use core::ptr;
 
-use alloc::fmt::format;
-use arrayvec::ArrayString;
-use roottask_lib::hedron::capability::CrdPortIO;
 use roottask_lib::hedron::hip::HIP;
 use roottask_lib::hedron::utcb::UtcbData;
-use roottask_lib::hrstd::io_port::request_io_ports;
-use roottask_lib::hw::serial_port::snd_serial;
+
+// TODO warum geht aktuell noch kein floating point?! nur softfloat..
 
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
@@ -51,7 +50,19 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let root_pd_cap_sel = hip.root_pd();
 
     logger::init(root_pd_cap_sel);
-    let mut buf = ArrayString::<64>::new();
+    roottask_alloc::init();
+
+    // test: alloc works
+    {
+        let mut foo = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        log::info!("foo={:#?}", &foo);
+        for i in 0..10 {
+            log::info!("#{}", i);
+            foo.push(i * i);
+        }
+        log::info!("foo2={:#?}", &foo);
+    }
+
     log::info!("Rust Roottask started");
     panic!("SHHIIIIIT");
     loop {}

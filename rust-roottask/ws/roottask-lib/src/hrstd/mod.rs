@@ -2,5 +2,6 @@
 //! High level utility functions around the low level syscalls.
 //! Standard library for Rust apps under Hedron.
 
+pub mod allocator;
 pub mod io_port;
 pub mod sync;

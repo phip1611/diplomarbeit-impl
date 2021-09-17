@@ -16,6 +16,10 @@
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
 #![feature(asm)]
+#![feature(const_panic)]
+#![feature(const_ptr_offset)]
+#![feature(const_fmt_arguments_new)]
+#![feature(const_mut_refs)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
