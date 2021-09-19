@@ -29,10 +29,10 @@ SECTIONS {
       *(.bss .bss.*)
     } : rw
 
-    /* TODO Don't know yet why but if I do this, the second LOAD segment is not anymore in the ELF and everything works */
-    /DISCARD/ :
+    /* Information for unwinding & backtraces */
+    .eh_frame : ALIGN (4096)
     {
-        *(.eh_frame*)
+      *(.eh_frame*)
     }
 
 }
