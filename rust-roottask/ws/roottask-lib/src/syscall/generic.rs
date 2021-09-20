@@ -42,13 +42,28 @@ pub unsafe fn generic_syscall(
 #[derive(Debug, Copy, Clone)]
 #[repr(u64)]
 pub enum SyscallNum {
+    Call = 0,
+    Reply = 1,
     CreatePd = 2,
     CreateEc = 3,
+    CreateSc = 4,
+    CreatePt = 5,
+    CreateSm = 6,
     Revoke = 7,
     PdCtrl = 8,
     EcTrl = 9,
+    ScCtrl = 10,
+    PtCtrl = 11,
+    SmCtrl = 12,
+    AssignPci = 13,
     AssignGsi = 14,
     MachineCtrl = 15,
+}
+
+impl SyscallNum {
+    pub fn val(self) -> u64 {
+        self as u64
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -58,10 +73,22 @@ pub enum PdCtrlSubSyscall {
     PdCtrlMsgAccess = 3,
 }
 
+impl PdCtrlSubSyscall {
+    pub fn val(self) -> u64 {
+        self as u64
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u64)]
 pub enum EcCtrlSubSyscall {
     EcCtrlRecall = 0,
+}
+
+impl EcCtrlSubSyscall {
+    pub fn val(self) -> u64 {
+        self as u64
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -69,6 +96,12 @@ pub enum EcCtrlSubSyscall {
 pub enum MachineCtrlSubSyscall {
     MachineCtrlSuspend = 0,
     MachineCtrlUpdateMicrocode = 1,
+}
+
+impl MachineCtrlSubSyscall {
+    pub fn val(self) -> u64 {
+        self as u64
+    }
 }
 
 /// Possible return values from the syscall.
@@ -94,4 +127,10 @@ pub enum SyscallStatus {
     BadCpu = 7,
     /// An invalid device ID was passed
     BadDev = 8,
+}
+
+impl SyscallStatus {
+    pub fn val(self) -> u64 {
+        self as u64
+    }
 }

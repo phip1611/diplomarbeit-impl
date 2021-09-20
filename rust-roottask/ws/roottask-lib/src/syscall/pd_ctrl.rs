@@ -4,7 +4,7 @@ use crate::hedron::capability::{
     CapSel,
     Crd,
 };
-use crate::syscall::syscall::{
+use crate::syscall::generic::{
     generic_syscall,
     PdCtrlSubSyscall,
     SyscallNum,
@@ -102,8 +102,8 @@ pub fn pd_ctrl_delegate<Spec, ObjSpec>(
     const SOURCE_PD_BITSHIFT: u64 = 8;
 
     let mut arg1 = 0;
-    arg1 |= (SyscallNum::PdCtrl as u64) & SYSCALL_BITMASK;
-    arg1 |= ((sub_syscall as u64) << SUB_SYSCALL_BITSHIFT) & SUB_SYSCALL_BITMASK;
+    arg1 |= SyscallNum::PdCtrl.val() & SYSCALL_BITMASK;
+    arg1 |= (sub_syscall.val() << SUB_SYSCALL_BITSHIFT) & SUB_SYSCALL_BITMASK;
     arg1 |= (source_pd << SOURCE_PD_BITSHIFT) & SOURCE_PD_BITMASK;
 
     let arg2 = dest_pd;

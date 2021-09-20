@@ -1,6 +1,7 @@
 use crate::hedron::capability::CrdObjPT;
-use crate::syscall::syscall::SyscallNum::CreateEc;
-use crate::syscall::syscall::{
+use crate::hedron::event_base::EventBase;
+use crate::syscall::generic::SyscallNum::CreateEc;
+use crate::syscall::generic::{
     generic_syscall,
     SyscallStatus,
 };
@@ -16,6 +17,12 @@ pub enum EcKind {
     Local = 0,
     Global = 1,
     vCpu = 2,
+}
+
+impl EcKind {
+    pub fn val(self) -> u8 {
+        self as u8
+    }
 }
 
 /// `create_ec` creates an EC kernel object and a capability pointing to
@@ -51,7 +58,7 @@ pub enum EcKind {
 /// - `parent_pd` A capability selector to a PD domain in which the new EC will execute in.
 /// - `utcb_vlapic_page_num` A page number where the UTCB / vLAPIC page will be created. Page 0 means no vLAPIC page or UTCB is created.
 /// - `stack_ptr` The initial stack pointer for normal ECs. Ignored for vCPUs.
-/// - `event_base` The Event Base of the newly created EC.
+/// - `event_base` See [`EventBase`].
 pub fn create_ec(
     kind: EcKind,
     use_apic_access_page: bool,
@@ -60,11 +67,11 @@ pub fn create_ec(
     parent_pd: CrdObjPT,
     utcb_vlapic_page_num: u64,
     stack_ptr: u64,
-    event_base: u64,
+    event_base: EventBase,
 ) -> Result<(), SyscallStatus> {
     let mut arg1 = 0;
-    arg1 |= CreateEc as u64;
-    arg1 |= ((kind as u64) << 4) & 0x30;
+    arg1 |= CreateEc.val() as u64;
+    arg1 |= ((kind.val() as u64) << 4) & 0x30;
     // Ignored for non-vCPUs or if no vLAPIC page is created.
     if use_apic_access_page {
         arg1 |= 1 << 6;
@@ -78,7 +85,7 @@ pub fn create_ec(
     let mut arg3 = 0;
     arg3 |= utcb_vlapic_page_num << 12;
     let arg4 = stack_ptr;
-    let arg5 = event_base;
+    let arg5 = event_base.val();
     unsafe {
         generic_syscall(arg1, arg2, arg3, arg4, arg5)
             .map(|_x| ())

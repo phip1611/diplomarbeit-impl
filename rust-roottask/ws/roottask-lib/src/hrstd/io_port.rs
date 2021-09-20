@@ -2,13 +2,13 @@ use crate::hedron::capability::{
     CapSel,
     CrdPortIO,
 };
+use crate::syscall::generic::{
+    PdCtrlSubSyscall,
+    SyscallStatus,
+};
 use crate::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
-};
-use crate::syscall::syscall::{
-    PdCtrlSubSyscall,
-    SyscallStatus,
 };
 
 /// Requests access to a single I/O port. It doesn't return a capability
