@@ -11,3 +11,4 @@ log = { version = "0.4.14", default-features = false }
 # mathematic operations, like sinus and logarithm
 libm = "0.2.1"
 x86 = "0.41.0"
+bitflags = "1.3"
