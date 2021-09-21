@@ -33,7 +33,7 @@ start:
     mov     rsp,    OFFSET stack_top
     mov     rbp,    OFFSET stack_top
 
-    jmp roottask_rust_entry
+    jmp     roottask_rust_entry
 
 
 .section .data
@@ -41,6 +41,7 @@ start:
 # TODO stack alignment?!
 .ALIGN 0x1000
 stack_bottom:
-    # zeroed 16KiB stack
-    .fill 0x4000, 1, 0
+    # zeroed 128KiB stack
+    # (repeat 0x20000 times to fill one zero byte)
+    .fill 0x20000, 1, 0
 stack_top:

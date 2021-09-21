@@ -35,11 +35,12 @@ impl GenericLogger {
         }
     }
 
-    /// Builds the formatted error message.
-    fn fmt_msg(record: &Record) -> ArrayString<256> {
-        // TODO once allocation works, make this dynamic?!
-        //  but think about fallbac kfor allocation errors; maybe we need to fallback to stack buffer
-        let mut buf = ArrayString::<256>::new();
+    /// Builds the formatted error message in a stack-allocated array.
+    /// Because we don't have nested logging, this is fine and cheap.
+    ///
+    /// Make sure that stack in `assembly.S` is big enough.
+    fn fmt_msg(record: &Record) -> ArrayString<4096> {
+        let mut buf = ArrayString::<4096>::new();
 
         let res = writeln!(
             &mut buf,
@@ -47,7 +48,7 @@ impl GenericLogger {
             record.level(),
             record
                 .file()
-                // remove full path
+                // remove full system path, only keep file path in project
                 .map(|f| {
                     let index = f.find("/src");
                     if let Some(index) = index {
@@ -63,6 +64,9 @@ impl GenericLogger {
             record.args()
         );
 
+        // TODO I think that we don't even come to this and some kernel
+        //  error happens for too small bufs..dafuq?!
+        // TODO fallback to allocated buffer?
         if res.is_err() {
             // this will work most probably, except
             // if we are out of stack memory for a recursive call
