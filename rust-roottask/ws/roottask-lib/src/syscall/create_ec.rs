@@ -1,5 +1,4 @@
-use crate::hedron::capability::CrdObjPT;
-use crate::hedron::event_base::EventBase;
+use crate::hedron::capability::CapSel;
 use crate::syscall::generic::SyscallNum::CreateEc;
 use crate::syscall::generic::{
     generic_syscall,
@@ -52,26 +51,28 @@ impl EcKind {
 ///
 /// # Parameters
 /// - `kind` see [`EcKind`]
+/// - `dest_cap_sel` A capability selector in the current PD that will point to the newly created EC.
+/// - `parent_pd_sel` A capability selector to a PD domain in which the new EC will execute in.
+/// - `stack_ptr` The initial stack pointer for normal ECs (local & global). Ignored for vCPUs.
+/// - `event_base` TODO wtf
+/// - `utcb_vlapic_page_num` A page number where the UTCB / vLAPIC page will be created. Page 0 means no vLAPIC page or UTCB is created.
 /// - `use_apic_access_page` Whether a vCPU should respect the APIC Access Page. Ignored for non-vCPUs or if no vLAPIC page is created.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
-/// - `dest_crd` A capability selector in the current PD that will point to the newly created EC.
-/// - `parent_pd` A capability selector to a PD domain in which the new EC will execute in.
-/// - `utcb_vlapic_page_num` A page number where the UTCB / vLAPIC page will be created. Page 0 means no vLAPIC page or UTCB is created.
-/// - `stack_ptr` The initial stack pointer for normal ECs. Ignored for vCPUs.
-/// - `event_base` See [`EventBase`].
 pub fn create_ec(
     kind: EcKind,
+    dest_cap_sel: CapSel,
+    parent_pd_sel: CapSel,
+    stack_ptr: u64,
+    event_base_sel: CapSel,
+    // this is Hedron-specific
+    utcb_vlapic_page_num: u64,
     use_apic_access_page: bool,
     use_page_destination: bool,
-    dest_crd: CrdObjPT,
-    parent_pd: CrdObjPT,
-    utcb_vlapic_page_num: u64,
-    stack_ptr: u64,
-    event_base: EventBase,
 ) -> Result<(), SyscallStatus> {
     let mut arg1 = 0;
-    arg1 |= CreateEc.val() as u64;
+    arg1 |= CreateEc.val();
     arg1 |= ((kind.val() as u64) << 4) & 0x30;
+
     // Ignored for non-vCPUs or if no vLAPIC page is created.
     if use_apic_access_page {
         arg1 |= 1 << 6;
@@ -79,13 +80,17 @@ pub fn create_ec(
     if use_page_destination {
         arg1 |= 1 << 7;
     }
-    arg1 |= dest_crd.val() << 8;
-    let arg2 = parent_pd.val();
+
+    arg1 |= dest_cap_sel << 8;
+
+    let arg2 = parent_pd_sel;
     // bits 0-11 are unused; needs to be zero
+    // TODO ask julian, in hedron this is cpu num
+    //  TODO PR aufmachen, das ist falsch von julian in der markdown datei geschrieben
     let mut arg3 = 0;
     arg3 |= utcb_vlapic_page_num << 12;
     let arg4 = stack_ptr;
-    let arg5 = event_base.val();
+    let arg5 = event_base_sel;
     unsafe {
         generic_syscall(arg1, arg2, arg3, arg4, arg5)
             .map(|_x| ())

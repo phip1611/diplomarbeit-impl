@@ -176,10 +176,7 @@ impl CapSelManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::hrstd::capability::{
-        CapSelManager,
-        CapSelRange,
-    };
+    use crate::hrstd::capability::CapSelManager;
 
     #[test]
     fn test_cap_sel_range() {

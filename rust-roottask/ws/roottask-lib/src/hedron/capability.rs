@@ -1,16 +1,20 @@
 use core::mem::transmute;
 
 /// Generic capability selector. Similar to a file
-/// descriptor in UNIX.
+/// descriptor in UNIX. It indexes into the capability
+/// space of the protection domain.
+///
+/// The application need to keep track what cap sel
+/// refers to what. Similar to `int cfg_file = open("foo.json")`.
 pub type CapSel = u64;
 
 pub type CrdMem = Crd<CrdTypeMem, ()>;
 pub type CrdPortIO = Crd<CrdTypePortIO, ()>;
-pub type CrdObjEC = Crd<CrdTypeMem, CrdTypeObjectEC>;
-pub type CrdObjSC = Crd<CrdTypeMem, CrdTypeObjectSC>;
-pub type CrdObjSM = Crd<CrdTypeMem, CrdTypeObjectSM>;
-pub type CrdObjPD = Crd<CrdTypeMem, CrdTypeObjectPD>;
-pub type CrdObjPT = Crd<CrdTypeMem, CrdTypeObjectPT>;
+pub type CrdObjEC = Crd<CrdTypeObject, CrdTypeObjectEC>;
+pub type CrdObjSC = Crd<CrdTypeObject, CrdTypeObjectSC>;
+pub type CrdObjSM = Crd<CrdTypeObject, CrdTypeObjectSM>;
+pub type CrdObjPD = Crd<CrdTypeObject, CrdTypeObjectPD>;
+pub type CrdObjPT = Crd<CrdTypeObject, CrdTypeObjectPT>;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]

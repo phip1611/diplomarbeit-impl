@@ -5,34 +5,51 @@ use crate::hedron::consts::{
     NUM_IOAPICS,
 };
 use crate::hedron::cpu::LapicInfo;
+use core::fmt::{
+    Debug,
+    Formatter,
+};
 
 /// Hypervisor Information Page.
-#[derive(Debug)]
 #[repr(C)]
 pub struct HIP {
+    /// A value of 0x41564f4e identified NOVA/Hedron.
     signature: u32,
+    /// The checksum is valid if 16bit-wise addition the HIP contents produces a value of 0
     checksum: u16,
+    /// Length of HIP in bytes. This includes all CPU and memory descriptors.
     length: u16,
-
+    /// Offset of first CPU descriptor in bytes. Relative to HIP base.
     cpu_offs: u16,
+    /// Size of one CPU descriptor in bytes.
     cpu_size: u16,
+
     ioapic_offs: u16,
     ioapic_size: u16,
 
+    /// Offset of first memory descriptor in bytes. Relative to HIP base.
     mem_offs: u16,
+    /// Size of one memory descriptor in bytes.
     mem_size: u16,
-    api_flg: u32,
 
+    api_flg: HipFeatureFlags,
+    /// API version number.
     api_ver: u32,
+    /// Number of available capability selectors in each object space. Specifying a capability selector
+    /// beyond the maximum number supported wraps around to the beginning of the object space.
     sel_num: u32,
 
-    sel_exc: u32,
-    sel_vmi: u32,
-
-    sel_gsi: u32,
+    /// Number of capability selectors used for exception handling
+    num_exc_sel: u32,
+    /// Number of capability selectors used for virtual-machine intercept handling
+    num_vmi_sel: u32,
+    /// Number of available global system interrupts selectors.
+    num_gsi_sel: u32,
+    /// If bit n is set, the implementation supports memory pages of size 2^n bytes.
     cfg_page: u32,
-
+    /// If bit n is set, the implementation supports UTCBs of size 2^n bytes.
     cfg_utcb: u32,
+    /// Time Stamp Counter Frequency in kHz.
     freq_tsc: u32,
 
     freq_bus: u32,
@@ -85,7 +102,7 @@ impl HIP {
     pub fn mem_size(&self) -> u16 {
         self.mem_size
     }
-    pub fn api_flg(&self) -> u32 {
+    pub fn api_flg(&self) -> HipFeatureFlags {
         self.api_flg
     }
     pub fn api_ver(&self) -> u32 {
@@ -94,14 +111,14 @@ impl HIP {
     pub fn sel_num(&self) -> u32 {
         self.sel_num
     }
-    pub fn sel_exc(&self) -> u32 {
-        self.sel_exc
+    pub fn num_exc_sel(&self) -> u32 {
+        self.num_exc_sel
     }
-    pub fn sel_vmi(&self) -> u32 {
-        self.sel_vmi
+    pub fn num_vmi_sel(&self) -> u32 {
+        self.num_vmi_sel
     }
-    pub fn sel_gsi(&self) -> u32 {
-        self.sel_gsi
+    pub fn num_gsi_sel(&self) -> u32 {
+        self.num_gsi_sel
     }
     pub fn cfg_page(&self) -> u32 {
         self.cfg_page
@@ -155,17 +172,55 @@ impl HIP {
     /// Returns the cap selector for the root PD.
     /// See spec pdf 6.1.2.3 Object Space
     pub fn root_pd(&self) -> CapSel {
-        self.sel_exc as u64 + 0
+        self.num_exc_sel as u64 + 0
     }
     /// Returns the cap selector for the root EC.
     /// See spec pdf 6.1.2.3 Object Space
     pub fn root_ec(&self) -> CapSel {
-        self.sel_exc as u64 + 1
+        self.num_exc_sel as u64 + 1
     }
     /// Returns the cap selector for the root SC.
     /// See spec pdf 6.1.2.3 Object Space
     pub fn root_sc(&self) -> CapSel {
-        self.sel_exc as u64 + 2
+        self.num_exc_sel as u64 + 2
+    }
+}
+
+impl Debug for HIP {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("HIP")
+            .field("signature", &self.signature)
+            .field("checksum", &self.checksum)
+            .field("length", &self.length)
+            .field("cpu_offs", &self.cpu_offs)
+            .field("cpu_size", &self.cpu_size)
+            .field("ioapic_offs", &self.ioapic_offs)
+            .field("ioapic_size", &self.ioapic_size)
+            .field("mem_offs", &self.mem_offs)
+            .field("mem_size", &self.mem_size)
+            .field("api_flg", &self.api_flg)
+            .field("api_ver", &self.api_ver)
+            .field("sel_num", &self.sel_num)
+            .field("sel_exc", &self.num_exc_sel)
+            .field("sel_vmi", &self.num_vmi_sel)
+            .field("sel_gsi", &self.num_gsi_sel)
+            .field("cfg_page", &self.cfg_page)
+            .field("cfg_utcb", &self.cfg_utcb)
+            .field("freq_tsc", &self.freq_tsc)
+            .field("freq_bus", &self.freq_bus)
+            .field("pci_bus_start", &self.pci_bus_start)
+            .field("mcfg_base", &self.mcfg_base)
+            .field("msfg_size", &self.msfg_size)
+            .field("dmar_tables", &self.dmar_tables)
+            .field("hpet_base", &self.hpet_base)
+            .field("cap_vmx_sec_exec", &self.cap_vmx_sec_exec)
+            .field("xsdt_rdst_table", &self.xsdt_rdst_table)
+            .field("pm1a_cnt", &self.pm1a_cnt)
+            .field("pm2b_cnt", &self.pm2b_cnt)
+            .field("cpu_desc", &"<cpu_desc array>")
+            .field("ioapic_desc", &"<ioapic_desc array>")
+            .field("mem_desc", &"<mem_desc array>")
+            .finish()
     }
 }
 
@@ -257,5 +312,16 @@ impl HipIoApic {
     }
     pub fn base(&self) -> u32 {
         self.base
+    }
+}
+
+bitflags::bitflags! {
+    pub struct HipFeatureFlags: u32 {
+        /// The platform provides an IOMMU and the feature has been activated.
+        const IOM = 1 << 0;
+        /// The platform supports Intel Virtual Machine Extension and the feature has been activated.
+        const VMX = 1 << 1;
+        /// The platform supports AMD Secure Virtual Machine, and the feature has been activated.
+        const SVM = 1 << 2;
     }
 }

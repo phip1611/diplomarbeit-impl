@@ -28,42 +28,58 @@
 // any global definitions required to be in assembly
 global_asm!(include_str!("assembly.S"));
 
+mod exception;
 mod logger;
 mod panic;
 mod roottask_alloc;
+mod roottask_dispatch;
 
 #[allow(unused_imports)]
 #[macro_use]
 extern crate alloc;
 
 use core::ptr;
-
 use roottask_lib::hedron::hip::HIP;
 use roottask_lib::hedron::utcb::UtcbData;
 
 // TODO warum geht aktuell noch kein floating point?! nur softfloat..
 
+
+
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let hip = &unsafe { ptr::read(hip_ptr as *const HIP) };
     let _utcb = &unsafe { ptr::read(utcb_ptr as *const UtcbData) };
-    let root_pd_cap_sel = hip.root_pd();
 
-    logger::init(root_pd_cap_sel);
+    logger::init(hip.root_pd());
     roottask_alloc::init();
 
-    // test: alloc works
+    log::trace!("trace log");
+    log::info!("info log");
+    log::debug!("debug log");
+    log::warn!("warn log");
+    log::error!("error log");
+
+    exception::init(hip);
+
+    // TODO kriege ein divided by zero error sobald ich in
+    /*let x = 5.1212 * 1414.2;
+    log::debug!("{}", x);*/
+
+
+
+    // trigger GPF
     {
-        let mut foo = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        log::info!("foo={:#?}", &foo);
-        for i in 0..10 {
-            log::info!("#{}", i);
-            foo.push(i * i);
+        unsafe {
+            x86::io::outb(0x0, 0);
         }
-        log::info!("foo2={:#?}", &foo);
     }
+
+
 
     log::info!("Rust Roottask started");
     panic!("SHHIIIIIT");
     loop {}
 }
+
+

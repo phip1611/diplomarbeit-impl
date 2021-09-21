@@ -88,6 +88,7 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
 }
 
 #[cfg(test)]
+#[allow(unused)]
 mod tests {
     use super::*;
     use alloc::vec::Vec;

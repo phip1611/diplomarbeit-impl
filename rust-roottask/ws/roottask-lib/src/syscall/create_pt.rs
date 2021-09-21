@@ -6,15 +6,22 @@ use crate::syscall::generic::{
     SyscallStatus,
 };
 
+/// Creates a new portal and attaches it to an EC.
+/// It is up to the caller to pass a new, yet unused capability selector.
+/// If the call is successful, the kernel will install this kernel object
+/// into the capability space of the PD.
 pub fn create_pt(
-    // according to spec, this must be 0?! wtf?!
-    // new_pt_cap_sel: CapSel,
+    // Must refer to a null capability
+    new_pt_cap_sel: CapSel,
+    // own PD or foreign PD - depends on use case
     own_pd_sel: CapSel,
+    // generally the new EC that you just created
     bound_ec_sel: CapSel,
+    // Function pointer. The function can take one argument.
+    // To specify the argument, see [`super::pt_ctrl::pt_ctrl`]
     instruction_pointer: *const u64,
     mtd: Mtd,
 ) -> Result<(), SyscallStatus> {
-    let new_pt_cap_sel = 0;
     let mut arg1 = 0;
     arg1 |= SyscallNum::CreatePt.val();
 

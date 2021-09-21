@@ -3,7 +3,7 @@ name = "roottask-bin"
 description = "See README.md"
 version = "0.1.0"
 authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
-edition = "2018"
+edition = "2021"
 publish = false # prevent accidentaly publishing
 
 [dependencies]
@@ -11,3 +11,10 @@ roottask-lib = { path = "../roottask-lib" }
 x86 = "0.41.0"
 log = { version = "0.4.14", default-features = false }
 arrayvec = { version = "0.7.1", default-features = false }
+
+
+[profile.dev]
+# Significantly reduces redicously high stack usage by the binary.
+# This led to long debugging sessions in memory bugs in the portal exception handler,
+# until I figured out, it is caused by a stack memory overrun.
+opt-level = 1
