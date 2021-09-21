@@ -44,7 +44,7 @@ main() {
         "2"
 
         "-cpu"
-        "qemu64,+xsave,+fsgsbase"
+        "IvyBridge"
 
         # Multiboot1 kernel
         "-kernel"
@@ -54,6 +54,9 @@ main() {
         "-initrd"
         "${ROOTTASK}"
 
+        # I use this for logging files that survive
+        # a QEMU shutdown or crash. Log keeps
+        # persistent until the next run.
         "-debugcon"
         "file:qemu_debugcon.txt"
 
