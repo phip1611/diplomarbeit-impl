@@ -34,3 +34,4 @@ pub mod hedron;
 pub mod hrstd;
 pub mod hw;
 pub mod syscall;
+pub mod util;

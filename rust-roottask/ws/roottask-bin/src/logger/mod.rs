@@ -3,6 +3,7 @@ use crate::logger::serial::SerialLogger;
 use arrayvec::ArrayString;
 use core::fmt::Write;
 use log::{
+    Level,
     LevelFilter,
     Log,
     Metadata,
@@ -10,6 +11,11 @@ use log::{
 };
 use roottask_lib::hedron::capability::CapSel;
 use roottask_lib::hrstd::sync::mutex::SimpleMutex;
+use roottask_lib::util::ansi::{
+    AnsiStyle,
+    Color,
+    TextStyle,
+};
 
 mod debugcon;
 mod serial;
@@ -42,26 +48,47 @@ impl GenericLogger {
     fn fmt_msg(record: &Record) -> ArrayString<4096> {
         let mut buf = ArrayString::<4096>::new();
 
+        // "TRACE", " INFO", "ERROR"...
+        let mut level = ArrayString::<5>::new();
+        level
+            .write_fmt(format_args!("{:>5}", record.level().as_str()))
+            .unwrap();
+
+        // file name: origin of logging msg
+        let file = record
+            .file()
+            // remove full system path, only keep file path in project
+            .map(|f| {
+                let index = f.find("/src");
+                if let Some(index) = index {
+                    // skip slash
+                    let index = index + 1;
+                    &f[index..]
+                } else {
+                    f
+                }
+            })
+            .unwrap_or("<unknown file>");
+        let file_style = AnsiStyle::new().msg(file).text_style(TextStyle::Dimmed);
+
+        let mut line = ArrayString::<5>::new();
+        line.write_fmt(format_args!("{}", record.line().unwrap_or(0)))
+            .unwrap();
+        let line_style = AnsiStyle::new()
+            .msg(line.as_str())
+            .text_style(TextStyle::Dimmed);
+
         let res = writeln!(
             &mut buf,
-            "[{:>5}] {:>15}@{}: {}",
-            record.level(),
-            record
-                .file()
-                // remove full system path, only keep file path in project
-                .map(|f| {
-                    let index = f.find("/src");
-                    if let Some(index) = index {
-                        // skip slash
-                        let index = index + 1;
-                        &f[index..]
-                    } else {
-                        f
-                    }
-                })
-                .unwrap_or("<unknown file>"),
-            record.line().unwrap_or(0),
-            record.args()
+            "[{level:>5}] {file:>15}{at_sign}{line}{double_point} {msg}",
+            // level is padded to 5 chars and right-aligned
+            // style around
+            level = Self::style_for_level(record.level()).msg(level.as_str()),
+            file = file_style,
+            at_sign = AnsiStyle::new().text_style(TextStyle::Dimmed).msg("@"),
+            line = line_style,
+            double_point = AnsiStyle::new().text_style(TextStyle::Bold).msg(":"),
+            msg = record.args(),
         );
 
         // TODO I think that we don't even come to this and some kernel
@@ -74,6 +101,21 @@ impl GenericLogger {
         }
 
         buf
+    }
+
+    /// Gets the style for "DEBUG", "ERROR" etc.
+    fn style_for_level<'a>(level: Level) -> AnsiStyle<'a> {
+        match level {
+            Level::Error => AnsiStyle::new()
+                .text_style(TextStyle::Bold)
+                .foreground_color(Color::Red),
+            Level::Warn => AnsiStyle::new()
+                .text_style(TextStyle::Bold)
+                .foreground_color(Color::Yellow),
+            Level::Info => AnsiStyle::new().foreground_color(Color::Green),
+            Level::Debug => AnsiStyle::new().foreground_color(Color::Yellow),
+            Level::Trace => AnsiStyle::new().foreground_color(Color::Green),
+        }
     }
 
     /// Activates the logger backend.
