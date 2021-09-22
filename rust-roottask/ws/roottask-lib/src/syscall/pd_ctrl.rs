@@ -19,10 +19,14 @@ pub struct DelegateFlags(u64);
 
 impl DelegateFlags {
     /// # Parameters
+    /// - `host`
+    /// - `device`
+    /// - `guest`
+    /// - `hypervisor` Only valid in roottask, silently ignored otherwise. Means "take cap from kern".
     /// - `hotspot` A hotspot is used to disambiguate send and receive windows for
     ///             delegations. The hotspot carries additional information for some types
     ///             of mappings as well.
-    pub fn new(host: bool, guest: bool, device: bool, hypervisor: bool, hotspot: u64) -> Self {
+    pub fn new(host: bool, device: bool, guest: bool, hypervisor: bool, hotspot: u64) -> Self {
         let mut base = 0;
         // refers to Typed Item Kind "Delegate"
         // "Translate" (0x0) will eventually be removed. Therefore we hard-code this bit here.
@@ -31,11 +35,11 @@ impl DelegateFlags {
         if host {
             base |= 1 << 8;
         }
-        if guest {
-            base |= 1 << 10;
-        }
         if device {
             base |= 1 << 9;
+        }
+        if guest {
+            base |= 1 << 10;
         }
         if hypervisor {
             base |= 1 << 11;

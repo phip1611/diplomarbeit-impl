@@ -4,6 +4,7 @@ use crate::syscall::generic::{
     generic_syscall,
     SyscallStatus,
 };
+use crate::hedron::consts::NUM_CPUS;
 
 /// Kind of an EC. Bits 4-5 in ARG1 of syscall.
 #[derive(Copy, Clone, Debug)]
@@ -51,10 +52,12 @@ impl EcKind {
 ///
 /// # Parameters
 /// - `kind` see [`EcKind`]
-/// - `dest_cap_sel` A capability selector in the current PD that will point to the newly created EC.
-/// - `parent_pd_sel` A capability selector to a PD domain in which the new EC will execute in.
-/// - `stack_ptr` The initial stack pointer for normal ECs (local & global). Ignored for vCPUs.
-/// - `event_base` TODO wtf
+/// - `dest_cap_sel`   A capability selector in the current PD that will point to the newly created EC.
+/// - `parent_pd_sel`  A capability selector to a PD domain in which the new EC will execute in.
+/// - `stack_ptr`      The initial stack pointer for normal ECs (local & global). Ignored for vCPUs.
+/// - `event_base_sel` The base selector for events. Base for event offsets like [`roottask_lib::hedron::event_offset::ExceptionEventOffset`]
+///                    in the capability space of the corresponding PD.
+/// - `cpu_num`        Number of CPU (ECs are CPU local). 0 to 63 (maximum supported CPU count by Hedron)
 /// - `utcb_vlapic_page_num` A page number where the UTCB / vLAPIC page will be created. Page 0 means no vLAPIC page or UTCB is created.
 /// - `use_apic_access_page` Whether a vCPU should respect the APIC Access Page. Ignored for non-vCPUs or if no vLAPIC page is created.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
@@ -64,6 +67,7 @@ pub fn create_ec(
     parent_pd_sel: CapSel,
     stack_ptr: u64,
     event_base_sel: CapSel,
+    cpu_num: u64,
     // this is Hedron-specific
     utcb_vlapic_page_num: u64,
     use_apic_access_page: bool,
@@ -80,17 +84,22 @@ pub fn create_ec(
     if use_page_destination {
         arg1 |= 1 << 7;
     }
-
     arg1 |= dest_cap_sel << 8;
 
     let arg2 = parent_pd_sel;
-    // bits 0-11 are unused; needs to be zero
-    // TODO ask julian, in hedron this is cpu num
-    //  TODO PR aufmachen, das ist falsch von julian in der markdown datei geschrieben
+
     let mut arg3 = 0;
+    // CPU 0 to 63 (the maximum supported CPU count)
+    if arg3 > NUM_CPUS as u64 {
+        log::warn!("Hedron supports CPUs 0..{}, you requested {}", NUM_CPUS - 1, cpu_num);
+    }
+    arg3 |= cpu_num & 0xfff;
     arg3 |= utcb_vlapic_page_num << 12;
+
     let arg4 = stack_ptr;
+
     let arg5 = event_base_sel;
+
     unsafe {
         generic_syscall(arg1, arg2, arg3, arg4, arg5)
             .map(|_x| ())

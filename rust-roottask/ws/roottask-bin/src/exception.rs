@@ -42,6 +42,7 @@ pub fn init(hip: &HIP) {
         stack_top,
         ROOT_EXC_EVENT_BASE,
         0,
+        0,
         false,
         false,
     )
