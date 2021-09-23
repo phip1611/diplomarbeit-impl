@@ -44,8 +44,6 @@ use roottask_lib::hedron::utcb::UtcbData;
 
 // TODO warum geht aktuell noch kein floating point?! nur softfloat..
 
-
-
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let hip = &unsafe { ptr::read(hip_ptr as *const HIP) };
@@ -66,8 +64,6 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     /*let x = 5.1212 * 1414.2;
     log::debug!("{}", x);*/
 
-
-
     // trigger GPF
     {
         unsafe {
@@ -75,11 +71,7 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
         }
     }
 
-
-
     log::info!("Rust Roottask started");
     panic!("SHHIIIIIT");
     loop {}
 }
-
-

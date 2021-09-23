@@ -8,8 +8,8 @@
 //! - vmx intercepts (for virtual CPUs)  [not required for my work/thesis]
 //! - svm intercepts                     [not required for my work/thesis]
 
-use enum_iterator::IntoEnumIterator;
 use core::convert::TryFrom;
+use enum_iterator::IntoEnumIterator;
 
 /// Offsets from event base for x86 exceptions.
 /// See https://wiki.osdev.org/Exceptions

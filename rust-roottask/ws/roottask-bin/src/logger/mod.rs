@@ -50,9 +50,7 @@ impl GenericLogger {
 
         // "TRACE", " INFO", "ERROR"...
         let mut level = ArrayString::<5>::new();
-        level
-            .write_fmt(format_args!("{:>5}", record.level().as_str()))
-            .unwrap();
+        write!(&mut level, "{:>5}", record.level().as_str()).unwrap();
 
         // file name: origin of logging msg
         let file = record
@@ -72,8 +70,7 @@ impl GenericLogger {
         let file_style = AnsiStyle::new().msg(file).text_style(TextStyle::Dimmed);
 
         let mut line = ArrayString::<5>::new();
-        line.write_fmt(format_args!("{}", record.line().unwrap_or(0)))
-            .unwrap();
+        write!(&mut line, "{}", record.line().unwrap_or(0)).unwrap();
         let line_style = AnsiStyle::new()
             .msg(line.as_str())
             .text_style(TextStyle::Dimmed);

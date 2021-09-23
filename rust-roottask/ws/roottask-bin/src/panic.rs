@@ -5,22 +5,52 @@ use core::sync::atomic::{
     compiler_fence,
     Ordering,
 };
+use roottask_lib::util::ansi::{
+    AnsiStyle,
+    Color,
+    TextStyle,
+};
 
 /// Formats a nice panic message.
 fn generate_panic_msg(info: &PanicInfo) -> ArrayString<1024> {
     let mut buf = arrayvec::ArrayString::<1024>::new();
     // if this is an error, we ignore it. It would most probably mean, that the message
-    // was only created partly.
-    let _ = writeln!(
-        &mut buf,
-        "PANIC in {}@{}:{}: {:#?}",
+    // was only created partly, i.e. the buffer was too small.
+
+    // formats "src/exception.rs"
+    let mut file_fmt = ArrayString::<128>::new();
+    let _ = write!(
+        &mut file_fmt,
+        "{}",
         info.location()
             .map(|l| l.file())
-            .unwrap_or("<Unknown File>"),
+            .unwrap_or("<Unknown File>")
+    );
+
+    // formats "@14:4:"
+    let mut file_location_fmt = ArrayString::<16>::new();
+    let _ = write!(
+        &mut file_location_fmt,
+        "@{}:{}:",
         info.location().map(|l| l.line()).unwrap_or(0),
-        info.location().map(|l| l.column()).unwrap_or(0),
-        info.message().unwrap_or(&format_args!("")),
-        // info.payload(),
+        info.location().map(|l| l.column()).unwrap_or(0)
+    );
+
+    // format the panic message
+    let _ = writeln!(
+        &mut buf,
+        "{panic} in {filename}{filelocation} {msg:#?}",
+        panic = AnsiStyle::new()
+            .msg("PANIC")
+            .foreground_color(Color::Red)
+            .text_style(TextStyle::Bold),
+        filename = AnsiStyle::new()
+            .msg(file_fmt.as_str())
+            .foreground_color(Color::Blue),
+        filelocation = AnsiStyle::new()
+            .msg(file_location_fmt.as_str())
+            .text_style(TextStyle::Dimmed),
+        msg = info.message().unwrap_or(&format_args!("<none>")),
     );
     buf
 }

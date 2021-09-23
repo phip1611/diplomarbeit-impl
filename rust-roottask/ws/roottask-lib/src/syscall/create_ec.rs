@@ -1,10 +1,10 @@
 use crate::hedron::capability::CapSel;
+use crate::hedron::consts::NUM_CPUS;
 use crate::syscall::generic::SyscallNum::CreateEc;
 use crate::syscall::generic::{
     generic_syscall,
     SyscallStatus,
 };
-use crate::hedron::consts::NUM_CPUS;
 
 /// Kind of an EC. Bits 4-5 in ARG1 of syscall.
 #[derive(Copy, Clone, Debug)]
@@ -91,7 +91,11 @@ pub fn create_ec(
     let mut arg3 = 0;
     // CPU 0 to 63 (the maximum supported CPU count)
     if arg3 > NUM_CPUS as u64 {
-        log::warn!("Hedron supports CPUs 0..{}, you requested {}", NUM_CPUS - 1, cpu_num);
+        log::warn!(
+            "Hedron supports CPUs 0..{}, you requested {}",
+            NUM_CPUS - 1,
+            cpu_num
+        );
     }
     arg3 |= cpu_num & 0xfff;
     arg3 |= utcb_vlapic_page_num << 12;

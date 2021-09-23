@@ -15,12 +15,28 @@ use roottask_lib::syscall::create_ec::{
 };
 use roottask_lib::syscall::create_pt::create_pt;
 use roottask_lib::syscall::pt_ctrl::pt_ctrl;
+use roottask_lib::util::ansi::{
+    AnsiStyle,
+    Color,
+    TextStyle,
+};
 
 /// Used as stack for the callback function. Must be either mutable or
 /// manually placed in a writeable section in the file. Otherwise we get
 /// a page fault.
-// #[link_section = ".data"]
-static mut CALLBACK_STACK: [u8; 4096] = [0; 4096];
+///
+/// **Note:** There is no guard page protection below or above the stack.
+///           May lead to weird memory corruptions.
+///
+/// **Size:** Exception handler relies on panic and logging. Both require
+///           1024 respectively 4096 bytes of stack for the formatting of the message.
+///           Therefore, with 8KiB we are safe. Also note please: In Cargo.toml
+///           I wrote that the opt-level is 1 for dev-builds. This significantly
+///           reduces stack usage by Rust. Without it, even stacks that seem large
+///           enough lead to memory corruptions.
+///
+// #[link_section = ".data"] (=rw) with "static VARNAME" or "static mut"
+static mut CALLBACK_STACK: [u8; 8096] = [0; 8096];
 
 /// Initializes a local EC and N portals to cover N exceptions.
 /// All exceptions are considered as unrecoverable in this roottask.
@@ -85,11 +101,9 @@ pub fn init(hip: &HIP) {
             let mut msg = ArrayString::<128>::from("created PT for exception=").unwrap();
             let exc = ExceptionEventOffset::try_from(excp_offset as u64);
             if let Ok(exc) = exc {
-                msg.write_fmt(format_args!("{:?}({})", exc, excp_offset))
-                    .unwrap();
+                write!(&mut msg, "{:?}({})", exc, excp_offset).unwrap();
             } else {
-                msg.write_fmt(format_args!("Unknown({:?})", excp_offset))
-                    .unwrap();
+                write!(&mut msg, "Unknown({:?})", excp_offset).unwrap();
             }
             log::info!("{}", msg);
         }
@@ -97,10 +111,18 @@ pub fn init(hip: &HIP) {
 }
 
 /// General exception handler for all x86 exceptions that can happen.
-/// The handler aborts the program if an exception occurs.
+/// The handler aborts the program if an exception occurs. Panics the Rust program.
 fn general_exception_handler(id: u64) -> ! {
     let id = ExceptionEventOffset::try_from(id).unwrap();
-    panic!("Mayday, caught exception id={:?} - aborting program", id);
+    let mut buf = ArrayString::<32>::new();
+    write!(&mut buf, "{:#?}", id).unwrap();
+    panic!(
+        "Mayday, caught exception id={} - aborting program",
+        AnsiStyle::new()
+            .foreground_color(Color::Red)
+            .text_style(TextStyle::Bold)
+            .msg(buf.as_str())
+    );
 
     // entweder return mit reply syscall
     // oder panic => game over

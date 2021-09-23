@@ -38,7 +38,8 @@ start:
 
 .section .data
 
-# TODO stack alignment?!
+# Note: There is no guard page protection below or above the stack.
+#       May lead to weird memory corruptions.
 .ALIGN 0x1000
 stack_bottom:
     # zeroed 128KiB stack

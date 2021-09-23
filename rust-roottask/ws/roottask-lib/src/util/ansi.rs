@@ -156,17 +156,17 @@ impl<'a> Display for AnsiStyle<'a> {
         // we need the options because otherwise the default values
         // for unset properties reset us all styles
         if let Some(st) = self.text_style.get() {
-            f.write_fmt(format_args!("{}", st))?;
+            write!(f, "{}", st)?;
         }
         if let Some(st) = self.foreground_color.get() {
-            f.write_fmt(format_args!("{}", st))?;
+            write!(f, "{}", st)?;
         }
         if let Some(st) = self.background_color.get() {
-            f.write_fmt(format_args!("{}", st))?;
+            write!(f, "{}", st)?;
         }
-        f.write_str(self.msg.get())?;
-        // resets everything, not only colors
-        f.write_fmt(format_args!("{}", Colored::Reset))
+        // actual message is wrapped by ANSI sequences
+        write!(f, "{}", self.msg.get())?;
+        write!(f, "{}", Colored::Reset)
     }
 }
 
