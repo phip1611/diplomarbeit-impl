@@ -33,6 +33,7 @@ mod logger;
 mod panic;
 mod roottask_alloc;
 mod roottask_dispatch;
+mod stack;
 
 #[allow(unused_imports)]
 #[macro_use]

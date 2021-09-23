@@ -10,7 +10,7 @@
 .code64
 
 .global start
-.extern roottask_rust_entry
+.extern roottask_rust_entry ROOTTASK_STACK_TOP_PTR
 
 # always produce x-bit x86 code (even if this would be compiled to an ELF-32 file)
 .code64
@@ -29,20 +29,11 @@ start:
     lea     rsi,    [rsp - 0x1000]
 
     # set up stack
-    # OFFSET is like "moveabs" in AT&T syntax
-    mov     rsp,    OFFSET stack_top
-    mov     rbp,    OFFSET stack_top
+    # symbol ROOTTASK_STACK_TOP is the pointer to the stack top
+    # => therefore no "OFFSET" (movabs)
+    # => instead it loads the value from the address of ROOTTASK_STACK_TOP_PTR,
+    #    where the stack pointer stands
+    mov     rsp,    ROOTTASK_STACK_TOP_PTR
+    mov     rbp,    ROOTTASK_STACK_TOP_PTR
 
     jmp     roottask_rust_entry
-
-
-.section .data
-
-# Note: There is no guard page protection below or above the stack.
-#       May lead to weird memory corruptions.
-.ALIGN 0x1000
-stack_bottom:
-    # zeroed 128KiB stack
-    # (repeat 0x20000 times to fill one zero byte)
-    .fill 0x20000, 1, 0
-stack_top:
