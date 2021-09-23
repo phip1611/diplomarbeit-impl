@@ -28,7 +28,16 @@ pub enum ExceptionEventOffset {
     BR = 0x05,
     /// Invalid Opcode
     UD = 0x06,
-    /// Device Not Available
+    /// Device Not Available.
+    /// The Device Not Available exception occurs when an FPU
+    /// instruction is attempted but there is no FPU. This is not
+    /// likely, as modern processors have built-in FPUs. However,
+    /// there are flags in the CR0 register that disable the
+    /// FPU/MMX/SSE instructions, causing this exception when they
+    /// are attempted. This feature is useful because the operating
+    /// system can detect when a user program uses the FPU or XMM
+    /// registers and then save/restore them appropriately when
+    /// multitasking.
     NM = 0x07,
     /// Double Fault.
     DF = 0x08,
