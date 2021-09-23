@@ -1,4 +1,5 @@
 use core::mem::transmute;
+use core::marker::PhantomData;
 
 /// Generic capability selector. Similar to a file
 /// descriptor in UNIX. It indexes into the capability
@@ -8,14 +9,28 @@ use core::mem::transmute;
 /// refers to what. Similar to `int cfg_file = open("foo.json")`.
 pub type CapSel = u64;
 
+/// CRD used in situations where capabilities are referred in general inside
+/// the capability space of a PD.
+///
+/// Used when creating PDs. See [`create_pd`]
+pub type CrdGeneric = Crd<(), ()>;
+/// CRD used to refer to memory capabilities.
 pub type CrdMem = Crd<CrdTypeMem, ()>;
+/// CRD used to refer to x86 Port I/O capabilities.
 pub type CrdPortIO = Crd<CrdTypePortIO, ()>;
+/// CRD used to refer to capabilities for EC objects.
 pub type CrdObjEC = Crd<CrdTypeObject, CrdTypeObjectEC>;
+/// CRD used to refer to capabilities for SC objects.
 pub type CrdObjSC = Crd<CrdTypeObject, CrdTypeObjectSC>;
+/// CRD used to refer to capabilities for SM objects.
 pub type CrdObjSM = Crd<CrdTypeObject, CrdTypeObjectSM>;
+/// CRD used to refer to capabilities for PD objects.
 pub type CrdObjPD = Crd<CrdTypeObject, CrdTypeObjectPD>;
+/// CRD used to refer to capabilities for PT objects.
 pub type CrdObjPT = Crd<CrdTypeObject, CrdTypeObjectPT>;
 
+/// Defines the kind of capabilities inside the capability
+/// space of a PD inside the kernel.
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum CrdKind {
@@ -31,8 +46,8 @@ pub enum CrdKind {
 pub struct Crd<Specialization, ObjectSpecialization> {
     val: u64,
     // zero size type; gone after compilation
-    _zst1: Specialization,
-    _zst2: ObjectSpecialization,
+    _zst1: PhantomData<Specialization>,
+    _zst2: PhantomData<ObjectSpecialization>,
 }
 
 /// Enables specialisation for generic [`Crd`].
@@ -70,6 +85,21 @@ impl<Specialization, ObjectSpecialization> Crd<Specialization, ObjectSpecializat
     const PERMISSIONS_BITMASK: u64 = 0b111_1000_0000;
     const PERMISSIONS_LEFT_SHIFT: u64 = 2;
 
+    /// Used to create generic Crds. Only use this if really necessary.
+    /// Better use a more type-safe version.
+    pub fn new_generic(kind: u64, base: u64, order: u64, permissions: u64) -> Self {
+        let mut this = 0;
+        this |= kind & 0b11;
+        this |= (base << Self::BASE_LEFT_SHIFT) & Self::BASE_BITMASK;
+        this |= (order << Self::ORDER_LEFT_SHIFT) & Self::ORDER_BITMASK;
+        this |= (permissions << Self::PERMISSIONS_LEFT_SHIFT) & Self::PERMISSIONS_BITMASK;
+        Self {
+            val: this,
+            _zst1: PhantomData::default(),
+            _zst2: PhantomData::default(),
+        }
+    }
+
     pub fn val(self) -> u64 {
         self.val
     }
@@ -80,13 +110,17 @@ impl<Specialization, ObjectSpecialization> Crd<Specialization, ObjectSpecializat
         }
     }
     pub fn order(self) -> u8 {
-        ((self.val & Self::ORDER_BITMASK) >> 7) as u8
+        ((self.val & Self::ORDER_BITMASK) >> Self::ORDER_LEFT_SHIFT) as u8
     }
+
     pub fn base(self) -> u16 {
-        ((self.val & Self::BASE_BITMASK) >> 12) as u16
+        ((self.val & Self::BASE_BITMASK) >> Self::BASE_LEFT_SHIFT) as u16
     }
-    fn gen_permissions(self) -> u8 {
-        ((self.val & Self::PERMISSIONS_BITMASK) >> 2) as u8
+
+    /// Returns the generic permissions, i.e. untyped.
+    /// Better use a type-safe approach.
+    pub fn gen_permissions(self) -> u8 {
+        ((self.val & Self::PERMISSIONS_BITMASK) >> Self::PERMISSIONS_LEFT_SHIFT) as u8
     }
 }
 
@@ -106,8 +140,8 @@ impl CrdPortIO {
         Self {
             val: base,
             // phantom data, not needed
-            _zst1: CrdTypePortIO,
-            _zst2: (),
+            _zst1: PhantomData::<CrdTypePortIO>::default(),
+            _zst2: PhantomData::default(),
         }
     }
 
