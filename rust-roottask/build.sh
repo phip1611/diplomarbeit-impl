@@ -13,4 +13,6 @@ cd "./ws" || exit
 ./build-cargo-fake-workspace.sh
 cd ..
 
-ln -sf "./ws/roottask-bin/target/x86_64-unknown-hedron/debug/roottask-bin" . || exit
+# BUILD_TYPE=release
+BUILD_TYPE=debug
+ln -sf "./ws/roottask-bin/target/x86_64-unknown-hedron/${BUILD_TYPE}/roottask-bin" . || exit
