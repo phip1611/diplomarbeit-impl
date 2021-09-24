@@ -2,7 +2,6 @@
 
 use crate::hedron::capability::{
     CapSel,
-    Crd,
     CrdGeneric,
 };
 use crate::syscall::generic::{
@@ -51,8 +50,8 @@ pub fn create_pt(
         arg1 |= 1 << 4;
     }
     arg1 |= cap_sel << 8;
-    let mut arg2 = parent_pd_sel;
-    let mut arg3 = crd.val();
+    let arg2 = parent_pd_sel;
+    let arg3 = crd.val();
     unsafe {
         generic_syscall(arg1, arg2, arg3, 0, 0)
             .map(|_x| ())

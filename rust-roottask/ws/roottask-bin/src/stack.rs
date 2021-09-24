@@ -1,6 +1,5 @@
 //! Initial stack for the roottask. References in `assembly.S`.
 
-use core::mem::transmute;
 use roottask_lib::stack::{
     StaticStack,
     TrustedStackPtr,

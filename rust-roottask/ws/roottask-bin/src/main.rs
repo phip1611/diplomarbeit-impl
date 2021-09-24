@@ -42,6 +42,7 @@ extern crate alloc;
 use core::ptr;
 use roottask_lib::hedron::hip::HIP;
 use roottask_lib::hedron::utcb::UtcbData;
+use stack::ROOTTASK_STACK_TOP_PTR;
 
 // TODO warum geht aktuell noch kein floating point?! nur softfloat..
 
@@ -61,16 +62,29 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
 
     exception::init(hip);
 
-    // TODO kriege ein divided by zero error sobald ich in
-    /*let x = 5.1212 * 1414.2;
+    log::info!("stack_ptr: 0x{:x}", ROOTTASK_STACK_TOP_PTR.val());
+
+    /*// TODO kriege ein divided by zero error sobald ich softfloat deaktiviere
+    let x = 5.1212 * 1414.2;
     log::debug!("{}", x);*/
 
-    // trigger GPF
+    /* test: floating point + SSE registers work
+    let x = 2.0;
+    let y = core::f32::consts::PI;
+    let _z = x * y;
+    */
+
+    /* test: trigger devided by zero exception
     {
+        unsafe { asm!("mov rax, 5", "mov rdi, 0", "div rax, rdi") }
+    }*/
+
+    // test: trigger GPF
+    /*{
         unsafe {
             x86::io::outb(0x0, 0);
         }
-    }
+    }*/
 
     log::info!("Rust Roottask started");
     panic!("SHHIIIIIT");

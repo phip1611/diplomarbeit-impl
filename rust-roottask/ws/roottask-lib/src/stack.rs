@@ -3,14 +3,21 @@
 //! assembler code and the linker script.
 
 use crate::hrstd::sync::mutex::SimpleMutex;
-use core::cell::Cell;
 
 /// Size of a page on x86_64.
 const PAGE_SIZE: usize = 4096;
 
-/// SSE feature requires 128 byte stack alignment on x86_64.
+/// SSE feature requires 128 bit/16 byte stack alignment on x86_64.
+/// In the spec I found instructions, such as movaps, that also want
+/// 64-byte alignments for 512 bit registers. Therefore, I picked the
+/// lowest, save alignment value, which is 64.
 /// This value is save for all kinds of scenarios/used features.
-const STACK_ALIGNMENT: usize = 128;
+const STACK_ALIGNMENT: usize = 64;
+
+/// TODO ask julian how I should describe this
+/// This offset is required so that instructions such as movaps have the
+/// desired [`STACK_ALIGNMENT`] at the load address they are referring to.
+const ALIGNMENT_LOAD_OFFSET: usize = 8;
 
 /// Used to trick Rusts type system to use a const pointer in a global static variable.
 #[derive(Copy, Clone, Debug)]
@@ -35,7 +42,6 @@ unsafe impl Sync for TrustedStackPtr {}
 pub struct Page([u8; PAGE_SIZE]);
 
 impl Page {
-
     /// Constructor.
     pub const fn new() -> Self {
         Self([0; PAGE_SIZE])
@@ -94,7 +100,6 @@ pub struct StaticStack<const PAGE_NUM: usize> {
 }
 
 impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
-
     pub const fn new() -> Self {
         Self {
             guard_page: Page::new(),
@@ -125,7 +130,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
         // => good base to calculate actual stack top; see comments on method above
         let ptr = unsafe { self.data.as_ptr().add(PAGE_NUM) };
         let ptr = ptr as *const u8;
-        unsafe {ptr.sub(STACK_ALIGNMENT) }
+        unsafe { ptr.sub(STACK_ALIGNMENT).add(ALIGNMENT_LOAD_OFFSET) }
     }
 
     pub const fn get_stack_btm_ptr(&self) -> *const u8 {
@@ -147,13 +152,14 @@ mod tests {
     #[test]
     fn test_stack() {
         let ptr = TEST_STACK.get_stack_top_ptr();
-        println!(
-            "stack_top {:#?}",
-            ptr
+        println!("stack_top {:#?}", ptr);
+        assert_eq!(
+            (ptr as usize - ALIGNMENT_LOAD_OFFSET) % STACK_ALIGNMENT,
+            0,
+            "stack must be {} byte aligned",
+            STACK_ALIGNMENT
         );
-        assert_eq!(ptr as usize % STACK_ALIGNMENT, 0, "stack must be 128 byte aligned");
 
-        let trusted_stack_ptr = TrustedStackPtr::new(ptr);
-
+        let _trusted_stack_ptr = TrustedStackPtr::new(ptr);
     }
 }

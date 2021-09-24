@@ -93,6 +93,7 @@ impl<'a> ChunkAllocator<'a> {
     ///
     /// # Parameters
     /// - `borrowed_lock` Option; prevents nested locking (i.e. deadlock)
+    #[allow(unused)]
     fn bitmap_indices_to_chunk_index(&self, bitmap_index: usize, bit: usize) -> usize {
         let chunk_index = bitmap_index * 8 + bit;
         assert!(

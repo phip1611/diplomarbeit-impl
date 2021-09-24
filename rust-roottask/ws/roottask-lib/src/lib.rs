@@ -33,6 +33,6 @@ extern crate alloc;
 pub mod hedron;
 pub mod hrstd;
 pub mod hw;
+pub mod stack;
 pub mod syscall;
 pub mod util;
-pub mod stack;
