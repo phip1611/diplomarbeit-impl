@@ -14,9 +14,15 @@ const PAGE_SIZE: usize = 4096;
 /// This value is save for all kinds of scenarios/used features.
 const STACK_ALIGNMENT: usize = 64;
 
-/// TODO ask julian how I should describe this
-/// This offset is required so that instructions such as `movaps` have the
-/// desired [`STACK_ALIGNMENT`] at the load address they are referring to.
+/// The stack of a typical function has a 8 byte return address and a
+/// 8 byte frame pointer. After that, the first stack variable follows.
+///
+/// Therefore, one should optimize the stack in a way, that the very
+/// first stack argument has a alignment of [`STACK_ALIGNMENT`] bytes.
+/// Because a function pushes its framepointer itself, we are at a point
+/// that the stack pointer has to be 8 bytes off the alignment.
+///
+/// Without this, instructions such as `movaps` fail.
 const ALIGNMENT_LOAD_OFFSET: usize = 8;
 
 /// Used to trick Rusts type system to store a const pointer in a global static variable.
