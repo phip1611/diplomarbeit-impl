@@ -15,11 +15,13 @@ const PAGE_SIZE: usize = 4096;
 const STACK_ALIGNMENT: usize = 64;
 
 /// TODO ask julian how I should describe this
-/// This offset is required so that instructions such as movaps have the
+/// This offset is required so that instructions such as `movaps` have the
 /// desired [`STACK_ALIGNMENT`] at the load address they are referring to.
 const ALIGNMENT_LOAD_OFFSET: usize = 8;
 
-/// Used to trick Rusts type system to use a const pointer in a global static variable.
+/// Used to trick Rusts type system to store a const pointer in a global static variable.
+/// The type is transparent, which means the pointer can be easily read from assembly as
+/// it would be a regular u64 value.
 #[derive(Copy, Clone, Debug)]
 #[repr(transparent)]
 pub struct TrustedStackPtr(*const u8);
