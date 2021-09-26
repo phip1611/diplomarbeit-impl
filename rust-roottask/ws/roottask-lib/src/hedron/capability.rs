@@ -13,25 +13,25 @@ pub type CapSel = u64;
 /// the capability space of a PD.
 ///
 /// Used when creating PDs. See [`create_pd`]
-pub type CrdGeneric = Crd<(), ()>;
-/// CRD used to refer to memory capabilities.
-pub type CrdMem = Crd<CrdTypeMem, ()>;
+pub type CrdGeneric = Crd<(), (), ()>;
+/// CRD used to refer to memory (page) capabilities.
+pub type CrdMem = Crd<MemCapPermissions, CrdTypeMem, ()>;
 /// CRD used to refer to x86 Port I/O capabilities.
-pub type CrdPortIO = Crd<CrdTypePortIO, ()>;
+pub type CrdPortIO = Crd<PortIOCapPermissions, CrdTypePortIO, ()>;
 /// CRD used to refer to capabilities for EC objects.
-pub type CrdObjEC = Crd<CrdTypeObject, CrdTypeObjectEC>;
+pub type CrdObjEC = Crd<ECCapPermissions, CrdTypeObject, CrdTypeObjectEC>;
 /// CRD used to refer to capabilities for SC objects.
-pub type CrdObjSC = Crd<CrdTypeObject, CrdTypeObjectSC>;
+pub type CrdObjSC = Crd<SCCapPermissions, CrdTypeObject, CrdTypeObjectSC>;
 /// CRD used to refer to capabilities for SM objects.
-pub type CrdObjSM = Crd<CrdTypeObject, CrdTypeObjectSM>;
+pub type CrdObjSM = Crd<SMCapPermissions, CrdTypeObject, CrdTypeObjectSM>;
 /// CRD used to refer to capabilities for PD objects.
-pub type CrdObjPD = Crd<CrdTypeObject, CrdTypeObjectPD>;
+pub type CrdObjPD = Crd<PDCapPermissions, CrdTypeObject, CrdTypeObjectPD>;
 /// CRD used to refer to capabilities for PT objects.
-pub type CrdObjPT = Crd<CrdTypeObject, CrdTypeObjectPT>;
+pub type CrdObjPT = Crd<PTCapPermissions, CrdTypeObject, CrdTypeObjectPT>;
 
 /// Defines the kind of capabilities inside the capability
 /// space of a PD inside the kernel.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, IntoEnumIterator)]
 #[repr(u8)]
 pub enum CrdKind {
     NullCrd = 0,
@@ -40,14 +40,36 @@ pub enum CrdKind {
     ObjectCrd = 3,
 }
 
+impl CrdKind {
+    /// Returns the raw unsigned integer value.
+    pub fn val(self) -> u8 {
+        self as u8
+    }
+}
+
+impl From<u8> for CrdKind {
+    /// Creates a CrdKind from an unsigned integer value.
+    /// Panics if value is invalid.
+    fn from(val: u8) -> Self {
+        // generated during compile time; probably not recognized by IDE
+        for variant in Self::into_enum_iter() {
+            if variant.val() == val {
+                return variant;
+            }
+        }
+        panic!("invalid variant! id={}", val);
+    }
+}
+
 /// Abstraction over different CRD versions.
 /// Don't use directly. The size of this type is 8 byte.
 #[derive(Debug, Copy, Clone)]
-pub struct Crd<Specialization, ObjectSpecialization> {
+pub struct Crd<Permissions, Specialization, ObjectSpecialization> {
     val: u64,
     // zero size type; gone after compilation
-    _zst1: PhantomData<Specialization>,
-    _zst2: PhantomData<ObjectSpecialization>,
+    _zst1: PhantomData<Permissions>,
+    _zst2: PhantomData<Specialization>,
+    _zst3: PhantomData<ObjectSpecialization>,
 }
 
 /// Enables specialisation for generic [`Crd`].
@@ -76,7 +98,7 @@ pub struct CrdTypeObjectSC;
 pub struct CrdTypeObjectEC;
 
 // generic/common/shared implementation accross all Crds
-impl<Specialization, ObjectSpecialization> Crd<Specialization, ObjectSpecialization> {
+impl<Permissions, Specialization, ObjectSpecialization> Crd<Permissions, Specialization, ObjectSpecialization> {
     const KIND_BITMASK: u64 = 0b11;
     const BASE_BITMASK: u64 = 0b111100;
     const BASE_LEFT_SHIFT: u64 = 12;
@@ -87,7 +109,7 @@ impl<Specialization, ObjectSpecialization> Crd<Specialization, ObjectSpecializat
 
     /// Used to create generic Crds. Only use this if really necessary.
     /// Better use a more type-safe version.
-    pub fn new_generic(kind: u64, base: u64, order: u64, permissions: u64) -> Self {
+    pub fn new_generic(kind: CrdKind, base: u64, order: u64, permissions: u64) -> Self {
         let mut this = 0;
         this |= kind & 0b11;
         this |= (base << Self::BASE_LEFT_SHIFT) & Self::BASE_BITMASK;
@@ -97,12 +119,16 @@ impl<Specialization, ObjectSpecialization> Crd<Specialization, ObjectSpecializat
             val: this,
             _zst1: PhantomData::default(),
             _zst2: PhantomData::default(),
+            _zst3: PhantomData::default(),
         }
     }
 
+    /// Returns the encoded u64 CRC. This is used as transfer type to the kernel. All properties
+    /// are encoded at their corresponding bitshift-offset.
     pub fn val(self) -> u64 {
         self.val
     }
+    /// Returns the kind
     pub fn kind(self) -> CrdKind {
         unsafe {
             // CrdKind is represented as u8, therefore valid
@@ -126,159 +152,137 @@ impl<Specialization, ObjectSpecialization> Crd<Specialization, ObjectSpecializat
 
 impl CrdMem {
     pub fn permissions(self) -> MemCapPermissions {
-        MemCapPermissions(self.gen_permissions())
+        MemCapPermissions::from_bits(self.gen_permissions()).unwrap()
     }
 }
 
 impl CrdPortIO {
+    /// Creates the CRC to request read/write access to one or more I/O ports.
     pub fn new(port: u16, order: u16) -> Self {
         let mut base = 0_u64;
         base |= CrdKind::PortIoCrd as u64 & Self::KIND_BITMASK;
-        base |= (PortIOCapPermissions::new(true).val() as u64) << Self::PERMISSIONS_LEFT_SHIFT;
+        // todo should this ever be initialized to false? Maybe for cap revoke?!
+        base |= (PortIOCapPermissions::READ_WRITE.bits() as u64) << Self::PERMISSIONS_LEFT_SHIFT;
         base |= (port as u64) << Self::BASE_LEFT_SHIFT;
         base |= (order as u64) << Self::ORDER_LEFT_SHIFT;
         Self {
             val: base,
             // phantom data, not needed
-            _zst1: PhantomData::<CrdTypePortIO>::default(),
-            _zst2: PhantomData::default(),
+            _zst1: PhantomData::default(),
+            _zst2: PhantomData::<CrdTypePortIO>::default(),
+            _zst3: PhantomData::default(),
         }
     }
 
+    /// Creates the CRC to request read/write access to one or more I/O ports.
     pub fn permissions(self) -> PortIOCapPermissions {
-        PortIOCapPermissions(self.gen_permissions())
+        PortIOCapPermissions::from_bits(self.gen_permissions()).unwrap()
     }
 }
 
 impl CrdObjPD {
     /// Permission specific to ObjectSpecialization
     pub fn permissions(self) -> PDCapPermissions {
-        PDCapPermissions(self.gen_permissions())
+        PDCapPermissions::from_bits(self.gen_permissions()).unwrap()
     }
 }
 
 impl CrdObjSM {
     /// Permission specific to ObjectSpecialization
     pub fn permissions(self) -> SMCapPermissions {
-        SMCapPermissions(self.gen_permissions())
+        SMCapPermissions::from_bits(self.gen_permissions()).unwrap()
     }
 }
 
 impl CrdObjEC {
     /// Permission specific to ObjectSpecialization
     pub fn permissions(self) -> ECCapPermissions {
-        ECCapPermissions(self.gen_permissions())
+        ECCapPermissions::from_bits(self.gen_permissions()).unwrap()
     }
 }
 
 impl CrdObjSC {
     /// Permission specific to ObjectSpecialization
     pub fn permissions(self) -> SCCapPermissions {
-        SCCapPermissions(self.gen_permissions())
+        SCCapPermissions::from_bits(self.gen_permissions()).unwrap()
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct MemCapPermissions(u8);
-impl MemCapPermissions {
-    pub fn read(self) -> bool {
-        (self.0 & (1 << 0)) != 0
-    }
-    pub fn write(self) -> bool {
-        (self.0 & (1 << 1)) != 0
-    }
-    pub fn execute(self) -> bool {
-        (self.0 & (1 << 2)) != 0
-    }
+/// Helper macro for bits.
+macro_rules! bit {
+    ($num: literal) => {1 << $num};
 }
-#[derive(Debug, Copy, Clone)]
-pub struct PortIOCapPermissions(u8);
-impl PortIOCapPermissions {
-    pub fn new(can_read_write: bool) -> Self {
-        let mut base = 0;
-        if can_read_write {
-            base |= 1;
-        }
-        Self(base)
-    }
-    pub fn read_write(self) -> bool {
-        (self.0 & 1) != 0
-    }
-    pub fn val(self) -> u8 {
-        self.0
+
+bitflags::bitflags! {
+    /// Permissions of a capability for a memory page.
+    pub struct MemCapPermissions: u8 {
+        const READ = bit!(0);
+        const WRITE = bit!(1);
+        const EXECUTE = bit!(2);
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct PDCapPermissions(u8);
-impl PDCapPermissions {
-    pub fn pd(self) -> bool {
-        (self.0 & (1 << 0)) != 0
-    }
-    pub fn ec(self) -> bool {
-        (self.0 & (1 << 1)) != 0
-    }
-    pub fn sc(self) -> bool {
-        (self.0 & (1 << 2)) != 0
-    }
-    pub fn pt(self) -> bool {
-        (self.0 & (1 << 3)) != 0
-    }
-    pub fn sm(self) -> bool {
-        (self.0 & (1 << 4)) != 0
+bitflags::bitflags! {
+    /// Permissions of a capability for a x86 I/O port.
+    pub struct PortIOCapPermissions: u8 {
+        const READ_WRITE = bit!(0);
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct ECCapPermissions(u8);
-impl ECCapPermissions {
-    /// If `ec_ctrl` is set, the `ec_ctrl` system call is permitted.
-    pub fn ec_ctrl(self) -> bool {
-        (self.0 & (1 << 0)) != 0
-    }
-    /// If `create_sc` is set, `create_sc` is allowed to bind a scheduling context.
-    pub fn create_sc(self) -> bool {
-        (self.0 & (1 << 2)) != 0
-    }
-    /// if `create_pt` is set, `create_pt` can bind a portal.
-    pub fn create_pt(self) -> bool {
-        (self.0 & (1 << 3)) != 0
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct SCCapPermissions(u8);
-impl SCCapPermissions {
-    /// If `sc_ctrl` is set, the `sc_ctrl` system call is permitted.
-    pub fn sc_ctrl(self) -> bool {
-        (self.0 & (1 << 0)) != 0
+bitflags::bitflags! {
+    /// Permissions of a capability for a `PD` object.
+    pub struct PDCapPermissions: u8 {
+        /// The target PD can execute the `create_pd`-syscall.
+        const CREATE_PD = bit!(0);
+        /// The target PD can execute the `create_ec`-syscall.
+        const CREATE_EC = bit!(1);
+        /// The target PD can execute the `create_sc`-syscall.
+        const CREATE_SC = bit!(2);
+        /// The target PD can execute the `create_pt`-syscall.
+        const CREATE_PT = bit!(3);
+        /// The target PD can execute the `create_sm`-syscall.
+        const CREATE_SM = bit!(4);
     }
 }
 
-/// Portal permissions.
-#[derive(Debug, Copy, Clone)]
-pub struct PTCapPermissions(u8);
-impl PTCapPermissions {
-    /// If `pt_ctrl` is set, the `pt_ctrl` system call is permitted.
-    pub fn pt_ctrl(self) -> bool {
-        (self.0 & (1 << 0)) != 0
-    }
-    /// If `call` is set, the portal can be traversed using `call`.
-    pub fn call(self) -> bool {
-        (self.0 & (1 << 1)) != 0
+bitflags::bitflags! {
+    /// Permissions of a capability for a `EC` object.
+    pub struct ECCapPermissions: u8 {
+        /// The target PD can execute the `ec_ctrl`-syscall.
+        const EC_CTRL = bit!(0);
+        /// The target PD can execute the `create_sc`-syscall.
+        const CREATE_SC = bit!(2);
+        /// The target PD can execute the `create_pt`-syscall.
+        const CREATE_PT = bit!(3);
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct SMCapPermissions(u8);
-impl SMCapPermissions {
-    /// If `up` is set, the `sm_ctrl` system call is permitted to do an "up" operation.
-    pub fn up(self) -> bool {
-        (self.0 & (1 << 0)) != 0
+bitflags::bitflags! {
+    /// Permissions of a capability for a `SC` object.
+    pub struct SCCapPermissions: u8 {
+        /// The target PD can execute the `sm_ctrl`-syscall.
+        const SM_CTRL = bit!(0);
     }
-    /// If `down` is set, the `sm_ctrl` system call is permitted to do a "down" operation.
-    pub fn down(self) -> bool {
-        (self.0 & (1 << 1)) != 0
+}
+
+bitflags::bitflags! {
+    /// Permissions of a capability for a `PT` object.
+    pub struct PTCapPermissions: u8 {
+        /// The target PD can execute the `pt_ctrl`-syscall.
+        const PT_CTRL = bit!(0);
+        /// The target PD can execute the `pt_ctrl`-syscall.
+        const CALL = bit!(1);
+    }
+}
+
+
+bitflags::bitflags! {
+    /// Permissions of a capability for a `SM` object.
+    pub struct SMCapPermissions: u8 {
+        /// The target PD can execute the `UP`-operation via the `sm_ctrl`-syscall.
+        const UP = bit!(0);
+        /// The target PD can execute the `DOWN`-operation via the `sm_ctrl`-syscall.
+        const DOWN = bit!(1);
     }
 }
 
@@ -301,5 +305,9 @@ mod tests {
         assert_eq!(8, size_of::<CrdObjPT>());
         assert_eq!(8, size_of::<CrdObjEC>());
         assert_eq!(8, size_of::<CrdObjSC>());
+    }
+
+    fn test_bits() {
+
     }
 }
