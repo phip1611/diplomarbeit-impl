@@ -52,14 +52,11 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let _utcb = &unsafe { ptr::read(utcb_ptr as *const UtcbData) };
 
     logger::init(hip.root_pd());
+    // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
+    // log::info!("guard-page inactive");
+    stack::init(hip);
+    // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
     roottask_alloc::init();
-
-    log::trace!("trace log");
-    log::info!("info log");
-    log::debug!("debug log");
-    log::warn!("warn log");
-    log::error!("error log");
-
     exception::init(hip);
 
     log::info!("stack_ptr: 0x{:x}", ROOTTASK_STACK_TOP_PTR.val());
@@ -80,11 +77,11 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     }*/
 
     // test: trigger GPF
-    {
+    /*{
         unsafe {
             x86::io::outb(0x0, 0);
         }
-    }
+    }*/
 
     log::info!("Rust Roottask started");
     panic!("SHHIIIIIT");

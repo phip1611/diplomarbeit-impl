@@ -2,7 +2,9 @@
 //! because it reduces distribution of responsibility/functionality across Rust code,
 //! assembler code and the linker script.
 
-use crate::hrstd::sync::mutex::SimpleMutex;
+use crate::syscall::pd_ctrl::{pd_ctrl_delegate, DelegateFlags};
+use crate::syscall::generic::PdCtrlSubSyscall;
+use crate::hedron::capability::{CapSel, MemCapPermissions, CrdMem};
 
 /// Size of a page on x86_64.
 const PAGE_SIZE: usize = 4096;
@@ -101,10 +103,6 @@ pub struct StaticStack<const PAGE_NUM: usize> {
     guard_page: Page,
     /// The stack itself.
     data: [Page; PAGE_NUM],
-    /// Property which shall be used to tell the stack that the guard page
-    /// is unmapped or not longer readable, i.e. a stack overflow results in
-    /// page fault.
-    guard_page_activated: SimpleMutex<bool>,
 }
 
 impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
@@ -112,7 +110,6 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
         Self {
             guard_page: Page::new(),
             data: [Page::new(); PAGE_NUM],
-            guard_page_activated: SimpleMutex::new(false),
         }
     }
 
@@ -148,6 +145,42 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
     /// Returns a reference to the memory representing the guard page.
     pub const fn get_guard_page(&self) -> &Page {
         &self.guard_page
+    }
+
+    /// Marks the guard page as unmapped by performing a syscall
+    /// and revoking the rights of this page.
+    ///
+    /// Must provide the capability selector for this protection domain.
+    pub unsafe fn activate_guard_page(&self, pd_sel: CapSel) {
+        // CRD for exactly one single page
+        let crd = CrdMem::new(
+            self.get_guard_page().get_num() as u64,
+            0,
+            MemCapPermissions::empty(),
+        );
+        pd_ctrl_delegate(
+            PdCtrlSubSyscall::PdCtrlDelegate,
+            pd_sel,
+            pd_sel,
+            crd,
+            // ignored here I think
+            crd,
+            DelegateFlags::new(false, false, false, true, 0),
+        )
+            .unwrap();
+    }
+
+    /// TEST/Debug method.
+    /// Performs a read and a write operation on the guard page.
+    /// If this doesn't result in a general protection fault,
+    /// the guard page is not active yet.
+    #[allow(unused)]
+    pub unsafe fn test_rw_guard_page(&self) -> u8 {
+        let ptr = self.guard_page.get_ptr() as *mut u8;
+        let val = *ptr;
+        let mut ptr = ptr.add(1);
+        *ptr = 0xff;
+        val
     }
 }
 

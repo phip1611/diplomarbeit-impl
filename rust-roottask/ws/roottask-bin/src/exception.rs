@@ -60,7 +60,10 @@ pub fn init(hip: &HIP) {
     )
     .unwrap();
 
-    log::info!("created local ec for exception handling");
+    unsafe {
+        CALLBACK_STACK.activate_guard_page(hip.root_pd());
+    }
+    log::info!("created local ec for exception handling; guard page is active");
 
     // I iterate here over all available/reserved capability selectors for exceptionss.
     // This is relative to the event base selector. For the roottask/root protection domain,

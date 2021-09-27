@@ -53,10 +53,11 @@ impl DelegateFlags {
         self.0
     }
 
-    pub fn typ(self) -> bool {
+    // legacy; always true
+    /*pub fn typ(self) -> bool {
         // taken from kernel-interface.md
         true
-    }
+    }*/
 
     /// Mapping needs to go into (0) / not into (1) host page table. Only valid for memory and I/O delegations.
     pub fn host(self) -> bool {
@@ -85,19 +86,23 @@ impl DelegateFlags {
 }
 
 /// System call `pd_ctrl_delegate` transfers memory, port I/O and object capabilities
-/// from one protection domain to another. It allows the same
-/// functionality as rights delegation via IPC.
+/// from one protection domain to another. It allows the same functionality as rights
+/// delegation via IPC.
 ///
 /// For memory delegations, the CRD controls the type of the _destination_
 /// page table. The source of delegations is always the source PD's host
 /// page table.
+///
+/// # Parameters
+/// - `source_crd` A [`Crd`] range descriptor describing the send window in the source PD.
+/// - `dest_crd` A [`Crd`] describing the receive window in the destination PD.
 pub fn pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     sub_syscall: PdCtrlSubSyscall,
     source_pd: CapSel,
     dest_pd: CapSel,
     source_crd: Crd<Perm, Spec, ObjSpec>,
-    flags: DelegateFlags,
     dest_crd: Crd<Perm, Spec, ObjSpec>,
+    flags: DelegateFlags,
 ) -> Result<(), SyscallStatus> {
     const SYSCALL_BITMASK: u64 = 0xf;
     const SUB_SYSCALL_BITMASK: u64 = 0x30;

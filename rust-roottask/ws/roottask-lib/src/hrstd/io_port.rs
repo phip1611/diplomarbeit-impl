@@ -24,7 +24,7 @@ pub fn request_io_ports(pd: CapSel, io_capsel: CrdPortIO) -> Result<(), SyscallS
         pd,
         pd,
         io_capsel,
-        DelegateFlags::new(false, false, false, true, 0),
         io_capsel,
+        DelegateFlags::new(false, false, false, true, 0),
     )
 }
