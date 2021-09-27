@@ -11,7 +11,10 @@ set -e
 
 # make sure that this copy is up-to-date!
 HEDRON=/tftpboot/hypervisor.elf32
-ROOTTASK=./roottask-bin
+
+ROOTTASK=./build/roottask-bin_debug.elf
+# all the other Rust binaries that get loaded by the Roottask
+HEDRON_USERLAND=./build/hedron-userland_debug.tar
 
 #########################################################################
 # nice "hack" which make the script work, even if not executed from "./"
@@ -50,9 +53,10 @@ main() {
         "-kernel"
         "${HEDRON}"
 
-        # QEMU passes this as Multiboot1 Module to Hedron
+        # QEMU passes this as Multiboot1 Modules to Hedron. Multiple modules are separated
+        # by a comma. The text after the path is the "cmdline" string of the boot module.
         "-initrd"
-        "${ROOTTASK}"
+        "${ROOTTASK} roottask,${HEDRON_USERLAND} userland"
 
         # I use this for logging files that survive
         # a QEMU shutdown or crash. Log keeps

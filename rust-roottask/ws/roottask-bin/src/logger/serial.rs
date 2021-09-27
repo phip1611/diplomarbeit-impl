@@ -1,15 +1,15 @@
 //! Serial logger.
 
-use roottask_lib::hedron::capability::{
+use libhrstd::capability::{
     CapSel,
     CrdPortIO,
 };
-use roottask_lib::hrstd::io_port::request_io_ports;
-use roottask_lib::hw::serial_port::{
+use libroottask::hw::serial_port::{
     init_serial,
     snd_serial,
     COM1_IO_PORT,
 };
+use libroottask::io_port::request_io_ports;
 
 /// Logger that uses I/O port 0x3f8. See serial_port.rs.
 #[derive(Debug)]

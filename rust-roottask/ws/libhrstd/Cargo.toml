@@ -1,0 +1,13 @@
+[package]
+name = "libhrstd"
+description = "Hedron Rust Standard Library. The generic part of the runtime system itself and utilities to interact with it. Enables Hedron-native applications."
+version = "0.1.0"
+authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
+edition = "2021"
+publish = false # prevent accidentaly publishing
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libhedron = { path = "../libhedron" }
+log = { version = "0.4.14", default-features = false }

@@ -1,7 +1,7 @@
 //! Relevant information and constants when the kernel initially gives control
 //! to the root task.
 
-use roottask_lib::hedron::capability::CapSel;
+use libhrstd::capability::CapSel;
 
 /// The root task has 0 as event selector base. This means, initially
 /// capability selectors 0..32 refer to a null capability, but can be used

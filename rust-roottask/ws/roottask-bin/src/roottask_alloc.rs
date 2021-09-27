@@ -1,8 +1,8 @@
 //! Allocator for the roottask.
 
 use core::alloc::Layout;
-use roottask_lib::hrstd::allocator::chunk::ChunkAllocator;
-use roottask_lib::hrstd::allocator::static_chunk::GlobalStaticChunkAllocator;
+use libhrstd::allocator::chunk::ChunkAllocator;
+use libhrstd::allocator::static_chunk::GlobalStaticChunkAllocator;
 
 /// 2 MiB
 const HEAPSIZE: usize = 1024 * 8 * ChunkAllocator::CHUNK_SIZE;

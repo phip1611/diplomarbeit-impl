@@ -40,11 +40,9 @@ mod stack;
 extern crate alloc;
 
 use core::ptr;
-use roottask_lib::hedron::hip::HIP;
-use roottask_lib::hedron::utcb::UtcbData;
+use libhrstd::hip::HIP;
+use libhrstd::utcb::UtcbData;
 use stack::ROOTTASK_STACK_TOP_PTR;
-
-// TODO warum geht aktuell noch kein floating point?! nur softfloat..
 
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {

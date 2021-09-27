@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Builds and tests all crates. Copies all binaries into "./build".
+
 set -e
 
 #########################################################################
@@ -8,11 +10,69 @@ DIR=$(dirname "$(realpath "$0")")
 cd "$DIR" || exit
 #########################################################################
 
+function fn_main() {
+    fn_build_ws
+    fn_link_binaries_to_build_dir
+    fn_runtime_environment_tarball
+}
 
-cd "./ws" || exit
-./build-cargo-fake-workspace.sh
-cd ..
+function fn_build_ws() {
+    cd "./ws" || exit
+    ./build-cargo-fake-workspace.sh
+    cd ..
+}
 
-# BUILD_TYPE=release
-BUILD_TYPE=debug
-ln -sf "./ws/roottask-bin/target/x86_64-unknown-hedron/${BUILD_TYPE}/roottask-bin" . || exit
+function fn_link_binaries_to_build_dir() {
+    rm -rf "./build"
+
+    SEARCH_DEBUG_FILES=$(find . -maxdepth 6 -type f ! -path . | grep "x86_64-unknown-hedron/debug")
+    SEARCH_RELEASE_FILES=$(find . -maxdepth 6 -type f ! -path . | grep "x86_64-unknown-hedron/release")
+
+    mkdir -p "./build"
+
+    for FILE in $SEARCH_DEBUG_FILES
+    do
+        if file "$FILE" | grep "executable" > /dev/null
+        then
+            NAME=$(basename "$FILE")
+            echo "$NAME now in './build/${NAME}_debug.elf'"
+            # ln -fs "$FILE" "./build/${NAME}_release.elf"
+            # we have to copy; QEMUs "-initrd" doesn't work with links
+            cp "$FILE" "./build/${NAME}_debug.elf"
+        fi
+    done
+
+    for FILE in $SEARCH_RELEASE_FILES
+    do
+        if file "$FILE" | grep "executable" > /dev/null
+        then
+            NAME=$(basename "$FILE")
+            echo "$NAME now in './build/${NAME}_release.elf'"
+            # ln -fs "$FILE" "./build/${NAME}_release.elf"
+            # we have to copy; QEMUs "-initrd" doesn't work with links
+            cp "$FILE" "./build/${NAME}_release.elf"
+        fi
+    done
+}
+
+# Builds the whole runtime environment into a tarball.
+# This means all executables in ./build except the roottask.
+function fn_runtime_environment_tarball() {
+    # debug
+    (
+        cd "./build" || exit
+        # space separated string
+        HRSTD_RT_DEBUG_FILES=$(find . -name "*.elf" ! -path . | grep "_debug" | grep -v "roottask" | tr '\r\n' ' ')
+        tar cfv "hedron-userland_debug.tar" $HRSTD_RT_DEBUG_FILES
+    )
+
+    # release
+    (
+        cd "./build" || exit
+        # space separated string
+        HRSTD_RT_RELEASE_FILES=$(find . -name "*.elf" ! -path . | grep "_release" | grep -v "roottask" | tr '\r\n' ' ')
+        tar cfv "hedron-userland_release.tar" $HRSTD_RT_RELEASE_FILES
+    )
+}
+
+fn_main

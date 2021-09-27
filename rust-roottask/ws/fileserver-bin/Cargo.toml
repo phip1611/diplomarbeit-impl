@@ -1,0 +1,11 @@
+[package]
+name = "fileserver-bin"
+description = "All functionality of the roottask that should be testable. Only required by the roottask."
+version = "0.1.0"
+authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
+edition = "2021"
+publish = false # prevent accidentaly publishing
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

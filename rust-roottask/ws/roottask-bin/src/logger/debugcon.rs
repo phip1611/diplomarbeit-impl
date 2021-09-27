@@ -1,5 +1,5 @@
-use roottask_lib::hedron::capability::CapSel;
-use roottask_lib::hrstd::io_port::request_io_port;
+use libhrstd::capability::CapSel;
+use libroottask::io_port::request_io_port;
 use x86::io::outb;
 
 /// Logger that uses I/O port 0xe9.

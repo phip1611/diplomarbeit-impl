@@ -1,7 +1,7 @@
 //! Initial stack for the roottask. References in `assembly.S`.
 
-use roottask_lib::hedron::hip::HIP;
-use roottask_lib::stack::{
+use libhrstd::hip::HIP;
+use libroottask::stack::{
     StaticStack,
     TrustedStackPtr,
 };
@@ -9,11 +9,7 @@ use roottask_lib::stack::{
 /// Marks the guard-page of the corresponding [`StaticStack`] as not
 /// read- and writeable, i.e. not present. Performs a syscall for that.
 pub fn init(hip: &HIP) {
-    unsafe {
-        ROOTTASK_STACK.activate_guard_page(
-            hip.root_pd(),
-        )
-    }
+    unsafe { ROOTTASK_STACK.activate_guard_page(hip.root_pd()) }
     log::debug!("guard page for root task stack is active!");
 }
 

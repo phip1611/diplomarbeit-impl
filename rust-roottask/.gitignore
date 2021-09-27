@@ -1,6 +1,6 @@
 .idea
 .vscode
 
-/roottask-bin
+/build
 
 qemu_debugcon.txt

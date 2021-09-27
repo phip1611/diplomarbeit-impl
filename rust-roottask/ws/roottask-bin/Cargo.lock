@@ -47,10 +47,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "libhedron"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "enum-iterator",
+]
+
+[[package]]
+name = "libhrstd"
+version = "0.1.0"
+dependencies = [
+ "libhedron",
+ "log",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
+
+[[package]]
+name = "libroottask"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "enum-iterator",
+ "libhedron",
+ "libm",
+ "log",
+ "x86",
+]
 
 [[package]]
 name = "log"
@@ -93,18 +121,8 @@ name = "roottask-bin"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
- "log",
- "roottask-lib",
- "x86",
-]
-
-[[package]]
-name = "roottask-lib"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "enum-iterator",
- "libm",
+ "libhrstd",
+ "libroottask",
  "log",
  "x86",
 ]

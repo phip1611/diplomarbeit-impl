@@ -1,0 +1,11 @@
+[package]
+name = "libfileserver"
+description = "The userspace API to interact with the file server app. Enables native Hedron apps to interact with the file system."
+version = "0.1.0"
+authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
+edition = "2021"
+publish = false # prevent accidentaly publishing
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

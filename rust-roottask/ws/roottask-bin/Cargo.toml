@@ -1,13 +1,16 @@
 [package]
 name = "roottask-bin"
-description = "See README.md"
+description = "The roottask that initialized the hrstd, the Hedron Rust Standard Environment."
 version = "0.1.0"
 authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
 edition = "2021"
 publish = false # prevent accidentaly publishing
 
 [dependencies]
-roottask-lib = { path = "../roottask-lib" }
+libhrstd = { path = "../libhrstd" }
+libroottask = { path = "../libroottask" }
+
+
 x86 = "0.41.0"
 log = { version = "0.4.14", default-features = false }
 arrayvec = { version = "0.7.1", default-features = false }

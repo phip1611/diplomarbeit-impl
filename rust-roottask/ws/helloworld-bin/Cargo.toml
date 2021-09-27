@@ -1,0 +1,11 @@
+[package]
+name = "helloworld-bin"
+description = "A native Hedron app that runs on top of hrstd and works as testing playground."
+version = "0.1.0"
+authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
+edition = "2021"
+publish = false # prevent accidentaly publishing
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

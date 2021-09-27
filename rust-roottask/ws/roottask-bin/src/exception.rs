@@ -3,24 +3,23 @@
 
 use crate::roottask_dispatch::ROOT_EXC_EVENT_BASE;
 use arrayvec::ArrayString;
-use core::convert::TryFrom;
 use core::fmt::Write;
-use roottask_lib::hedron::capability::CapSel;
-use roottask_lib::hedron::event_offset::ExceptionEventOffset;
-use roottask_lib::hedron::hip::HIP;
-use roottask_lib::hedron::mtd::Mtd;
-use roottask_lib::stack::StaticStack;
-use roottask_lib::syscall::create_ec::{
+use libhrstd::capability::CapSel;
+use libhrstd::event_offset::ExceptionEventOffset;
+use libhrstd::hip::HIP;
+use libhrstd::mtd::Mtd;
+use libhrstd::syscall::create_ec::{
     create_ec,
     EcKind,
 };
-use roottask_lib::syscall::create_pt::create_pt;
-use roottask_lib::syscall::pt_ctrl::pt_ctrl;
-use roottask_lib::util::ansi::{
+use libhrstd::syscall::create_pt::create_pt;
+use libhrstd::syscall::pt_ctrl::pt_ctrl;
+use libhrstd::util::ansi::{
     AnsiStyle,
     Color,
     TextStyle,
 };
+use libroottask::stack::StaticStack;
 
 /// Used as stack for the exception handler callback function. Must be either mutable
 /// or manually placed in a writeable section in the file. Otherwise we get a page fault.
