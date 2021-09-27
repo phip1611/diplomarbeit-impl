@@ -91,18 +91,18 @@ impl DelegateFlags {
 /// For memory delegations, the CRD controls the type of the _destination_
 /// page table. The source of delegations is always the source PD's host
 /// page table.
-pub fn pd_ctrl_delegate<Spec, ObjSpec>(
+pub fn pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     sub_syscall: PdCtrlSubSyscall,
     source_pd: CapSel,
     dest_pd: CapSel,
-    source_crd: Crd<Spec, ObjSpec>,
+    source_crd: Crd<Perm, Spec, ObjSpec>,
     flags: DelegateFlags,
-    dest_crd: Crd<Spec, ObjSpec>,
+    dest_crd: Crd<Perm, Spec, ObjSpec>,
 ) -> Result<(), SyscallStatus> {
     const SYSCALL_BITMASK: u64 = 0xf;
     const SUB_SYSCALL_BITMASK: u64 = 0x30;
     const SUB_SYSCALL_BITSHIFT: u64 = 4;
-    const SOURCE_PD_BITMASK: u64 = 0xffffffffffffff00;
+    const SOURCE_PD_BITMASK: u64 = !0xff;
     const SOURCE_PD_BITSHIFT: u64 = 8;
 
     let mut arg1 = 0;

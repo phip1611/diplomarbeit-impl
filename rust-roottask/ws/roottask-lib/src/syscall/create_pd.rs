@@ -2,7 +2,7 @@
 
 use crate::hedron::capability::{
     CapSel,
-    CrdGeneric,
+    CrdNull,
 };
 use crate::syscall::generic::{
     generic_syscall,
@@ -36,13 +36,11 @@ use crate::syscall::generic::{
 /// - `has_passthrough_access` see description above
 /// - `dest_cap_sel` Free capability selector in callers capability space
 /// - `parent_pd_sel` The capability selector of the parent protection domain (e.g. root task)
-/// - `crd` Generic
 ///
 pub fn create_pt(
     passthrough_access: bool,
     cap_sel: CapSel,
     parent_pd_sel: CapSel,
-    crd: CrdGeneric,
 ) -> Result<(), SyscallStatus> {
     let mut arg1 = 0;
     arg1 |= SyscallNum::CreatePd.val() & 0xf;
@@ -51,7 +49,10 @@ pub fn create_pt(
     }
     arg1 |= cap_sel << 8;
     let arg2 = parent_pd_sel;
-    let arg3 = crd.val();
+    // arg3 is poorly described in spec. What kind of capabilities should be delegated initially?
+    // Object ones, memory ones, ..?
+    // Since we have a dedicated pd_ctrl#delegate syscall, it is recommended to use that instead
+    let arg3 = CrdNull::default().val();
     unsafe {
         generic_syscall(arg1, arg2, arg3, 0, 0)
             .map(|_x| ())
