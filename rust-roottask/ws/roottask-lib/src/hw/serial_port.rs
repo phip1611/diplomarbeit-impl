@@ -1,5 +1,5 @@
 //! Serial Ports via x86 I/O ports. Also called COM ports.
-//! https://wiki.osdev.org/Serial_Ports
+//! <https://wiki.osdev.org/Serial_Ports>
 //!
 //! Its a wrapper around an UART bus.
 //! Interesting infos can also be found under the name `16550_UART`
@@ -10,14 +10,14 @@ use x86::io::{
 };
 
 /// x86 puts the COM1 port at this address specified by the chipset.
-/// For example here: https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/7-series-chipset-pch-datasheet.pdf
+/// For example here: <https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/7-series-chipset-pch-datasheet.pdf>
 /// Must most likelky in every chipset datasheet.
 pub const COM1_IO_PORT: u16 = 0x3f8;
 
 /// Offset to the IO port base address to
 /// get access to specific registers.
 ///
-/// https://wiki.osdev.org/Serial_Ports
+/// <https://wiki.osdev.org/Serial_Ports>
 #[derive(Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum ComRegisterPortOffset {

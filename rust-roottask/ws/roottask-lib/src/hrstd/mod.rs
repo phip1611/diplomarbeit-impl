@@ -3,6 +3,6 @@
 //! Standard library for Rust apps under Hedron.
 
 pub mod allocator;
-pub mod capability;
+pub mod cap_mngmt;
 pub mod io_port;
 pub mod sync;

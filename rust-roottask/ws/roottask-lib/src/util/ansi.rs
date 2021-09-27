@@ -4,8 +4,8 @@
 //! heap- or stack allocations.
 //!
 //! Help:
-//! - https://de.wikipedia.org/wiki/ANSI-Escapesequenz
-//! - https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+//! - <https://de.wikipedia.org/wiki/ANSI-Escapesequenz>
+//! - <https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797>
 
 use core::cell::Cell;
 use core::fmt::{

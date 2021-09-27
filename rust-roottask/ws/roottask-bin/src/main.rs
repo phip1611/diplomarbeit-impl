@@ -80,11 +80,11 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     }*/
 
     // test: trigger GPF
-    /*{
+    {
         unsafe {
             x86::io::outb(0x0, 0);
         }
-    }*/
+    }
 
     log::info!("Rust Roottask started");
     panic!("SHHIIIIIT");

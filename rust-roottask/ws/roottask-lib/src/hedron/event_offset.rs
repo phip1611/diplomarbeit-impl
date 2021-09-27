@@ -12,7 +12,7 @@ use core::convert::TryFrom;
 use enum_iterator::IntoEnumIterator;
 
 /// Offsets from event base for x86 exceptions.
-/// See https://wiki.osdev.org/Exceptions
+/// See <https://wiki.osdev.org/Exceptions>
 #[derive(Debug, Copy, Clone, PartialEq, IntoEnumIterator)]
 #[repr(u64)]
 pub enum ExceptionEventOffset {

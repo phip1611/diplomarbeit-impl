@@ -285,7 +285,7 @@ impl<Permissions, Specialization, ObjectSpecialization>
 where
     Permissions: CrdPermissions,
 {
-    /// Returns the [`Permissions`]-type of this [`Crd`]. Depends on the context.
+    /// Returns the [`CrdPermissions`]-type of this [`Crd`]. Depends on the context.
     pub fn permissions(self) -> Permissions {
         Permissions::from(self.gen_permissions())
     }

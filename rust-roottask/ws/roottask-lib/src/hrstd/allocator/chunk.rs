@@ -9,7 +9,7 @@ use core::alloc::{
 #[derive(Debug)]
 pub enum ChunkAllocatorError {
     /// The backing memory for the heap must be
-    /// - an even multiple of [`Self::CHUNK_SIZE`], and
+    /// - an even multiple of [`ChunkAllocator::CHUNK_SIZE`], and
     /// - a multiple of 8 to be correctly represented by the bitmap.
     BadHeapMemory,
     /// The number of bits in the backing memory for the heap bitmap

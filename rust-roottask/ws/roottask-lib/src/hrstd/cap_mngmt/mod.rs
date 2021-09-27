@@ -1,7 +1,6 @@
-//! Helper structures to manage capability selectors.
-//! Different to UNIX, capability selectors are managed
-//! by the userland app itself. The app needs to know what
-//! selector can point to the next capability inside its
+//! Helper structures to manage capability selectors inside a userspace application.
+//! Different to UNIX, capability selectors are managed by the userland app itself. The app
+//! needs to know which of its selectors can be used for the next capability inside its
 //! kernel capability space.
 
 use crate::hedron::capability::CapSel;
@@ -16,7 +15,7 @@ use core::ops::Deref;
 /// ones, i.e. new free numbers, and also
 /// mark them as free gain.
 ///
-/// Don't confuse this with [`Crd`]. A Crd is
+/// Don't confuse this with `Crd`. A Crd is
 /// there to request one or multiple capabilities
 /// at once from the kernel. This structure is only
 /// there to manage capability selectors inside a
@@ -176,7 +175,7 @@ impl CapSelManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::hrstd::capability::CapSelManager;
+    use crate::hrstd::cap_mngmt::CapSelManager;
 
     #[test]
     fn test_cap_sel_range() {

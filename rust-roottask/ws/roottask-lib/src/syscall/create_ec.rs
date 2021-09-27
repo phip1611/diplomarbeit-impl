@@ -55,7 +55,7 @@ impl EcKind {
 /// - `dest_cap_sel`   A capability selector in the current PD that will point to the newly created EC.
 /// - `parent_pd_sel`  A capability selector to a PD domain in which the new EC will execute in.
 /// - `stack_ptr`      The initial stack pointer for normal ECs (local & global). Ignored for vCPUs.
-/// - `event_base_sel` The base selector for events. Base for event offsets like [`roottask_lib::hedron::event_offset::ExceptionEventOffset`]
+/// - `event_base_sel` The base selector for events. Base for event offsets like [`crate::hedron::event_offset::ExceptionEventOffset`]
 ///                    in the capability space of the corresponding PD.
 /// - `cpu_num`        Number of CPU (ECs are CPU local). 0 to 63 (maximum supported CPU count by Hedron)
 /// - `utcb_vlapic_page_num` A page number where the UTCB / vLAPIC page will be created. Page 0 means no vLAPIC page or UTCB is created.
