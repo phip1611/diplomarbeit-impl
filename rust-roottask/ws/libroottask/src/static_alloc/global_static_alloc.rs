@@ -1,15 +1,14 @@
-//! Generic allocator, independent from the Rust core runtime allocator.
-//! Also independent from the Kernel.
-//!
-use crate::allocator::chunk::{
+//! See [`GlobalStaticChunkAllocator`].
+
+use crate::static_alloc::chunk::{
     ChunkAllocator,
     ChunkAllocatorError,
 };
-use crate::sync::mutex::SimpleMutex;
 use core::alloc::{
     GlobalAlloc,
     Layout,
 };
+use libhrstd::sync::mutex::SimpleMutex;
 
 #[derive(Debug)]
 pub enum GlobalStaticChunkAllocatorError {
@@ -22,14 +21,19 @@ pub enum GlobalStaticChunkAllocatorError {
 /// Wrapping struct around [`ChunkAllocator`] which enables the usage
 /// of this allocator in a global context, i.e. as global allocator.
 ///
+/// Use [`super::static_aligned_mem::StaticAlignedMem`] as backing storage type
+/// rather than a raw u8 array! The struct synchronized accesses to the memory.
+///
 /// It must be initialized first by calling [`Self::init`].
 #[derive(Debug)]
 pub struct GlobalStaticChunkAllocator<'a> {
-    // data: SimpleMutex<Option<ChunkAllocator<'a>>>,
     data: SimpleMutex<Option<ChunkAllocator<'a>>>,
 }
 
 impl<'a> GlobalStaticChunkAllocator<'a> {
+    // Re-Exports the chunk size of the underlying allocator implementation.
+    pub const CHUNK_SIZE: usize = ChunkAllocator::CHUNK_SIZE;
+
     pub const fn new() -> Self {
         Self {
             data: SimpleMutex::new(None),
@@ -65,8 +69,8 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
         log::debug!("alloc: {:?}", layout);
-        let lock = self.data.lock();
-        let lock = lock.as_ref().expect("allocator is uninitialized");
+        let mut lock = self.data.lock();
+        let lock = lock.as_mut().expect("allocator is uninitialized");
         let x = lock.alloc(layout);
         log::debug!(
             "allocated {} bytes at address 0x{:x}",
@@ -81,8 +85,8 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
         log::debug!("dealloc: {:?}", layout);
-        let lock = self.data.lock();
-        let lock = lock.as_ref().expect("allocator is uninitialized");
+        let mut lock = self.data.lock();
+        let lock = lock.as_mut().expect("allocator is uninitialized");
         lock.dealloc(ptr, layout)
     }
 }
@@ -91,8 +95,23 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
 #[allow(unused)]
 mod tests {
     use super::*;
-    use alloc::vec::Vec;
+    use crate::static_alloc::StaticAlignedMem;
+
+    // must be a multiple of 8; 32 is equivalent to two pages
+    const CHUNK_COUNT: usize = 32;
+    const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+    static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+    const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+    static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
+
+    static ALLOCATOR: GlobalStaticChunkAllocator = GlobalStaticChunkAllocator::new();
 
     #[test]
-    fn test_compiles() {}
+    fn test_compiles() {
+        unsafe {
+            ALLOCATOR.init(HEAP.data_mut(), BITMAP.data_mut());
+            let ptr = ALLOCATOR.alloc(Layout::from_size_align(256, 4096).unwrap());
+            assert_eq!(ptr as u64 % 4096, 0, "must be 4096-bit-aligned");
+        };
+    }
 }

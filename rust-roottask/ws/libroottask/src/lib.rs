@@ -36,3 +36,4 @@ extern crate alloc;
 pub mod hw;
 pub mod io_port;
 pub mod stack;
+pub mod static_alloc;

@@ -1,11 +1,9 @@
-//! See [`ChunkAllocator`].
+//! Module for [`ChunkAllocator`].
 
-use core::alloc::{
-    GlobalAlloc,
-    Layout,
-};
+use core::alloc::Layout;
 
 /// Possible errors for [`ChunkAllocator`].
+/// TODO make more generic ?! later use in roottask and native hedron app with different allocator frontends?
 #[derive(Debug)]
 pub enum ChunkAllocatorError {
     /// The backing memory for the heap must be
@@ -23,7 +21,8 @@ pub enum ChunkAllocatorError {
 /// in a global context. It can take (global) static memory arrays as backing
 /// storage. It allocates memory in chunks of [`Self::CHUNK_SIZE`].
 ///
-/// TODO: dealloc + zero new memory.. or at dealloc?! or at init?!
+/// It is a generic allocator but can be wrapped to be used as the allocator for the Rust runtime,
+/// i.e. the functionality of the `alloc` crate.
 #[derive(Debug)]
 pub struct ChunkAllocator<'a> {
     heap: &'a mut [u8],
@@ -80,6 +79,35 @@ impl<'a> ChunkAllocator<'a> {
         relevant_bit == 0
     }
 
+    /// Marks a chunk as used, i.e. write a 1 into the bitmap at the right position.
+    fn mark_chunk_as_used(&mut self, chunk_index: usize) {
+        assert!(chunk_index < self.chunk_count());
+        if !self.chunk_is_free(chunk_index) {
+            panic!(
+                "tried to mark chunk {} as used but it is already used",
+                chunk_index
+            );
+        }
+        let (byte_i, bit) = self.chunk_index_to_bitmap_indices(chunk_index);
+        // xor => keep all bits, except bitflip at relevant position
+        self.bitmap[byte_i] = self.bitmap[byte_i] ^ (1 << bit);
+    }
+
+    /// Marks a chunk as free, i.e. write a 0 into the bitmap at the right position.
+    fn mark_chunk_as_free(&mut self, chunk_index: usize) {
+        assert!(chunk_index < self.chunk_count());
+        if self.chunk_is_free(chunk_index) {
+            panic!(
+                "tried to mark chunk {} as free but it is already free",
+                chunk_index
+            );
+        }
+        let (byte_i, bit) = self.chunk_index_to_bitmap_indices(chunk_index);
+        // xor => keep all bits, except bitflip at relevant position
+        let updated_byte = self.bitmap[byte_i] ^ (1 << bit);
+        self.bitmap[byte_i] = updated_byte;
+    }
+
     /// Returns the indices into the bitmap array of a given chunk index.
     fn chunk_index_to_bitmap_indices(&self, chunk_index: usize) -> (usize, usize) {
         assert!(
@@ -90,9 +118,6 @@ impl<'a> ChunkAllocator<'a> {
     }
 
     /// Returns the indices into the bitmap array of a given chunk index.
-    ///
-    /// # Parameters
-    /// - `borrowed_lock` Option; prevents nested locking (i.e. deadlock)
     #[allow(unused)]
     fn bitmap_indices_to_chunk_index(&self, bitmap_index: usize, bit: usize) -> usize {
         let chunk_index = bitmap_index * 8 + bit;
@@ -103,15 +128,19 @@ impl<'a> ChunkAllocator<'a> {
         chunk_index
     }
 
-    /// Returns the index of the next free chunk of memory.
+    /// Returns the index of the next free chunk of memory that is correctly aligned.
     ///
     /// # Parameters
     /// - `start_chunk` describes the start chunk; i.e. the search space inside the backing storage
-    /// - `borrowed_lock` Option; prevents nested locking (i.e. deadlock)
+    /// - `alignment` required alignment of the chunk in memory
     ///
     /// # Return
     /// Returns the index of the chunk or `Err` for out of memory.
-    fn find_next_free_chunk(&self, start_chunk: Option<usize>) -> Result<usize, ()> {
+    fn find_next_free_chunk(
+        &self,
+        start_chunk: Option<usize>,
+        alignment: u32,
+    ) -> Result<usize, ()> {
         let start_chunk = start_chunk.unwrap_or(0);
 
         if start_chunk >= self.chunk_count() {
@@ -120,7 +149,9 @@ impl<'a> ChunkAllocator<'a> {
         }
 
         for i in start_chunk..self.chunk_count() {
-            if self.chunk_is_free(i) {
+            // given the fact that the first chunk is page-aligned (see struct definition)
+            let is_aligned = (i * Self::CHUNK_SIZE) as u32 % alignment == 0;
+            if is_aligned && self.chunk_is_free(i) {
                 return Ok(i);
             }
         }
@@ -134,10 +165,11 @@ impl<'a> ChunkAllocator<'a> {
     ///
     /// # Parameters
     /// - `chunk_num` number of chunks that must be all free without gap in-between
-    /// - `borrowed_lock` Option; prevents nested locking (i.e. deadlock)
-    fn find_free_coherent_chunks(&self, chunk_num: usize) -> Result<usize, ()> {
-        let mut begin_chunk_i = self.find_next_free_chunk(Some(0))?;
-        while begin_chunk_i + (chunk_num - 1) < self.chunk_count() {
+    /// - `alignment` required alignment of the chunk in memory
+    fn find_free_coherent_chunks(&self, chunk_num: usize, alignment: u32) -> Result<usize, ()> {
+        let mut begin_chunk_i = self.find_next_free_chunk(Some(0), alignment)?;
+        let out_of_mem_cond = begin_chunk_i + (chunk_num - 1) >= self.chunk_count();
+        while !out_of_mem_cond {
             // this var counts how many coherent chunks we found while iterating the bitmap
             let mut coherent_chunk_count = 1;
             for chunk_chain_i in 1..=chunk_num {
@@ -153,7 +185,7 @@ impl<'a> ChunkAllocator<'a> {
             // check again at next free block
             // "+1" because we want to skip the just discovered non-free block
             begin_chunk_i = self
-                .find_next_free_chunk(Some(begin_chunk_i + coherent_chunk_count + 1))
+                .find_next_free_chunk(Some(begin_chunk_i + coherent_chunk_count + 1), alignment)
                 .unwrap();
         }
         // out of memory
@@ -168,48 +200,74 @@ impl<'a> ChunkAllocator<'a> {
         );
         self.heap.as_ptr().add(chunk_index * Self::CHUNK_SIZE) as *mut u8
     }
-}
 
-unsafe impl<'a> GlobalAlloc for ChunkAllocator<'a> {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+    /// Returns the chunk index of the given pointer (which points to the beginning of a chunk).
+    unsafe fn ptr_to_chunk_index(&self, ptr: *const u8) -> usize {
+        let heap_begin_inclusive = self.heap.as_ptr();
+        let heap_end_exclusive = self.heap.as_ptr().add(self.chunk_count());
+        assert!(
+            heap_begin_inclusive <= ptr && ptr < heap_end_exclusive,
+            "pointer {:?} is out of range {:?}..{:?} of the allocators backing storage",
+            ptr,
+            heap_begin_inclusive,
+            heap_end_exclusive
+        );
+        (ptr as usize - heap_begin_inclusive as usize) / Self::CHUNK_SIZE
+    }
+
+    pub unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
         let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
         let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
 
-        log::debug!("alloc: layout={:?}", layout);
+        log::debug!("alloc: layout={:?} ({} chunks]", layout, required_chunks);
 
         if modulo != 0 {
             required_chunks += 1;
         }
 
         let index = self
-            .find_free_coherent_chunks(required_chunks)
+            .find_free_coherent_chunks(required_chunks, layout.align() as u32)
             .expect("out of memory");
+
+        for i in index..index + required_chunks {
+            self.mark_chunk_as_used(i);
+        }
 
         self.chunk_index_to_ptr(index)
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        log::debug!("dealloc not supported yet");
-        // TODO rust is nice enough and gives us a dealloc layout
-        //  therefore we don't have to check how big the
-        //  memory allocaiton was
-        // panic!("unsupported dealloc: ptr={:?}, layout={:?}", ptr, layout);
+    pub unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
+        let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
+        let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
+        if modulo != 0 {
+            required_chunks += 1;
+        }
+        log::debug!("dealloc: layout={:?} ({} chunks]", layout, required_chunks);
+
+        let index = self.ptr_to_chunk_index(ptr as *const u8);
+        for i in index..index + required_chunks {
+            self.mark_chunk_as_free(i);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::static_alloc::static_aligned_mem::StaticAlignedMem;
 
     #[test]
     fn test_compiles() {
-        const TEST_HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * 16;
-        static mut HEAP: [u8; TEST_HEAP_SIZE] = [0_u8; TEST_HEAP_SIZE];
-        static mut BITMAP: [u8; TEST_HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8] =
-            [0_u8; TEST_HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8];
+        // must be a multiple of 8
+        const CHUNK_COUNT: usize = 16;
+        const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+        static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
 
         // check that it compiles
-        let mut _alloc = unsafe { ChunkAllocator::new(&mut HEAP, &mut BITMAP).unwrap() };
+        let mut _alloc =
+            unsafe { ChunkAllocator::new(HEAP.data_mut(), BITMAP.data_mut()).unwrap() };
     }
 
     #[test]
@@ -277,18 +335,18 @@ mod tests {
         bitmap[0] = 0x0f;
         let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
 
-        assert_eq!(4, alloc.find_next_free_chunk(None).unwrap());
-        assert_eq!(4, alloc.find_next_free_chunk(Some(0)).unwrap());
+        assert_eq!(4, alloc.find_next_free_chunk(None, 1).unwrap());
+        assert_eq!(4, alloc.find_next_free_chunk(Some(0), 1).unwrap());
 
         // the very last chunk is available
         assert_eq!(
             15,
             alloc
-                .find_next_free_chunk(Some(alloc.chunk_count() - 1))
+                .find_next_free_chunk(Some(alloc.chunk_count() - 1), 1)
                 .unwrap()
         );
         assert!(alloc
-            .find_next_free_chunk(Some(alloc.chunk_count()))
+            .find_next_free_chunk(Some(alloc.chunk_count()), 1)
             .is_err());
     }
 
@@ -303,11 +361,11 @@ mod tests {
 
         let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
 
-        assert_eq!(4, alloc.find_free_coherent_chunks(1).unwrap());
-        assert_eq!(4, alloc.find_free_coherent_chunks(2).unwrap());
-        assert_eq!(4, alloc.find_free_coherent_chunks(3).unwrap());
-        assert_eq!(4, alloc.find_free_coherent_chunks(4).unwrap());
-        assert_eq!(12, alloc.find_free_coherent_chunks(5).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks(1, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks(2, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks(3, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks(4, 1).unwrap());
+        assert_eq!(12, alloc.find_free_coherent_chunks(5, 1).unwrap());
     }
 
     #[test]
@@ -324,6 +382,75 @@ mod tests {
                 ptr as usize + ChunkAllocator::CHUNK_SIZE,
                 alloc.chunk_index_to_ptr(1) as usize
             );
+        }
+    }
+
+    #[test]
+    fn test_alloc() {
+        // must be a multiple of 8; 32 is equivalent to two pages
+        const CHUNK_COUNT: usize = 32;
+        const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+        static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
+
+        // check that it compiles
+        let mut alloc = unsafe { ChunkAllocator::new(HEAP.data_mut(), BITMAP.data_mut()).unwrap() };
+
+        let layout1 = Layout::from_size_align(1, 1).unwrap();
+        let layout2 = Layout::from_size_align(4096, 4096).unwrap();
+
+        // allocate 1 single byte
+        let ptr1 = {
+            unsafe {
+                let ptr = alloc.alloc(layout1.clone());
+                assert_eq!(
+                    ptr as u64 % 4096,
+                    0,
+                    "the first allocation must be always page-aligned"
+                );
+                assert!(!alloc.chunk_is_free(0), "the first chunk is taken now!");
+                assert!(
+                    alloc.chunk_is_free(1),
+                    "the second chunk still must be free!"
+                );
+                ptr
+            }
+        };
+
+        // allocate 1 page (consumes now the higher half of the available memory)
+        let _ptr2 = {
+            let ptr;
+            unsafe {
+                ptr = alloc.alloc(layout2.clone());
+                assert_eq!(
+                    ptr as u64 % 4096,
+                    0,
+                    "the second allocation must be page-aligned because this was requested!"
+                );
+            }
+            (0..CHUNK_COUNT)
+                .into_iter()
+                .skip(CHUNK_COUNT / 2)
+                .for_each(|i| {
+                    assert!(!alloc.chunk_is_free(i), "chunk must be in use!");
+                });
+            ptr
+        };
+
+        // free the very first allocation; allocate again; now we should have two allocations
+        // of two full pages
+        {
+            unsafe {
+                alloc.dealloc(ptr1, layout1);
+                let ptr3 = alloc.alloc(layout2);
+                assert_eq!(ptr1, ptr3);
+            }
+
+            // assert that all chunks are taken
+            for i in 0..CHUNK_COUNT {
+                assert!(!alloc.chunk_is_free(i), "all chunks must be in use!");
+            }
         }
     }
 }
