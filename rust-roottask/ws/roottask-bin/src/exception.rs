@@ -1,8 +1,8 @@
-//! Code related to exception handling. All exception handling is done inside the
-//! root task.
+//! Exception-handling for roottask.
 
 use crate::roottask_dispatch::ROOT_EXC_EVENT_BASE;
 use arrayvec::ArrayString;
+use core::convert::TryFrom;
 use core::fmt::Write;
 use libhrstd::capability::CapSel;
 use libhrstd::event_offset::ExceptionEventOffset;
@@ -95,7 +95,7 @@ pub fn init(hip: &HIP) {
         .unwrap();
 
         // logging, not important
-        {
+        /*{
             let mut msg = ArrayString::<128>::from("created PT for exception=").unwrap();
             let exc = ExceptionEventOffset::try_from(excp_offset as u64);
             if let Ok(exc) = exc {
@@ -103,8 +103,8 @@ pub fn init(hip: &HIP) {
             } else {
                 write!(&mut msg, "Unknown({:?})", excp_offset).unwrap();
             }
-            log::info!("{}", msg);
-        }
+            log::trace!("{}", msg);
+        }*/
     }
 }
 
@@ -114,6 +114,8 @@ fn general_exception_handler(id: u64) -> ! {
     let id = ExceptionEventOffset::try_from(id).unwrap();
     let mut buf = ArrayString::<32>::new();
     write!(&mut buf, "{:#?}", id).unwrap();
+
+    // TODO sinnvolle Dinge aus UTCB ausgeben (registerdump, ...)
     panic!(
         "Mayday, caught exception id={} - aborting program",
         AnsiStyle::new()

@@ -33,25 +33,6 @@ const STACK_ALIGNMENT: usize = 64;
 /// Without this, instructions such as `movaps` fail.
 const ALIGNMENT_LOAD_OFFSET: usize = 8;
 
-/// Used to trick Rusts type system to store a const pointer in a global static variable.
-/// The type is transparent, which means the pointer can be easily read from assembly as
-/// it would be a regular u64 value.
-#[derive(Copy, Clone, Debug)]
-#[repr(transparent)]
-pub struct TrustedStackPtr(*const u8);
-
-impl TrustedStackPtr {
-    pub const fn new(ptr: *const u8) -> Self {
-        Self(ptr)
-    }
-
-    pub fn val(self) -> u64 {
-        self.0 as u64
-    }
-}
-
-unsafe impl Sync for TrustedStackPtr {}
-
 /// Helper struct for [`StaticStack`].
 #[derive(Copy, Clone, Debug)]
 #[repr(align(4096), C)]
@@ -119,7 +100,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
         }
     }
 
-    /// Returns the pointer to the top of the stack. The pointer is PAGE-aligned.
+    /// Returns the pointer (inclusive!) to the top of the stack. The pointer is PAGE-aligned.
     /// From there, the stack can grow downwards.
     /// We waste almost a full page here, because we have the following problem:
     ///
@@ -144,6 +125,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
         unsafe { ptr.sub(STACK_ALIGNMENT).add(ALIGNMENT_LOAD_OFFSET) }
     }
 
+    /// Returns the pointer (inclusive!) to the bottom of the stack.
     pub const fn get_stack_btm_ptr(&self) -> *const u8 {
         self.data.as_ptr() as *const u8
     }
@@ -187,11 +169,17 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
         *ptr = 0xff;
         val
     }
+
+    /// Returns the size in bytes of the stack. It doesn't include the guard page below the stack.
+    pub const fn len(&self) -> usize {
+        self.data.len()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 
     static TEST_STACK: StaticStack<1> = StaticStack::new();
 
@@ -206,6 +194,7 @@ mod tests {
             STACK_ALIGNMENT
         );
 
-        let _trusted_stack_ptr = TrustedStackPtr::new(ptr);
+        // test compiles
+        let _trusted_stack_ptr = StaticGlobalPtr::new(ptr);
     }
 }

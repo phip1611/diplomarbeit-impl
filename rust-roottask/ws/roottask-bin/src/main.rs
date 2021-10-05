@@ -8,6 +8,8 @@
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
 #![feature(const_mut_refs)]
+#![feature(const_ptr_offset)]
+#![feature(stmt_expr_attributes)]
 #![deny(
     clippy::all,
     clippy::cargo,
@@ -31,37 +33,49 @@ global_asm!(include_str!("assembly.S"));
 mod exception;
 mod logger;
 mod panic;
-mod roottask_alloc;
 mod roottask_dispatch;
-mod stack;
+mod roottask_heap;
+mod roottask_stack;
 
 #[allow(unused_imports)]
 #[macro_use]
 extern crate alloc;
 
-use core::ptr;
+use alloc::vec::Vec;
 use libhrstd::hip::HIP;
 use libhrstd::utcb::UtcbData;
-use stack::ROOTTASK_STACK_TOP_PTR;
 
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
-    let hip = &unsafe { ptr::read(hip_ptr as *const HIP) };
-    let _utcb = &unsafe { ptr::read(utcb_ptr as *const UtcbData) };
+    let hip = unsafe { (hip_ptr as *const HIP).as_ref().unwrap() };
+    let _utcb = unsafe { (utcb_ptr as *const UtcbData).as_ref().unwrap() };
 
     logger::init(hip.root_pd());
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
     // log::info!("guard-page inactive");
-    stack::init(hip);
+    roottask_stack::init(hip);
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
-    roottask_alloc::init();
+    roottask_heap::init();
     exception::init(hip);
 
-    log::info!("stack_ptr: 0x{:x}", ROOTTASK_STACK_TOP_PTR.val());
+    #[rustfmt::skip]
+    {
+        log::trace!("stack top (inc)   : 0x{:016x?}", roottask_stack::STACK_TOP_PTR.val());
+        log::trace!("stack bottom (inc): 0x{:016x}", roottask_stack::STACK_BOTTOM_PTR.val());
+        log::trace!("stack size        : {:>18}", roottask_stack::STACK_SIZE_128KIB);
 
-    /*// TODO kriege ein divided by zero error sobald ich softfloat deaktiviere
-    let x = 5.1212 * 1414.2;
-    log::debug!("{}", x);*/
+        log::trace!("heap top   (excl) : 0x{:016x}", roottask_heap::HEAP_END_PTR.val());
+        log::trace!("heap bottom (inc) : 0x{:016x}", roottask_heap::HEAP_BEGIN_PTR.val());
+        log::trace!("heap size         : {:>18}", roottask_heap::HEAP_SIZE);
+
+        log::trace!("utcb ptr          : 0x{:016x}", utcb_ptr);
+        log::trace!("hip ptr           : 0x{:016x}", hip_ptr);
+    }
+
+    log::debug!("===========================================================");
+    let mem_descs = hip.mem_desc_iterator().collect::<Vec<_>>();
+    log::debug!("Mem_descs: #{}", mem_descs.len());
+    log::debug!("{:#?}", mem_descs);
 
     /* test: floating point + SSE registers work
     let x = 2.0;

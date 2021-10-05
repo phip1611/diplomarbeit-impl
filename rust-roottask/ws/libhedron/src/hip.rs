@@ -9,6 +9,7 @@ use core::fmt::{
     Debug,
     Formatter,
 };
+use core::mem::size_of;
 
 /// Hypervisor Information Page.
 #[repr(C)]
@@ -23,13 +24,12 @@ pub struct HIP {
     cpu_offs: u16,
     /// Size of one CPU descriptor in bytes.
     cpu_size: u16,
-
     ioapic_offs: u16,
     ioapic_size: u16,
-
     /// Offset of first memory descriptor in bytes. Relative to HIP base.
     mem_offs: u16,
     /// Size of one memory descriptor in bytes.
+    /// Equal to `size_of::<HipMem>()`
     mem_size: u16,
 
     api_flg: HipFeatureFlags,
@@ -68,10 +68,14 @@ pub struct HIP {
     pm1a_cnt: AcpiGas,
     pm2b_cnt: AcpiGas,
 
-    // maximum support tof 64 CPUs
     cpu_desc: [HipCpu; NUM_CPUS],
     ioapic_desc: [HipIoApic; NUM_IOAPICS],
-    mem_desc: *const HipMem,
+    /// Points to the first item of the dynamically sized array
+    /// of memory descriptors. The [`HipMemDescIterator`] iterates
+    /// over them safely. As in the Hedron/C++ code, this doesn't
+    /// increase the static size of this struct. Also see
+    /// https://stackoverflow.com/questions/6732184/
+    _mem_desc_arr: [HipMem; 0],
 }
 
 impl HIP {
@@ -165,8 +169,23 @@ impl HIP {
     pub fn ioapic_desc(&self) -> &[HipIoApic; 9] {
         &self.ioapic_desc
     }
-    pub fn mem_desc(&self) -> *const HipMem {
-        self.mem_desc
+
+    /// Returns the dynamic count of [`HipMem`]-values
+    /// at the end of the [`HIP`]. In other words,
+    /// the length of the array.
+    pub fn mem_desc_count(&self) -> usize {
+        assert_eq!(self.mem_size, size_of::<HipMem>() as u16);
+        (self.length as usize - size_of::<Self>()) / self.mem_size as usize
+    }
+
+    /// Returns an iterator of type [`HipMemDescIterator`].
+    pub fn mem_desc_iterator(&self) -> HipMemDescIterator {
+        assert_eq!(
+            size_of::<HipMem>(),
+            self.mem_size as usize,
+            "the struct must have an equal size to the struct in Hedron"
+        );
+        HipMemDescIterator::new(self)
     }
 
     /// Returns the cap selector for the root PD.
@@ -260,12 +279,17 @@ impl HipCpu {
     }
 }
 
-#[derive(Debug)]
+/// Identifies all memory that is initially in use. From this, it can be derived
+/// what (physical? TODO) memory inside the system is free.
 #[repr(C)]
 pub struct HipMem {
+    /// Base address.
     addr: u64,
+    /// Offset from base address.
     size: u64,
     typ: HipMemType,
+    /// 0 for [`HipMemType::Hypervisor`], otherwise a pointer to a NULL-terminated `C-String` which
+    /// represents the `cmdline` of the Multiboot boot module.
     aux: u32,
 }
 
@@ -279,12 +303,30 @@ impl HipMem {
     pub fn typ(&self) -> HipMemType {
         self.typ
     }
-    pub fn aux(&self) -> u32 {
-        self.aux
+    /*pub fn mb_cmdline(&self) -> Option<&'a str> {
+        unsafe {
+            let ptr = (self.aux as *const u32 as *const u8);
+            let slice = core::slice::from_raw_parts(ptr)
+            core::str::from_utf8()
+        }
+    }*/
+}
+
+impl Debug for HipMem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("HipMem")
+            // print hex
+            .field("type", &self.typ)
+            .field("addr", &(self.addr as *const u64))
+            .field("size", &self.size)
+            .field("(end_addr)", &((self.addr + self.size) as *const u64))
+            .field("aux", &(self.aux as *const u64))
+            .finish()
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+/// Type for [`HipMem`].
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u32)]
 pub enum HipMemType {
     Hypervisor = -1_i32 as u32,
@@ -323,5 +365,146 @@ bitflags::bitflags! {
         const VMX = 1 << 1;
         /// The platform supports AMD Secure Virtual Machine, and the feature has been activated.
         const SVM = 1 << 2;
+    }
+}
+
+/// Iterator over the dynamic (= at compile time unknown) number of [`HipMem`]-descriptors
+/// stored at the end of the [`HIP`].
+#[derive(Debug)]
+pub struct HipMemDescIterator<'a> {
+    hip: &'a HIP,
+    mem_desc_count: usize,
+    iteration_counter: usize,
+    slice: &'a [HipMem],
+}
+
+impl<'a> HipMemDescIterator<'a> {
+    /// Constructs a slice of the memory descriptor array and can iterate through it.
+    fn new(hip: &'a HIP) -> Self {
+        let count = hip.mem_desc_count();
+        let slice = unsafe { core::slice::from_raw_parts(hip._mem_desc_arr.as_ptr(), count) };
+        Self {
+            hip,
+            mem_desc_count: count,
+            iteration_counter: 0,
+            slice,
+        }
+    }
+}
+
+impl<'a> Iterator for HipMemDescIterator<'a> {
+    type Item = &'a HipMem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.iteration_counter >= self.mem_desc_count {
+            return None;
+        }
+        let elem = &self.slice[self.iteration_counter];
+        self.iteration_counter += 1;
+        Some(elem)
+    }
+
+    /// Reduces memory allocations; pollutes my log less :D
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        const EXPECTED_ELEMENTS: usize = 15;
+        (EXPECTED_ELEMENTS - self.iteration_counter, None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::hip::{
+        HipCpu,
+        HipIoApic,
+        HipMem,
+        HipMemType,
+        HIP,
+    };
+    use alloc::vec::Vec;
+    use core::mem::size_of;
+
+    /// Helps us to easy identify problems that would effect the dynamic array parsing otherwise.
+    /// Took the size values from the C code. It's unfortunate that this is a manual operation.
+    #[test]
+    fn test_hip_size_as_large_as_in_hedron() {
+        assert_eq!(
+            size_of::<HipMem>(),
+            24,
+            "HipMem must be as large as inside Hedron code"
+        );
+        assert_eq!(
+            size_of::<HipCpu>(),
+            48,
+            "HipCpu must be as large as inside Hedron code"
+        );
+        assert_eq!(
+            size_of::<HipIoApic>(),
+            16,
+            "HipIoApic must be as large as inside Hedron code"
+        );
+        assert_eq!(
+            size_of::<HIP>(),
+            3352,
+            "HIP must be as large as inside Hedron code"
+        );
+    }
+
+    #[test]
+    fn test_hip_mem_type() {
+        assert_eq!(HipMemType::Hypervisor as u32, 0xffffffff);
+        assert_eq!(HipMemType::MbModule as u32, 0xfffffffe);
+    }
+
+    #[test]
+    fn test_hip_mem_desc_iter() {
+        let mut bytes = [0_u8; size_of::<HIP>() + 4 * size_of::<HipMem>()];
+        let mut hip = unsafe { &mut *(bytes.as_mut_ptr() as *mut HIP) };
+        hip.length = bytes.len() as u16;
+        hip.mem_size = size_of::<HipMem>() as u16;
+
+        assert_eq!(
+            hip.mem_desc_count(),
+            4,
+            "must have exactly 4 mem desc items"
+        );
+
+        unsafe {
+            let arr = bytes.as_ptr().add(size_of::<HIP>()) as *mut HipMem;
+            let mut arr = core::slice::from_raw_parts_mut(arr, 4);
+            arr[0].typ = HipMemType::Hypervisor;
+            arr[0].addr = 0x1337;
+            arr[0].size = 42;
+
+            arr[1].typ = HipMemType::Hypervisor;
+            arr[1].addr = 0xdeadbeef;
+            arr[1].size = 0xc0ffee;
+
+            arr[2].typ = HipMemType::MbModule;
+            arr[2].addr = 0xaffeaffe;
+            arr[2].size = 73;
+
+            arr[3].typ = HipMemType::MbModule;
+            arr[3].addr = 0xbadb001;
+            arr[3].size = 0;
+        }
+
+        let mem_descs = hip.mem_desc_iterator().collect::<Vec<_>>();
+        assert_eq!(mem_descs.len(), 4, "must find 4 hip memory descriptors");
+        println!("{:#?}", mem_descs);
+        assert_eq!(mem_descs[0].typ, HipMemType::Hypervisor);
+        assert_eq!(mem_descs[0].addr, 0x1337);
+        assert_eq!(mem_descs[0].size, 42);
+
+        assert_eq!(mem_descs[1].typ, HipMemType::Hypervisor);
+        assert_eq!(mem_descs[1].addr, 0xdeadbeef);
+        assert_eq!(mem_descs[1].size, 0xc0ffee);
+
+        assert_eq!(mem_descs[2].typ, HipMemType::MbModule);
+        assert_eq!(mem_descs[2].addr, 0xaffeaffe);
+        assert_eq!(mem_descs[2].size, 73);
+
+        assert_eq!(mem_descs[3].typ, HipMemType::MbModule);
+        assert_eq!(mem_descs[3].addr, 0xbadb001);
+        assert_eq!(mem_descs[3].size, 0);
     }
 }

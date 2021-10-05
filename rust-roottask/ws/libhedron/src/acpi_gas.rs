@@ -1,7 +1,7 @@
 //! Generic Address Structure (5.2.3.1)
 //!
-#[derive(Debug)]
-#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+#[repr(C, packed)] // packed is important to match size from Hedron code!
 pub struct AcpiGas {
     asid: Asid,
     /// Register Size in bits
@@ -23,4 +23,27 @@ pub enum Asid {
     EC = 0x3,
     SMBUS = 0x4,
     FIXED = 0x7f,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::acpi_gas::{
+        AcpiGas,
+        Asid,
+    };
+    use core::mem::size_of;
+
+    #[test]
+    fn test_size_as_in_hedron() {
+        assert_eq!(
+            size_of::<Asid>(),
+            1,
+            "Asid must be as large as inside Hedron code"
+        );
+        assert_eq!(
+            size_of::<AcpiGas>(),
+            12,
+            "AcpiGas must be as large as inside Hedron code"
+        );
+    }
 }

@@ -38,6 +38,7 @@ extern crate alloc;
 pub use libhedron::*;
 
 pub mod cap_mngmt;
+pub mod cstr;
 pub mod sync;
 pub mod util;
 

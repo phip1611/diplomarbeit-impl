@@ -2,6 +2,7 @@
 /// Data-Buffer for IPC.
 #[derive(Debug)]
 #[repr(C)]
+// TODO es fehlt noch UTCBHead und user-specific data
 pub struct UtcbData {
     mtd: u64,
     inst_len: u64,
