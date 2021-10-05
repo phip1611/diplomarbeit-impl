@@ -60,16 +60,16 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
 
     #[rustfmt::skip]
     {
-        log::trace!("stack top (inc)   : 0x{:016x?}", roottask_stack::STACK_TOP_PTR.val());
-        log::trace!("stack bottom (inc): 0x{:016x}", roottask_stack::STACK_BOTTOM_PTR.val());
-        log::trace!("stack size        : {:>18}", roottask_stack::STACK_SIZE_128KIB);
+        log::trace!("stack top    (incl): 0x{:016x?}", roottask_stack::STACK_TOP_PTR.val());
+        log::trace!("stack bottom (incl): 0x{:016x}", roottask_stack::STACK_BOTTOM_PTR.val());
+        log::trace!("stack size         : {:>18}", roottask_stack::STACK_SIZE_128KIB);
 
-        log::trace!("heap top   (excl) : 0x{:016x}", roottask_heap::HEAP_END_PTR.val());
-        log::trace!("heap bottom (inc) : 0x{:016x}", roottask_heap::HEAP_BEGIN_PTR.val());
-        log::trace!("heap size         : {:>18}", roottask_heap::HEAP_SIZE);
+        log::trace!("heap top    (excl) : 0x{:016x}", roottask_heap::HEAP_END_PTR.val());
+        log::trace!("heap bottom (incl) : 0x{:016x}", roottask_heap::HEAP_BEGIN_PTR.val());
+        log::trace!("heap size          : {:>18}", roottask_heap::HEAP_SIZE);
 
-        log::trace!("utcb ptr          : 0x{:016x}", utcb_ptr);
-        log::trace!("hip ptr           : 0x{:016x}", hip_ptr);
+        log::trace!("utcb ptr           : 0x{:016x}", utcb_ptr);
+        log::trace!("hip ptr            : 0x{:016x}", hip_ptr);
     }
 
     log::debug!("===========================================================");
