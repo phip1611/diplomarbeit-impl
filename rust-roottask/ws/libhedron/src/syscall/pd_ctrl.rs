@@ -89,9 +89,10 @@ impl DelegateFlags {
 /// from one protection domain to another. It allows the same functionality as rights
 /// delegation via IPC.
 ///
-/// For memory delegations, the CRD controls the type of the _destination_
-/// page table. The source of delegations is always the source PD's host
-/// page table.
+/// # Memory Delegations
+/// SrcCRD and DestCRD ([`crate::capability::CrdMem`]) refer to virtual page numbers. If the
+/// `hypervisor` flag of [`DelegateFlags`] is set and the source_pd is `0` (the one of the roottask),
+/// all memory is identity mapped. Hence, virtual address is physical address.
 ///
 /// # Parameters
 /// - `source_crd` A [`Crd`] range descriptor describing the send window in the source PD.
