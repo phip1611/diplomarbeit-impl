@@ -25,6 +25,7 @@
 #![feature(const_ptr_offset)]
 #![feature(const_fmt_arguments_new)]
 #![feature(const_mut_refs)]
+#![feature(const_fn_trait_bound)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -39,6 +40,7 @@ pub use libhedron::*;
 
 pub mod cap_mngmt;
 pub mod cstr;
+pub mod mem;
 pub mod sync;
 pub mod util;
 

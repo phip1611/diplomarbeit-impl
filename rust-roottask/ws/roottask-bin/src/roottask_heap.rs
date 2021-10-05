@@ -3,21 +3,19 @@
 //! roottask.
 
 use core::alloc::Layout;
+use libhrstd::mem::PageAlignedByteBuf;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
-use libroottask::static_alloc::{
-    GlobalStaticChunkAllocator,
-    StaticAlignedMem,
-};
+use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 /// 1MiB heap -> 1024 chunks
 pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * 4096;
-static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 const BITMAP_SIZE: usize = HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE / 8;
-static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
+static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
 /// Begin address of the heap.
 pub static HEAP_BEGIN_PTR: StaticGlobalPtr<u8> =
-    unsafe { StaticGlobalPtr::new(HEAP.data_mut().as_ptr()) };
+    unsafe { StaticGlobalPtr::new(HEAP.get_mut().as_ptr()) };
 
 /// End address of the heap (exclusive!)
 pub static HEAP_END_PTR: StaticGlobalPtr<u8> =
@@ -29,7 +27,7 @@ static ALLOC: GlobalStaticChunkAllocator = GlobalStaticChunkAllocator::new();
 /// Initializes the global static rust allocator. It uses static memory already available
 /// inside the address space.
 pub fn init() {
-    unsafe { ALLOC.init(HEAP.data_mut(), BITMAP.data_mut()).unwrap() }
+    unsafe { ALLOC.init(HEAP.get_mut(), BITMAP.get_mut()).unwrap() }
     log::debug!("initialized allocator");
 }
 

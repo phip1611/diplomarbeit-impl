@@ -7,13 +7,12 @@ use libhedron::capability::{
     CrdMem,
     MemCapPermissions,
 };
+use libhedron::mem::PAGE_SIZE;
 use libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
 };
-
-/// Size of a page on x86_64.
-const PAGE_SIZE: usize = 4096;
+use libhrstd::mem::PageAlignedByteBuf;
 
 /// SSE feature requires 128 bit/16 byte stack alignment on x86_64.
 /// In the spec I found instructions, such as movaps, that also want
@@ -34,37 +33,7 @@ const STACK_ALIGNMENT: usize = 64;
 const ALIGNMENT_LOAD_OFFSET: usize = 8;
 
 /// Helper struct for [`StaticStack`].
-#[derive(Copy, Clone, Debug)]
-#[repr(align(4096), C)]
-pub struct Page([u8; PAGE_SIZE]);
-
-impl Page {
-    /// Constructor.
-    pub const fn new() -> Self {
-        Self([0; PAGE_SIZE])
-    }
-
-    /// Returns the pointer to this page. It is the first byte of the page
-    /// and page aligned.
-    pub fn get_ptr(&self) -> *const u8 {
-        let self_ptr = self as *const Page as *const u8;
-        let data_ptr = self.0.as_ptr();
-
-        // check if my assumptions work (and the compiler does what I think it does)
-        debug_assert_eq!(self_ptr, data_ptr, "there is no padding allowed");
-        debug_assert!(
-            self_ptr as usize % PAGE_SIZE == 0,
-            "page must be page-aligned"
-        );
-
-        data_ptr
-    }
-
-    /// Returns the number of this page (in the virtual address space),
-    pub fn get_num(&self) -> usize {
-        self.get_ptr() as usize / 4096
-    }
-}
+type Page = PageAlignedByteBuf<PAGE_SIZE>;
 
 /// A static stack object (assigned to a global static variable) helps us
 /// to define the initial stack for the roottask from Rust. The symbol to
@@ -95,8 +64,8 @@ pub struct StaticStack<const PAGE_NUM: usize> {
 impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
     pub const fn new() -> Self {
         Self {
-            guard_page: Page::new(),
-            data: [Page::new(); PAGE_NUM],
+            guard_page: Page::new_zeroed(),
+            data: [Page::new_zeroed(); PAGE_NUM],
         }
     }
 
@@ -142,7 +111,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
     pub unsafe fn activate_guard_page(&self, pd_sel: CapSel) {
         // CRD for exactly one single page
         let crd = CrdMem::new(
-            self.get_guard_page().get_num() as u64,
+            self.get_guard_page().page_num() as u64,
             0,
             MemCapPermissions::empty(),
         );
@@ -163,7 +132,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
     /// the guard page is not active yet.
     #[allow(unused)]
     pub unsafe fn test_rw_guard_page(&self) -> u8 {
-        let ptr = self.guard_page.get_ptr() as *mut u8;
+        let ptr = self.guard_page.self_ptr() as *mut u8;
         let val = *ptr;
         let mut ptr = ptr.add(1);
         *ptr = 0xff;

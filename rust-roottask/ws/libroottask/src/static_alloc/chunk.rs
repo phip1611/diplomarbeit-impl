@@ -254,20 +254,19 @@ impl<'a> ChunkAllocator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::static_alloc::static_aligned_mem::StaticAlignedMem;
+    use libhrstd::mem::PageAlignedByteBuf;
 
     #[test]
     fn test_compiles() {
         // must be a multiple of 8
         const CHUNK_COUNT: usize = 16;
         const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
-        static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+        static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
         const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
-        static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
+        static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
         // check that it compiles
-        let mut _alloc =
-            unsafe { ChunkAllocator::new(HEAP.data_mut(), BITMAP.data_mut()).unwrap() };
+        let mut _alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
     }
 
     #[test]
@@ -390,12 +389,12 @@ mod tests {
         // must be a multiple of 8; 32 is equivalent to two pages
         const CHUNK_COUNT: usize = 32;
         const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
-        static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+        static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
         const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
-        static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
+        static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
         // check that it compiles
-        let mut alloc = unsafe { ChunkAllocator::new(HEAP.data_mut(), BITMAP.data_mut()).unwrap() };
+        let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
 
         let layout1 = Layout::from_size_align(1, 1).unwrap();
         let layout2 = Layout::from_size_align(4096, 4096).unwrap();

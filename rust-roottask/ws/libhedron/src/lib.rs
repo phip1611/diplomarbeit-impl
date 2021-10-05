@@ -39,6 +39,7 @@ pub mod consts;
 pub mod cpu;
 pub mod event_offset;
 pub mod hip;
+pub mod mem;
 pub mod mtd;
 pub mod syscall;
 pub mod utcb;

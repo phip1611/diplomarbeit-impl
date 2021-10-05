@@ -6,16 +6,12 @@
 //! I don't have to look for free pages manually. The approach is good enough for this thesis.
 //!
 //! The allocator from this module must be stored in a global static variable and
-//! reference memory from the global static backing storage.
-//!
-//! The two most important types are [`StaticAlignedMem`] and [`GlobalStaticChunkAllocator`].
+//! reference memory from the global static backing storage. See [`GlobalStaticChunkAllocator`].
 
 mod chunk;
 mod global_static_alloc;
-mod static_aligned_mem;
 
 pub use global_static_alloc::{
     GlobalStaticChunkAllocator,
     GlobalStaticChunkAllocatorError,
 };
-pub use static_aligned_mem::StaticAlignedMem;

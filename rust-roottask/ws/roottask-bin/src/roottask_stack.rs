@@ -8,7 +8,9 @@ use libroottask::stack::StaticStack;
 /// read- and writeable, i.e. not present. Performs a syscall for that.
 pub fn init(hip: &HIP) {
     unsafe { ROOTTASK_STACK.activate_guard_page(hip.root_pd()) }
-    log::debug!("guard page for root task stack is active!");
+    log::debug!(
+        "guard page for root task stack is active! Stackoverflow will result in PF exception now."
+    );
 }
 
 // The stack of the roottask is 32 pages in size, which equals 128 Kibibyte.

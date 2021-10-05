@@ -21,8 +21,7 @@ pub enum GlobalStaticChunkAllocatorError {
 /// Wrapping struct around [`ChunkAllocator`] which enables the usage
 /// of this allocator in a global context, i.e. as global allocator.
 ///
-/// Use [`super::static_aligned_mem::StaticAlignedMem`] as backing storage type
-/// rather than a raw u8 array! The struct synchronized accesses to the memory.
+/// The struct synchronized accesses to the underlying memory.
 ///
 /// It must be initialized first by calling [`Self::init`].
 #[derive(Debug)]
@@ -95,21 +94,21 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
 #[allow(unused)]
 mod tests {
     use super::*;
-    use crate::static_alloc::StaticAlignedMem;
+    use libhrstd::mem::PageAlignedByteBuf;
 
     // must be a multiple of 8; 32 is equivalent to two pages
     const CHUNK_COUNT: usize = 32;
     const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
-    static mut HEAP: StaticAlignedMem<HEAP_SIZE> = StaticAlignedMem::new();
+    static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
     const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
-    static mut BITMAP: StaticAlignedMem<BITMAP_SIZE> = StaticAlignedMem::new();
+    static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
     static ALLOCATOR: GlobalStaticChunkAllocator = GlobalStaticChunkAllocator::new();
 
     #[test]
     fn test_compiles() {
         unsafe {
-            ALLOCATOR.init(HEAP.data_mut(), BITMAP.data_mut());
+            ALLOCATOR.init(HEAP.get_mut(), BITMAP.get_mut());
             let ptr = ALLOCATOR.alloc(Layout::from_size_align(256, 4096).unwrap());
             assert_eq!(ptr as u64 % 4096, 0, "must be 4096-bit-aligned");
         };
