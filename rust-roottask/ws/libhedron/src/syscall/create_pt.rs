@@ -11,16 +11,19 @@ use crate::syscall::generic::{
 /// If the call is successful, the kernel will install this kernel object
 /// into the capability space of the PD.
 pub fn create_pt(
-    // Must refer to a null capability
+    // Free selector (must refer to a null capability).
+    // The portal is installed at this [`CapSel`].
     new_pt_cap_sel: CapSel,
-    // own PD or foreign PD - depends on use case
+    // Target PD for the PT. Depends on use case (own or foreign PD).
     own_pd_sel: CapSel,
-    // generally the new EC that you just created
+    // Generally the [`CapSel`] of the new EC that you just created.
     bound_ec_sel: CapSel,
-    // Function pointer. The function can take one argument.
-    // To specify the argument, see [`super::pt_ctrl::pt_ctrl`]
-    instruction_pointer: *const u64,
+    // See [`Mtd`].
     mtd: Mtd,
+    // Instruction pointer of the portal (entry function).
+    // The function can take one argument. To specify the argument,
+    // see [`super::pt_ctrl::pt_ctrl`]
+    instruction_pointer: *const u64,
 ) -> Result<(), SyscallStatus> {
     let mut arg1 = 0;
     arg1 |= SyscallNum::CreatePt.val();

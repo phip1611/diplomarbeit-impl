@@ -1,6 +1,7 @@
 //! Module for [`Utcb`] and sub structs.
 
 use crate::mem::PAGE_SIZE;
+use crate::mtd::Mtd;
 use core::fmt::{
     Debug,
     Formatter,
@@ -24,11 +25,14 @@ pub enum UtcbError {
     TooManyTypedItems,
 }
 
-/// User Thread Control Block (UTCB). An execution context uses its UTCB to send or receive
-/// messages (IPC), ~~to transfer typed items during capability delegation~~ (not used anymore,
-/// see dedicated delegate syscall), and to get information after an exception.
+/// User Thread Control Block (UTCB). An execution context
+/// * uses its UTCB to send or receive messages (IPC),
+/// * ~~to transfer typed items during capability delegation~~ (not used anymore,
+///     see dedicated delegate syscall),
+/// * and to get information after an exception or event (VM exit).
 ///
-/// An UTCB is never constructed but only reused and refilled.
+/// An UTCB is never constructed inside the userspace. The one provided by the kernel gets
+/// reused and refilled instead.
 ///
 /// Consists of [`UtcbHead`] and [`UtcbData`].
 #[derive(Debug)]
@@ -151,8 +155,10 @@ impl Utcb {
     }
 }
 
-/// User Thread Control Block.
-/// Data-Buffer for IPC.
+/// User Thread Control Block. Depending on the context this contains:
+/// * typed items (for the legacy capability translate and delegate calls)
+/// * untyped items (arbitrary data)
+/// * exception or event data
 #[repr(C)]
 union UtcbData {
     /// Used to transfer arbitrary data. The buffer is only filled with the count of items,
@@ -163,7 +169,7 @@ union UtcbData {
     /// items, that is defined in the header. Typed items start from the end of the Utcb data
     /// area downwards.
     typed_items: [TypedItem; TYPED_ITEM_CAPACITY],
-    /// TODO filled during exceptions or specific VM events?!
+    /// See [`UtcbDataException`].
     exception_data: UtcbDataException,
 }
 
@@ -189,11 +195,12 @@ impl Debug for UtcbData {
 #[derive(Debug)]
 pub struct UtcbDataItems([u64; PAGE_SIZE - size_of::<UtcbHead>()]);
 
+/// Payload structure of [`UtcbData`] if a portal gets called after an event (exception or VM exit).
+/// What data is filled here depends on the [`super::mtd::Mtd`] that is attached to the portal.
 // this is copy because this is a limitation for unions in Rust currently
-// TODO naming?!
 #[derive(Debug, Copy, Clone)]
 pub struct UtcbDataException {
-    pub mtd: u64,
+    pub mtd: Mtd,
     pub inst_len: u64,
     pub rip: u64,
     pub rflags: u64,

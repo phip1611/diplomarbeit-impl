@@ -82,8 +82,9 @@ pub fn init(hip: &HIP) {
             portal_cap_sel,
             hip.root_pd(),
             ec_cap_sel,
+            // Mtd::DEFAULT,
+            Mtd::all(),
             general_exception_handler as *const u64,
-            Mtd::DEFAULT,
         )
         .unwrap();
 

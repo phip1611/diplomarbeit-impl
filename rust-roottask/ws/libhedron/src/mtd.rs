@@ -5,11 +5,13 @@ use bitflags::bitflags;
 bitflags! {
     /// The Message Transfer Descriptor (MTD) is an architecture-specific
     /// bitfield that controls the contents of an exception or intercept message.
-    /// The MTD is provided by the portal associated with the event and conveyed
-    /// to the receiver as part of the exception or intercept message. For each bit
-    /// set to 1, the microhypervisor transfers the architectural state associated
-    /// with that bit either to/from the respective fields of the UTCB data area or
-    /// directly in architectural registers.
+    /// This is the data that is the payload of the [`super::utcb::Utcb`].
+    ///
+    /// The MTD is provided by the portal associated with the event (for example
+    /// exception or VM exit)and conveyed to the receiver as part of the exception
+    /// or intercept message. For each bit set to 1, the microhypervisor transfers
+    /// the architectural state associated with that bit either to/from the
+    /// respective fields of the UTCB data area or directly in architectural registers.
     pub struct Mtd: u64 {
         // took everything 1:1 from Hedro: mtd.hpp
 
@@ -50,6 +52,7 @@ bitflags! {
         const FPU = 1 << 31;
 
         const NONE = 0;
+
         // the first 24 bits are default
         // I took this from mtd.hpp in supernova-core
         const DEFAULT = 0xffffff;
