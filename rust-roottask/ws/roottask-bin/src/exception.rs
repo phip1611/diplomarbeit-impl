@@ -25,6 +25,8 @@ use libroottask::stack::StaticStack;
 /// Used as stack for the exception handler callback function. Must be either mutable
 /// or manually placed in a writeable section in the file. Otherwise we get a page fault.
 ///
+/// It is 4 pages long. This is enough probably. panic!() and log::*! needs 4096 bytes each.
+///
 /// **Note:** Out of the box, there is no guard page protection. Must be set up manually.
 ///
 /// **Size:** Exception handler relies on panic and logging. Both require
@@ -35,7 +37,7 @@ use libroottask::stack::StaticStack;
 ///           enough lead to memory corruptions.
 ///
 // #[link_section = ".data"] (=rw) with "static VARNAME" or "static mut"
-static mut CALLBACK_STACK: StaticStack<2> = StaticStack::new();
+static mut CALLBACK_STACK: StaticStack<4> = StaticStack::new();
 
 /// Initializes a local EC and N portals to cover N exceptions.
 /// All exceptions are considered as unrecoverable in this roottask.

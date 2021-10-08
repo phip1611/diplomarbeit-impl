@@ -5,6 +5,7 @@ use core::sync::atomic::{
     compiler_fence,
     Ordering,
 };
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::util::ansi::{
     AnsiStyle,
     Color,
@@ -12,8 +13,8 @@ use libhrstd::util::ansi::{
 };
 
 /// Formats a nice panic message.
-fn generate_panic_msg(info: &PanicInfo) -> ArrayString<1024> {
-    let mut buf = arrayvec::ArrayString::<1024>::new();
+fn generate_panic_msg(info: &PanicInfo) -> ArrayString<PAGE_SIZE> {
+    let mut buf = arrayvec::ArrayString::new();
     // if this is an error, we ignore it. It would most probably mean, that the message
     // was only created partly, i.e. the buffer was too small.
 
@@ -37,7 +38,7 @@ fn generate_panic_msg(info: &PanicInfo) -> ArrayString<1024> {
     );
 
     // format the panic message
-    let _ = writeln!(
+    let res = writeln!(
         &mut buf,
         "{panic} in {filename}{filelocation} {msg:#?}",
         panic = AnsiStyle::new()
@@ -52,6 +53,13 @@ fn generate_panic_msg(info: &PanicInfo) -> ArrayString<1024> {
             .text_style(TextStyle::Dimmed),
         msg = info.message().unwrap_or(&format_args!("<none>")),
     );
+
+    if res.is_err() {
+        let msg_too_long = "<PANIC MSG TOO LONG; TRUNCATED>";
+        unsafe { buf.set_len(buf.len() - msg_too_long.len()) };
+        let _ = buf.write_str(msg_too_long);
+    }
+
     buf
 }
 

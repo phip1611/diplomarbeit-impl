@@ -47,7 +47,7 @@ impl GenericLogger {
     ///
     /// Make sure that stack in `assembly.S` is big enough.
     fn fmt_msg(record: &Record) -> ArrayString<PAGE_SIZE> {
-        let mut buf = ArrayString::<PAGE_SIZE>::new();
+        let mut buf = ArrayString::new();
 
         // "TRACE", " INFO", "ERROR"...
         let mut level = ArrayString::<5>::new();
@@ -89,13 +89,10 @@ impl GenericLogger {
             msg = record.args(),
         );
 
-        // TODO I think that we don't even come to this and some kernel
-        //  error happens for too small bufs..dafuq?!
-        // TODO fallback to allocated buffer?
         if res.is_err() {
-            // this will work most probably, except
-            // if we are out of stack memory for a recursive call
-            log::warn!("fmt msg failed; not enough memory");
+            let msg_too_long = "<LOG MSG TOO LONG; TRUNCATED>";
+            unsafe { buf.set_len(buf.len() - msg_too_long.len()) };
+            let _ = buf.write_str(msg_too_long);
         }
 
         buf
