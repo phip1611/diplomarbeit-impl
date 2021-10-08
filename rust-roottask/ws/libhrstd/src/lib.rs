@@ -36,7 +36,7 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-pub use libhedron::*;
+pub use libhedron;
 
 pub mod cap_mngmt;
 pub mod cstr;

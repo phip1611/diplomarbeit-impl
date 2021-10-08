@@ -24,13 +24,18 @@ impl<T> PageAlignedData<T> {
     }
 
     /// Return a pointer to self.
-    pub const unsafe fn self_ptr(&self) -> *const Self {
+    pub const fn self_ptr(&self) -> *const Self {
         self as *const _
     }
 
     /// Returns the number of the page inside the address space.
     pub fn page_num(&self) -> usize {
-        unsafe { self.self_ptr() as usize / PAGE_SIZE }
+        self.self_ptr() as usize / PAGE_SIZE
+    }
+
+    /// Returns the page base address of this struct.
+    pub fn page_bade_addr(&self) -> usize {
+        self.self_ptr() as usize /*& !0xfff not relevant because aligned*/
     }
 
     /// Returns a reference to the underlying data.
@@ -60,13 +65,18 @@ impl<T: Copy, const N: usize> PageAlignedBuf<T, N> {
     }
 
     /// Return a pointer to self.
-    pub const unsafe fn self_ptr(&self) -> *const Self {
+    pub const fn self_ptr(&self) -> *const Self {
         self.0.self_ptr() as *const _
     }
 
     /// Returns the number of the page inside the address space.
     pub fn page_num(&self) -> usize {
         self.0.page_num()
+    }
+
+    /// Returns the page base address of this struct.
+    pub fn page_bade_addr(&self) -> usize {
+        self.0.page_bade_addr()
     }
 
     /// Returns a reference to the underlying data.
@@ -117,6 +127,6 @@ mod tests {
         unsafe {
             assert_eq!(buf_ptr, buf.self_ptr() as usize);
         }
-        assert_eq!(buf_ptr % 4096, 0);
+        assert_eq!(buf_ptr % PAGE_SIZE, 0);
     }
 }
