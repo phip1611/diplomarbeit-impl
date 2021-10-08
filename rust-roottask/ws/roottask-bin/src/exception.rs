@@ -4,16 +4,17 @@ use crate::roottask_dispatch::ROOT_EXC_EVENT_BASE;
 use arrayvec::ArrayString;
 use core::convert::TryFrom;
 use core::fmt::Write;
-use libhrstd::capability::CapSel;
-use libhrstd::event_offset::ExceptionEventOffset;
-use libhrstd::hip::HIP;
-use libhrstd::mtd::Mtd;
-use libhrstd::syscall::create_ec::{
+use libhrstd::libhedron::capability::CapSel;
+use libhrstd::libhedron::event_offset::ExceptionEventOffset;
+use libhrstd::libhedron::hip::HIP;
+use libhrstd::libhedron::mtd::Mtd;
+use libhrstd::libhedron::syscall::create_ec::{
     create_ec,
     EcKind,
 };
-use libhrstd::syscall::create_pt::create_pt;
-use libhrstd::syscall::pt_ctrl::pt_ctrl;
+use libhrstd::libhedron::syscall::create_pt::create_pt;
+use libhrstd::libhedron::syscall::pt_ctrl::pt_ctrl;
+use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::util::ansi::{
     AnsiStyle,
     Color,

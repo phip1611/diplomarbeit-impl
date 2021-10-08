@@ -219,7 +219,7 @@ impl<'a> ChunkAllocator<'a> {
         let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
         let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
 
-        log::debug!("alloc: layout={:?} ({} chunks]", layout, required_chunks);
+        // log::debug!("alloc: layout={:?} ({} chunks]", layout, required_chunks);
 
         if modulo != 0 {
             required_chunks += 1;
@@ -242,7 +242,7 @@ impl<'a> ChunkAllocator<'a> {
         if modulo != 0 {
             required_chunks += 1;
         }
-        log::debug!("dealloc: layout={:?} ({} chunks]", layout, required_chunks);
+        // log::debug!("dealloc: layout={:?} ({} chunks]", layout, required_chunks);
 
         let index = self.ptr_to_chunk_index(ptr as *const u8);
         for i in index..index + required_chunks {
@@ -254,6 +254,7 @@ impl<'a> ChunkAllocator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use libhrstd::libhedron::mem::PAGE_SIZE;
     use libhrstd::mem::PageAlignedByteBuf;
 
     #[test]
@@ -397,14 +398,14 @@ mod tests {
         let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
 
         let layout1 = Layout::from_size_align(1, 1).unwrap();
-        let layout2 = Layout::from_size_align(4096, 4096).unwrap();
+        let layout2 = Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap();
 
         // allocate 1 single byte
         let ptr1 = {
             unsafe {
                 let ptr = alloc.alloc(layout1.clone());
                 assert_eq!(
-                    ptr as u64 % 4096,
+                    ptr as u64 % PAGE_SIZE as u64,
                     0,
                     "the first allocation must be always page-aligned"
                 );
@@ -423,7 +424,7 @@ mod tests {
             unsafe {
                 ptr = alloc.alloc(layout2.clone());
                 assert_eq!(
-                    ptr as u64 % 4096,
+                    ptr as u64 % PAGE_SIZE as u64,
                     0,
                     "the second allocation must be page-aligned because this was requested!"
                 );

@@ -1,6 +1,6 @@
 //! Serial logger.
 
-use libhrstd::capability::{
+use libhrstd::libhedron::capability::{
     CapSel,
     CrdPortIO,
 };

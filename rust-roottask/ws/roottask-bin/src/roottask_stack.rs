@@ -1,6 +1,6 @@
 //! Initial stack for the roottask. References in `assembly.S`.
 
-use libhrstd::hip::HIP;
+use libhrstd::libhedron::hip::HIP;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 use libroottask::stack::StaticStack;
 

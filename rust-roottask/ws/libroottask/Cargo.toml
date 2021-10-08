@@ -7,8 +7,7 @@ edition = "2021"
 publish = false # prevent accidentaly publishing
 
 [dependencies]
-libhedron = { path = "../libhedron" }
-libhrstd = { path = "../libhrstd" } # for mutex
+libhrstd = { path = "../libhrstd" } # for mutex; libhedron is transitive dep
 
 log = { version = "0.4", default-features = false }
 # mathematic operations, like sinus and logarithm

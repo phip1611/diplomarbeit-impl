@@ -3,12 +3,13 @@
 //! roottask.
 
 use core::alloc::Layout;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::mem::PageAlignedByteBuf;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 /// 1MiB heap -> 1024 chunks
-pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * 4096;
+pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * PAGE_SIZE;
 static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 const BITMAP_SIZE: usize = HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE / 8;
 static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();

@@ -75,7 +75,6 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "enum-iterator",
- "libhedron",
  "libhrstd",
  "libm",
  "log",

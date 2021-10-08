@@ -1,11 +1,11 @@
 //! Utilities to request I/O ports from the kern PD into the roottask PD.
 
-use libhedron::capability::{
+use libhrstd::libhedron::capability::{
     CapSel,
     CrdPortIO,
 };
-use libhedron::syscall::generic::SyscallStatus;
-use libhedron::syscall::pd_ctrl::{
+use libhrstd::libhedron::syscall::generic::SyscallStatus;
+use libhrstd::libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
 };

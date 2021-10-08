@@ -94,6 +94,7 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
 #[allow(unused)]
 mod tests {
     use super::*;
+    use libhrstd::libhedron::mem::PAGE_SIZE;
     use libhrstd::mem::PageAlignedByteBuf;
 
     // must be a multiple of 8; 32 is equivalent to two pages
@@ -109,8 +110,8 @@ mod tests {
     fn test_compiles() {
         unsafe {
             ALLOCATOR.init(HEAP.get_mut(), BITMAP.get_mut());
-            let ptr = ALLOCATOR.alloc(Layout::from_size_align(256, 4096).unwrap());
-            assert_eq!(ptr as u64 % 4096, 0, "must be 4096-bit-aligned");
+            let ptr = ALLOCATOR.alloc(Layout::from_size_align(256, PAGE_SIZE).unwrap());
+            assert_eq!(ptr as u64 % PAGE_SIZE as u64, 0, "must be 4096-bit-aligned");
         };
     }
 }

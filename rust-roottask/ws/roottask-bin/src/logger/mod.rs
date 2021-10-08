@@ -2,7 +2,8 @@ use crate::logger::debugcon::DebugconLogger;
 use crate::logger::serial::SerialLogger;
 use arrayvec::ArrayString;
 use core::fmt::Write;
-use libhrstd::capability::CapSel;
+use libhrstd::libhedron::capability::CapSel;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::ansi::{
     AnsiStyle,
@@ -45,8 +46,8 @@ impl GenericLogger {
     /// Because we don't have nested logging, this is fine and cheap.
     ///
     /// Make sure that stack in `assembly.S` is big enough.
-    fn fmt_msg(record: &Record) -> ArrayString<4096> {
-        let mut buf = ArrayString::<4096>::new();
+    fn fmt_msg(record: &Record) -> ArrayString<PAGE_SIZE> {
+        let mut buf = ArrayString::<PAGE_SIZE>::new();
 
         // "TRACE", " INFO", "ERROR"...
         let mut level = ArrayString::<5>::new();

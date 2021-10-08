@@ -2,13 +2,13 @@
 //! because it reduces distribution of responsibility/functionality across Rust code,
 //! assembler code and the linker script.
 
-use libhedron::capability::{
+use libhrstd::libhedron::capability::{
     CapSel,
     CrdMem,
     MemCapPermissions,
 };
-use libhedron::mem::PAGE_SIZE;
-use libhedron::syscall::pd_ctrl::{
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
 };
