@@ -12,23 +12,33 @@ use core::convert::TryFrom;
 use enum_iterator::IntoEnumIterator;
 
 /// Offsets from event base for x86 exceptions.
-/// See <https://wiki.osdev.org/Exceptions>
+/// See <https://wiki.osdev.org/Exceptions>.
+///
+/// # Exception Types
+/// ## Faults
+/// These can be corrected and the program may continue as if nothing happened.
+/// ## Aborts
+/// Some severe unrecoverable error.
+/// ## Traps
+/// Traps are reported immediately after the execution of the trapping instruction.
 #[derive(Debug, Copy, Clone, PartialEq, IntoEnumIterator)]
 #[repr(u64)]
 pub enum ExceptionEventOffset {
-    /// Divided by Zero error
-    DE = 0x00,
-    /// Debug
-    DB = 0x01,
-    /// Breakpoint
-    BP = 0x03,
-    /// Overflow
-    OF = 0x04,
-    /// Bound Range Exceeded
-    BR = 0x05,
-    /// Invalid Opcode
-    UD = 0x06,
-    /// Device Not Available.
+    /// Divided by Zero error (#DE).
+    DivideByZeroFault = 0,
+    /// Debug (#DB).
+    DebugTrap = 1,
+    /// Non-maskable interrupt
+    NonMaskableInterrupt = 2,
+    /// Breakpoint (#BP).
+    BreakpointTrap = 3,
+    /// Overflow (#OF).
+    OverflowTrap = 4,
+    /// Bound Range Exceeded (#BR).
+    BoundRangeExceededFault = 5,
+    /// Invalid Opcode (#UD).
+    InvalidOpcodeFault = 6,
+    /// Device Not Available (#NM).
     /// The Device Not Available exception occurs when an FPU
     /// instruction is attempted but there is no FPU. This is not
     /// likely, as modern processors have built-in FPUs. However,
@@ -38,36 +48,42 @@ pub enum ExceptionEventOffset {
     /// system can detect when a user program uses the FPU or XMM
     /// registers and then save/restore them appropriately when
     /// multitasking.
-    NM = 0x07,
-    /// Double Fault.
-    DF = 0x08,
-    /// Invalid TSS
-    TS = 0x0a,
-    /// Segment Not Present
-    NP = 0x0b,
-    /// Stack Segment Fault
-    SS = 0x0c,
-    /// General Protection fault,
-    /// i.e. I/O port violation or bad memory access.
-    GP = 0x0d,
-    /// Page Fault.
-    PF = 0x0e,
-    /// x87 Floating Point Exception
-    MF = 0x10,
+    DeviceNotAvailableFault = 7,
+    /// Double Fault (#DF).
+    DoubleFaultAbort = 8,
+    /// Legacy and handled by #GP for a longer time already.
+    _CoProcessorSegmentOverrunFault = 9,
+    /// Invalid TSS (#TS).
+    InvalidTssFault = 10,
+    /// Segment Not Present (#NP).
+    SegmentNotPresentFault = 11,
+    /// Stack Segment Fault (#SS).
+    StackSegmentFault = 12,
+    /// General Protection fault (#GP).
+    /// I/O port violation for example.
+    GeneralProtectionFault = 13,
+    /// Page Fault (#PF).
+    PageFault = 14,
+    /// Unused.
+    _Reserved = 15,
+    /// x87 Floating Point Exception (#MF).
+    X87FloatingPointFault = 16,
     /// Alignment Check
-    AC = 0x11,
+    AlignmentCheckFault = 17,
     /// Machine Check
-    MC = 0x12,
+    MachineCheckAbort = 18,
     /// SIMD Floating Point Exception
-    XM = 0x13,
+    SimdFloatingPointFault = 19,
+    /// Virtualization Exception (#VE).
+    VirtualizationFault = 20,
 
     /// Hedron-Specific: Startup of an EC
-    /// TODO talk with julian
-    STARTUP = 0x1e,
+    /// TODO talk with julian?! is this right? where to find inside hedron?
+    HedronStartup = 30,
 
     /// Hedron-Specific
     /// TODO talk with julian
-    RECALL = 0x1f,
+    HedronRecall = 31,
 }
 
 impl ExceptionEventOffset {
@@ -108,7 +124,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let expected = ExceptionEventOffset::GP;
+        let expected = ExceptionEventOffset::GeneralProtectionFault;
         let input = 13;
         let actual = ExceptionEventOffset::try_from(input).unwrap();
         assert_eq!(expected, actual);
