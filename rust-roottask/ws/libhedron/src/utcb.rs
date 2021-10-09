@@ -35,7 +35,6 @@ pub enum UtcbError {
 /// reused and refilled instead.
 ///
 /// Consists of [`UtcbHead`] and [`UtcbData`].
-#[derive(Debug)]
 #[repr(C, align(4096))]
 pub struct Utcb {
     head: UtcbHead,
@@ -53,12 +52,12 @@ impl Utcb {
     }
 
     /// Number of untyped items, alias arbitrary payload.
-    pub fn number_untyped_items(&self) -> u16 {
+    pub fn untyped_items_count(&self) -> u16 {
         self.head.items as u16
     }
 
     /// Number of untyped items.
-    pub fn number_typed_items(&self) -> u16 {
+    pub fn typed_items_count(&self) -> u16 {
         (self.head.items >> 16) as u16
     }
 
@@ -73,7 +72,7 @@ impl Utcb {
     /// parse the data by itself. The microhypervisor transfers untyped items from the beginning of
     /// the UTCB data area upwards.
     pub fn untyped_items(&self) -> &[u64] {
-        unsafe { &self.data.untyped_items[0..self.number_untyped_items() as usize] }
+        unsafe { &self.data.untyped_items[0..self.untyped_items_count() as usize] }
     }
 
     /// Sets the number of untyped items.
@@ -81,7 +80,7 @@ impl Utcb {
         if count as usize > UNTYPED_ITEM_CAPACITY {
             Err(UtcbError::TooManyUntypedItems)
         } else {
-            let typed_items = self.number_typed_items() as u64;
+            let typed_items = self.typed_items_count() as u64;
             self.head.items = (typed_items << 16) | count as u64;
             Ok(())
         }
@@ -92,7 +91,7 @@ impl Utcb {
         if count as usize > UNTYPED_ITEM_CAPACITY {
             Err(UtcbError::TooManyTypedItems)
         } else {
-            let untyped_items = self.number_untyped_items() as u64;
+            let untyped_items = self.untyped_items_count() as u64;
             self.head.items = (count as u64) << 16 | untyped_items;
             Ok(())
         }
@@ -104,7 +103,7 @@ impl Utcb {
     pub fn typed_items(&self) -> &[TypedItem] {
         // typed items are at end of array
         let end_i = unsafe { self.data.untyped_items.len() } - 1;
-        let begin_i = end_i - self.number_typed_items() as usize;
+        let begin_i = end_i - self.typed_items_count() as usize;
         unsafe { &self.data.typed_items[begin_i..] }
     }
 
@@ -113,7 +112,7 @@ impl Utcb {
     pub fn load_data<T: Sized>(&self) -> Result<&T, UtcbError> {
         let required_byte_count = size_of::<T>();
         let size_untyped_item = size_of::<UntypedItem>();
-        let avaiable_byte_count = self.number_untyped_items() as usize * size_untyped_item;
+        let avaiable_byte_count = self.untyped_items_count() as usize * size_untyped_item;
         if required_byte_count < avaiable_byte_count {
             log::warn!(
                 "required_byte_count({}) < available_byte_count({})",
@@ -155,6 +154,19 @@ impl Utcb {
     }
 }
 
+impl Debug for Utcb {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        use core::fmt::Write;
+        let mut name = arrayvec::ArrayString::<64>::new();
+        write!(&mut name, "Utcb (@ {:?})", &(self as *const Self))?;
+        f.debug_struct(name.as_str())
+            .field("head", &self.head)
+            .field("data (typed items)", &self.typed_items_count())
+            .field("data (untyped items)", &self.untyped_items_count())
+            .finish()
+    }
+}
+
 /// User Thread Control Block. Depending on the context this contains:
 /// * typed items (for the legacy capability translate and delegate calls)
 /// * untyped items (arbitrary data)
@@ -180,15 +192,6 @@ impl UtcbData {
         Self {
             untyped_items: [0; UNTYPED_ITEM_CAPACITY],
         }
-    }
-}
-
-impl Debug for UtcbData {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("UtcbData (Union)")
-            .field("#exception_data", unsafe { &self.exception_data })
-            .field("#items", &"<array>")
-            .finish()
     }
 }
 
@@ -357,6 +360,7 @@ mod tests {
         );
     }
 
+    /// Tests to store and load arbitrary data types from and to the untyped item section of the UTCB.
     #[test]
     fn test_store_load_utcb() {
         let mut utcb = Utcb::new();
@@ -368,8 +372,8 @@ mod tests {
         let array = [1_u64, 3, 3, 7];
         utcb.store_data(array).unwrap();
 
-        assert_eq!(utcb.number_untyped_items(), 4);
-        assert_eq!(utcb.number_typed_items(), 0);
+        assert_eq!(utcb.untyped_items_count(), 4);
+        assert_eq!(utcb.typed_items_count(), 0);
 
         let copy = utcb.load_data::<[u64; 4]>().unwrap();
         assert_eq!(&array, copy);
