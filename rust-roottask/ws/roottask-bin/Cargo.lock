@@ -50,6 +50,7 @@ dependencies = [
 name = "libhedron"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "bitflags",
  "enum-iterator",
  "log",

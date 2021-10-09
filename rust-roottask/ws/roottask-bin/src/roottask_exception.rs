@@ -1,6 +1,6 @@
 //! Exception-handling for roottask.
 
-use crate::roottask_dispatch::ROOT_EXC_EVENT_BASE;
+use crate::UTCB;
 use arrayvec::ArrayString;
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -21,6 +21,14 @@ use libhrstd::util::ansi::{
     TextStyle,
 };
 use libroottask::stack::StaticStack;
+
+/// The root task has 0 as event selector base. This means, initially
+/// capability selectors 0..32 refer to a null capability, but can be used
+/// for exception handling. To get the offset for the corresponding
+/// event, see [`roottask_lib::hedron::event_offset::ExceptionEventOffset`].
+///
+/// The number of exceptions is also in [`roottask_lib::hedron::hip::HIP`] (field `num_exc_sel`).
+pub const ROOT_EXC_EVENT_BASE: CapSel = 0;
 
 /// Used as stack for the exception handler callback function. Must be either mutable
 /// or manually placed in a writeable section in the file. Otherwise we get a page fault.
@@ -67,6 +75,8 @@ pub fn init(hip: &HIP) {
     }
     log::info!("created local ec for exception handling; guard page is active");
 
+    log::info!("foobar={:?}", UTCB.lock().unwrap() as *const Utcb);
+
     // I iterate here over all available/reserved capability selectors for exceptionss.
     // This is relative to the event base selector. For the roottask/root protection domain,
     // it is 0 (See ROOT_EXC_EVENT_BASE).
@@ -89,7 +99,6 @@ pub fn init(hip: &HIP) {
             general_exception_handler as *const u64,
         )
         .unwrap();
-
         // give each portal the proper callback argument / id.
         pt_ctrl(
             portal_cap_sel,
@@ -114,18 +123,21 @@ pub fn init(hip: &HIP) {
 
 /// General exception handler for all x86 exceptions that can happen.
 /// The handler aborts the program if an exception occurs. Panics the Rust program.
-fn general_exception_handler(id: u64) -> ! {
-    let id = ExceptionEventOffset::try_from(id).unwrap();
+fn general_exception_handler(exception_id: u64) -> ! {
+    let id = ExceptionEventOffset::try_from(exception_id).expect("Unsupported exception variant");
     let mut buf = ArrayString::<32>::new();
     write!(&mut buf, "{:#?}", id).unwrap();
 
     // TODO sinnvolle Dinge aus UTCB ausgeben (registerdump, ...)
+    log::debug!("{:#?}", UTCB.lock().unwrap());
+
     panic!(
-        "Mayday, caught exception id={} - aborting program",
+        "Mayday, caught exception id={} - aborting program\n{:#?}",
         AnsiStyle::new()
             .foreground_color(Color::Red)
             .text_style(TextStyle::Bold)
-            .msg(buf.as_str())
+            .msg(buf.as_str()),
+        UTCB.lock().unwrap().exception_data()
     );
 
     // entweder return mit reply syscall

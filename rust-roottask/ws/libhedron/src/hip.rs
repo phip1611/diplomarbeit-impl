@@ -290,7 +290,7 @@ pub struct HipMem {
     typ: HipMemType,
     /// 0 for [`HipMemType::Hypervisor`], otherwise a pointer to a NULL-terminated `C-String` which
     /// represents the `cmdline` of the Multiboot boot module.
-    aux: u32,
+    cmdline: u32,
 }
 
 impl HipMem {
@@ -303,6 +303,15 @@ impl HipMem {
     pub fn typ(&self) -> HipMemType {
         self.typ
     }
+    /// Returns the pointer to the command line.
+    pub fn cmdline(&self) -> Option<*const u8> {
+        if self.typ == HipMemType::MbModule {
+            Some(self.cmdline as *const u8)
+        } else {
+            None
+        }
+    }
+
     /*pub fn mb_cmdline(&self) -> Option<&'a str> {
         unsafe {
             let ptr = (self.aux as *const u32 as *const u8);
@@ -320,7 +329,7 @@ impl Debug for HipMem {
             .field("addr", &(self.addr as *const u64))
             .field("size", &self.size)
             .field("(end_addr)", &((self.addr + self.size) as *const u64))
-            .field("aux", &(self.aux as *const u64))
+            .field("cmdline (C-Str ptr)", &(self.cmdline as *const u64))
             .finish()
     }
 }
