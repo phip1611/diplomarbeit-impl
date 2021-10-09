@@ -67,15 +67,15 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
         // DON'T USE RECURSIVE ALLOCATING HERE
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
-        log::debug!("alloc: {:?}", layout);
+        // log::debug!("alloc: {:?}", layout);
         let mut lock = self.data.lock();
         let lock = lock.as_mut().expect("allocator is uninitialized");
         let x = lock.alloc(layout);
-        log::debug!(
+        /*log::debug!(
             "allocated {} bytes at address 0x{:x}",
             layout.size(),
             x as usize
-        );
+        );*/
         x
     }
 
@@ -83,7 +83,7 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
         // DON'T USE RECURSIVE ALLOCATING HERE
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
-        log::debug!("dealloc: {:?}", layout);
+        // log::debug!("dealloc: ptr={:?}, layout={:?}", ptr, layout);
         let mut lock = self.data.lock();
         let lock = lock.as_mut().expect("allocator is uninitialized");
         lock.dealloc(ptr, layout)
