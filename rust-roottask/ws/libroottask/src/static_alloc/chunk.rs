@@ -204,7 +204,7 @@ impl<'a> ChunkAllocator<'a> {
     /// Returns the chunk index of the given pointer (which points to the beginning of a chunk).
     unsafe fn ptr_to_chunk_index(&self, ptr: *const u8) -> usize {
         let heap_begin_inclusive = self.heap.as_ptr();
-        let heap_end_exclusive = self.heap.as_ptr().add(self.chunk_count());
+        let heap_end_exclusive = self.heap.as_ptr().add(self.heap.len());
         assert!(
             heap_begin_inclusive <= ptr && ptr < heap_end_exclusive,
             "pointer {:?} is out of range {:?}..{:?} of the allocators backing storage",
@@ -451,6 +451,23 @@ mod tests {
             for i in 0..CHUNK_COUNT {
                 assert!(!alloc.chunk_is_free(i), "all chunks must be in use!");
             }
+        }
+    }
+    #[test]
+    #[should_panic]
+    fn test_alloc_out_of_memory() {
+        // must be a multiple of 8; 32 is equivalent to two pages
+        const CHUNK_COUNT: usize = 32;
+        const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+        static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
+        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
+
+        // check that it compiles
+        let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+
+        unsafe {
+            let _ = alloc.alloc(Layout::from_size_align(16384, PAGE_SIZE).unwrap());
         }
     }
 }
