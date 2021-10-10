@@ -164,9 +164,13 @@ impl<'a> ChunkAllocator<'a> {
     /// beginning index.
     ///
     /// # Parameters
-    /// - `chunk_num` number of chunks that must be all free without gap in-between
+    /// - `chunk_num` number of chunks that must be all free without gap in-between; greater than 0
     /// - `alignment` required alignment of the chunk in memory
     fn find_free_coherent_chunks(&self, chunk_num: usize, alignment: u32) -> Result<usize, ()> {
+        assert!(
+            chunk_num > 0,
+            "chunk_num must be greater than 0! Allocating 0 blocks makes no sense"
+        );
         let mut begin_chunk_i = self.find_next_free_chunk(Some(0), alignment)?;
         let out_of_mem_cond = begin_chunk_i + (chunk_num - 1) >= self.chunk_count();
         while !out_of_mem_cond {
@@ -216,6 +220,8 @@ impl<'a> ChunkAllocator<'a> {
     }
 
     pub unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
+        assert!(layout.size() > 0, "size must be >= 0!");
+
         let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
         let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
 
