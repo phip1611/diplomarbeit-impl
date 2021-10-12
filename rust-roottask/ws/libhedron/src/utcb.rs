@@ -9,11 +9,11 @@ use core::fmt::{
 use core::mem::size_of;
 
 /// Capacity in bytes of the UTCB Data area.
-const DATA_CAPACITY: usize = PAGE_SIZE - size_of::<UtcbHead>();
+const UTCB_DATA_CAPACITY: usize = PAGE_SIZE - size_of::<UtcbHead>();
 /// Capacity count of untyped items in UTCB Data area.
-const UNTYPED_ITEM_CAPACITY: usize = DATA_CAPACITY / size_of::<UntypedItem>();
+const UNTYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<UntypedItem>();
 /// Capacity count for typed items in UTCB Data area.
-const TYPED_ITEM_CAPACITY: usize = DATA_CAPACITY / size_of::<TypedItem>();
+const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>();
 
 #[derive(Copy, Clone, Debug)]
 pub enum UtcbError {
@@ -42,9 +42,7 @@ pub struct Utcb {
 }
 
 impl Utcb {
-    /// Constructor for testing.
-    #[cfg(test)]
-    fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             head: UtcbHead::new(),
             data: UtcbData::new(),
@@ -130,7 +128,7 @@ impl Utcb {
     pub fn store_data<T: Sized>(&mut self, data: T) -> Result<(), UtcbError> {
         let required_size = size_of::<T>();
         let untyped_item_size = size_of::<UntypedItem>();
-        if required_size > DATA_CAPACITY {
+        if required_size > UTCB_DATA_CAPACITY {
             Err(UtcbError::PayloadTooLarge)
         } else {
             let required_untyped_items = if required_size % untyped_item_size == 0 {
@@ -173,6 +171,8 @@ impl Debug for Utcb {
 /// * exception or event data
 #[repr(C)]
 union UtcbData {
+    /// Raw byte accessor.
+    bytes: [u8; UTCB_DATA_CAPACITY],
     /// Used to transfer arbitrary data. The buffer is only filled with the count of items,
     /// that is defined in the header. Untyped items start from the beginning of the Utcb data
     /// area upwards.
@@ -186,11 +186,11 @@ union UtcbData {
 }
 
 impl UtcbData {
-    /// Constructor for tests.
-    #[cfg(test)]
-    fn new() -> Self {
+    /// Constructor.
+    pub const fn new() -> Self {
+        // initialize with zeroes only.
         Self {
-            untyped_items: [0; UNTYPED_ITEM_CAPACITY],
+            bytes: [0; UTCB_DATA_CAPACITY],
         }
     }
 }
@@ -202,6 +202,7 @@ pub struct UtcbDataItems([u64; PAGE_SIZE - size_of::<UtcbHead>()]);
 /// What data is filled here depends on the [`super::mtd::Mtd`] that is attached to the portal.
 // this is copy because this is a limitation for unions in Rust currently
 #[derive(Debug, Copy, Clone)]
+#[repr(C)]
 pub struct UtcbDataException {
     pub mtd: Mtd,
     pub inst_len: u64,
@@ -291,9 +292,8 @@ pub struct UtcbHead {
 }
 
 impl UtcbHead {
-    /// Constructor for tests.
-    #[cfg(test)]
-    fn new() -> Self {
+    /// Constructor.
+    pub const fn new() -> Self {
         Self {
             items: 0,
             _xlt: 0,

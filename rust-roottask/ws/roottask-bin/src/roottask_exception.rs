@@ -1,12 +1,12 @@
 //! Exception-handling for roottask.
 
-use crate::UTCB;
 use arrayvec::ArrayString;
 use core::convert::TryFrom;
 use core::fmt::Write;
 use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::hip::HIP;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::syscall::create_ec::{
     create_ec,
@@ -15,6 +15,7 @@ use libhrstd::libhedron::syscall::create_ec::{
 use libhrstd::libhedron::syscall::create_pt::create_pt;
 use libhrstd::libhedron::syscall::pt_ctrl::pt_ctrl;
 use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::mem::PageAligned;
 use libhrstd::util::ansi::{
     AnsiStyle,
     Color,
@@ -47,6 +48,9 @@ pub const ROOT_EXC_EVENT_BASE: CapSel = 0;
 // #[link_section = ".data"] (=rw) with "static VARNAME" or "static mut"
 static mut CALLBACK_STACK: StaticStack<4> = StaticStack::new();
 
+/// UTCB for the exception handler portal.
+static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
+
 /// Initializes a local EC and N portals to cover N exceptions.
 /// All exceptions are considered as unrecoverable in this roottask.
 /// Therefore, they panic. See [`roottask_lib::hedron::event_offset::ExceptionEventOffset`]
@@ -64,7 +68,7 @@ pub fn init(hip: &HIP) {
         unsafe { CALLBACK_STACK.get_stack_top_ptr() } as u64,
         ROOT_EXC_EVENT_BASE,
         0,
-        0,
+        unsafe { EXCEPTION_UTCB.page_num() } as u64,
         false,
         false,
     )
@@ -74,8 +78,6 @@ pub fn init(hip: &HIP) {
         CALLBACK_STACK.activate_guard_page(hip.root_pd());
     }
     log::info!("created local ec for exception handling; guard page is active");
-
-    log::info!("foobar={:?}", UTCB.lock().unwrap() as *const Utcb);
 
     // I iterate here over all available/reserved capability selectors for exceptionss.
     // This is relative to the event base selector. For the roottask/root protection domain,
@@ -128,16 +130,13 @@ fn general_exception_handler(exception_id: u64) -> ! {
     let mut buf = ArrayString::<32>::new();
     write!(&mut buf, "{:#?}", id).unwrap();
 
-    // TODO sinnvolle Dinge aus UTCB ausgeben (registerdump, ...)
-    log::debug!("{:#?}", UTCB.lock().unwrap());
-
     panic!(
         "Mayday, caught exception id={} - aborting program\n{:#?}",
         AnsiStyle::new()
             .foreground_color(Color::Red)
             .text_style(TextStyle::Bold)
             .msg(buf.as_str()),
-        UTCB.lock().unwrap().exception_data()
+        unsafe { EXCEPTION_UTCB.exception_data() }
     );
 
     // entweder return mit reply syscall

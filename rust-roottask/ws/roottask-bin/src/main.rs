@@ -66,14 +66,10 @@ use libhrstd::util::ansi::{
 use libroottask::mem::MappingHelper;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
-/// Address of the UTCB, accessible for the whole executable.
-static UTCB: SimpleMutex<Option<&Utcb>> = SimpleMutex::new(None);
-
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let hip = unsafe { (hip_ptr as *const HIP).as_ref().unwrap() };
     let utcb = unsafe { (utcb_ptr as *const Utcb).as_ref().unwrap() };
-    UTCB.lock().replace(utcb);
 
     logger::init(hip.root_pd());
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
