@@ -77,12 +77,12 @@ pub enum ExceptionEventOffset {
     /// Virtualization Exception (#VE).
     VirtualizationFault = 20,
 
-    /// Hedron-Specific: Startup of an EC
-    /// TODO talk with julian?! is this right? where to find inside hedron?
-    HedronStartup = 30,
+    /// Only for global non-Roottask ECs. Invoked on first schedule.
+    HedronStartup = 30 /* 0x1e */,
 
     /// Hedron-Specific
     /// TODO talk with julian
+    /// asynchrone events (nur für vcpus um sie zum exiten zu zwingen, nicht für mich wichtig)
     HedronRecall = 31,
 }
 
