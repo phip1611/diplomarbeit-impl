@@ -1,6 +1,7 @@
 //! Abstractions over C-Strings. CString and CStr are part of Rust `std` but not
 //! `core`, therefore I have to provide a custom abstraction.
 
+use alloc::string::{String, ToString};
 use core::str::Utf8Error;
 
 /// Possible errors when constructing a [`CStr`].
@@ -81,6 +82,12 @@ impl<'a> TryFrom<&'a [u8]> for CStr<'a> {
         let str =
             core::str::from_utf8(&data[0..null_byte_index]).map_err(|e| CStrError::Utf8(e))?;
         Ok(Self { data, str, len })
+    }
+}
+
+impl<'a> ToString for CStr<'a> {
+    fn to_string(&self) -> String {
+        String::from(self.str)
     }
 }
 

@@ -26,6 +26,8 @@
 #![feature(const_fmt_arguments_new)]
 #![feature(const_mut_refs)]
 #![feature(const_fn_trait_bound)]
+#![feature(allocator_api)]
+#![feature(nonnull_slice_from_raw_parts)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -37,6 +39,7 @@ extern crate std;
 extern crate alloc;
 
 pub use libhedron;
+pub use libm;
 
 pub mod cap_mngmt;
 pub mod cstr;
