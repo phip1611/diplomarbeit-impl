@@ -1,0 +1,28 @@
+#!/usr/bin/bash
+
+# small binary that applies a cargo command to each
+# directory of this "fake cargo workspace" (see readme)
+# example: apply "./ws-cargo build|check|..." to each subdirectory
+
+
+#########################################################################
+# nice "hack" which make the script work, even if not executed from "./"
+DIR=$(dirname "$(realpath "$0")")
+cd "$DIR" || exit
+#########################################################################
+
+cd "./ws" || exit
+
+# https://stackoverflow.com/questions/13823706/capture-multiline-output-as-array-in-bash
+# get all the paths as array
+DIRS=($(find .  -maxdepth 1 -type d ! -path .))
+
+
+# apply "./ws-cargo build|check|..." to each subdirectory
+for DIR in "${DIRS[@]}"
+do
+    (
+        cd "$DIR" || exit
+        cargo "$@"
+    )
+done
