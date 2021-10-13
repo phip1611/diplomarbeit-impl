@@ -7,17 +7,18 @@ use core::fmt::{
     Formatter,
 };
 use core::mem::size_of;
+use arrayvec::ArrayString;
 
 /// Capacity in bytes of the UTCB Data area.
-const UTCB_DATA_CAPACITY: usize = PAGE_SIZE - size_of::<UtcbHead>();
+pub const UTCB_DATA_CAPACITY: usize = PAGE_SIZE - size_of::<UtcbHead>();
 /// Capacity count of untyped items in UTCB Data area.
-const UNTYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<UntypedItem>();
+pub const UNTYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<UntypedItem>();
 /// Capacity count for typed items in UTCB Data area.
-const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>();
+pub const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>();
 
 #[derive(Copy, Clone, Debug)]
 pub enum UtcbError {
-    /// Indicates that the payload is larger than [`DATA_CAPACITY`].
+    /// Indicates that the payload is larger than [`UTCB_DATA_CAPACITY`].
     PayloadTooLarge,
     /// Indicates that there are more untyped items than [`UNTYPED_ITEM_CAPACITY`].
     TooManyUntypedItems,
@@ -170,7 +171,7 @@ impl Debug for Utcb {
 /// * untyped items (arbitrary data)
 /// * exception or event data
 #[repr(C)]
-union UtcbData {
+pub union UtcbData {
     /// Raw byte accessor.
     bytes: [u8; UTCB_DATA_CAPACITY],
     /// Used to transfer arbitrary data. The buffer is only filled with the count of items,
@@ -192,6 +193,18 @@ impl UtcbData {
         Self {
             bytes: [0; UTCB_DATA_CAPACITY],
         }
+    }
+}
+
+impl Debug for UtcbData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        use core::fmt::Write;
+        let mut buf = ArrayString::<64>::new();
+        let non_null_bytes = unsafe { self.bytes.iter().filter(|x| **x != 0).count() };
+        write!(&mut buf, "{} non-null bytes in union", non_null_bytes)?;
+        write!(f, "UtcbData(")?;
+        write!(f, "{}", buf)?;
+        write!(f, ")")
     }
 }
 
@@ -358,6 +371,27 @@ mod tests {
             PAGE_SIZE,
             "Utcb must be a page size long"
         );
+
+        // test that all UtcbDataUnion-Fields have the same size
+        let utcb = UtcbData::new();
+        unsafe {
+            /*assert_eq!(
+                size_of_val(&utcb.bytes),
+                size_of_val(&utcb.exception_data),
+            );*/
+            assert_eq!(
+                size_of_val(&utcb.bytes),
+                size_of_val(&utcb.untyped_items),
+            );
+            assert_eq!(
+                size_of_val(&utcb.bytes),
+                size_of_val(&utcb.typed_items),
+            );
+            assert_eq!(
+                size_of_val(&utcb.bytes),
+                size_of::<UtcbData>(),
+            );
+        }
     }
 
     /// Tests to store and load arbitrary data types from and to the untyped item section of the UTCB.

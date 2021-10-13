@@ -15,49 +15,68 @@ use libhrstd::libhedron::syscall::pd_ctrl::{
     DelegateFlags,
 };
 
+type Page = [u8; PAGE_SIZE];
+
 /// Helper struct to map memory. It reserves a range inside the current address space on the
-/// heap and this can be used as destination buffer. All addresses will remain valid but they
-/// will point to the new data afterwards. In other words, the memory allocated by this struct
-/// holds the destination buffer for memory mappings. By calling `map` the operation
-/// gets commited.
+/// heap and this can be used as destination buffer for memory mappings (memory delegations).
+/// ALERT: All addresses will remain valid but they will point to the new data afterwards. In other
+/// words, the memory allocated by this struct holds the destination buffer for memory mappings.
+/// By calling `map` the mapping gets executed.
+///
+/// TODO: After talking with Julian & Nils, this approach is really strange and should not be done,
+///  because it changes existing virtual memory (here: the heap) for ever and will lead to
+///  overwritten physical memory (for example the mb modules). Instead, my whole memory allocation
+///  approach should be refactored so something like:
+///    - physical page frame allocator,
+///    - virtual address space manager,
+///
+/// Because my approach is good enough for this work probably, I keep it as it is for now.
 #[derive(Debug)]
 pub struct MappingHelper<'a> {
     src_mapping_base_address: Option<usize>,
-    // length is a multiple of PAGE_SIZE
-    memory: &'a mut [u8],
-    order: u8,
+    // - allocated heap memory used as mapping destination
+    // - byte array that is a multiple of page size
+    // - we must be careful: for pointer arithmetic we need to use `.begin_ptr()` (Byte pointer!)
+    // - the reference is valid as long as this instance is valid
+    // - we don't need Pin<>, because only owned values are protected by Pin,
+    //   but this reference (in the end, a pointer) stays constant during the lifetime of this obj
+    // - I use this in favor of Pin<Box<>>, because this way I can guarantee the alignment
+    //   for the allocation!
+    aligned_mem_pages: &'a mut [Page],
 }
 
 impl<'a> MappingHelper<'a> {
-    /// Creates a new object and prepares the memory/address range.
-    /// Similar to CRDs, the order is used to describe a range from
-    /// 0..2^order pages.
-    ///
-    /// Order 0 means: 2^0 pages = 1 page
-    /// Order 1 means: 2^1 pages = 2 pages
-    pub fn new(page_order: u8) -> Self {
-        let pages = 2_usize.pow(page_order as u32);
-        let size = pages * PAGE_SIZE;
-        let memory = unsafe {
+    /// Creates a new object and allocates memory on the heap, that
+    /// will be the mapping destination.
+    pub fn new(page_count: usize) -> Self {
+        assert!(page_count > 0, "must use at least one page!");
+
+        let size = page_count * PAGE_SIZE;
+        let aligned_mem_pages = unsafe {
+            // I use manual alloc/dealloc in favor of Vec or Box, because this way I have
+            // full control over the alignment (Page Alignment)
             let ptr = alloc(Layout::from_size_align(size, PAGE_SIZE).unwrap());
-            core::slice::from_raw_parts_mut(ptr, size)
+            let ptr = ptr as *mut Page;
+            core::slice::from_raw_parts_mut(ptr, page_count)
         };
         log::debug!(
-            "New MappingHelper with backing memory from {:?} to {:?} ({} pages)",
-            memory.as_ptr(),
-            unsafe { memory.as_ptr().add(size) },
-            pages
+            "New MappingHelper with backing memory {:?}..{:?} ({} pages)",
+            aligned_mem_pages.as_ptr(),
+            unsafe { aligned_mem_pages.as_ptr().add(size) },
+            page_count
         );
         Self {
-            memory,
+            aligned_mem_pages,
             src_mapping_base_address: None,
-            order: page_order,
         }
     }
 
     /// Performs a `pd_ctrl_delegate` syscall and transfers the given memory
-    /// capability (= page number) from the source PD to the dest PD. This can be used to map
-    /// physical memory addresses (such as a Multiboot module) to
+    /// capability (= page number(s)) from the source PD to the dest PD. This
+    /// can be used to map physical memory addresses (such as a Multiboot module)
+    /// to the virtual address space of the given PD.
+    ///
+    /// It maps as many pages as the instance was created with in the constructor.
     pub fn map(
         &mut self,
         src_pd: CapSel,
@@ -66,72 +85,110 @@ impl<'a> MappingHelper<'a> {
         permissions: MemCapPermissions,
         delegate_flags: DelegateFlags,
     ) -> Result<(), SyscallStatus> {
-        // TODO ist das so? oder will ich mehrfachnutzung erlauben?
-        assert!(
-            self.src_mapping_base_address.is_none(),
-            "a MappingHelper can only be used once!"
-        );
+        if self.src_mapping_base_address.is_some() {
+            log::debug!("MappingHelper reused!");
+        }
 
-        let src_page_num = src_addr / PAGE_SIZE;
-        let dest_page_num = self.memory.as_ptr() as usize / PAGE_SIZE;
-
-        // permissions ignored here
-        let src_crd = CrdMem::new(
-            src_page_num as u64,
-            self.order,
-            // important; permissions must be set for SrcCrd and DestCrd (ask julian: why?)
-            permissions,
-        );
-
-        let dest_crd = CrdMem::new(
-            dest_page_num as u64,
-            self.order,
-            // important; permissions must be set for SrcCrd and DestCrd (ask julian: why?)
-            permissions,
-        );
+        let base_src_page_num = src_addr / PAGE_SIZE;
+        let base_dest_page_num = self.aligned_mem_pages.as_ptr() as usize / PAGE_SIZE;
 
         let base_addr = src_addr & !0xfff;
         self.src_mapping_base_address.replace(base_addr);
 
-        log::debug!(
-            "MappingHelper: mapping page {} ({:?}) from pd {} to page {} ({:?}) from pd {}",
-            src_page_num,
-            base_addr as *const usize,
-            src_pd,
-            dest_page_num,
-            self.memory.as_ptr(),
-            dest_pd,
-        );
+        // We map all pages in a loop (and don't use the order optimization),
+        // because overhead here is negligible
+        let pages_count = self.aligned_mem_pages.len();
+        for i in 0..pages_count {
+            let src_page_num = base_src_page_num + i;
+            let dest_page_num = base_dest_page_num + i;
 
-        pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, delegate_flags)
+            let src_crd = CrdMem::new(
+                src_page_num as u64,
+                0,
+                // important; permissions must be set for SrcCrd and DestCrd (ask julian: why?)
+                permissions,
+            );
+
+            let dest_crd = CrdMem::new(
+                dest_page_num as u64,
+                0,
+                // important; permissions must be set for SrcCrd and DestCrd (ask julian: why?)
+                permissions,
+            );
+
+            log::debug!(
+                "MappingHelper: mapping page {} ({:?}) of pd {} to page {} ({:?}) of pd {}",
+                src_page_num,
+                base_addr as *const usize,
+                src_pd,
+                dest_page_num,
+                self.aligned_mem_pages.as_ptr(),
+                dest_pd,
+            );
+
+            // We map all pages in a loop (and don't use the order-field optimization),
+            // because overhead here is negligible and simpler code is more important
+            pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, delegate_flags)?;
+        }
+        Ok(())
     }
 
-    /// Wrapper around [`mem_with_offset_as`].
+    /// Returns the length in bytes of the mapping aea.
+    pub fn len(&self) -> usize {
+        self.aligned_mem_pages.len() * PAGE_SIZE
+    }
+
+    /// Returns the byte pointer to the begin of the data.
+    fn begin_ptr(&self) -> *const u8 {
+        self.aligned_mem_pages.as_ptr() as *const _
+    }
+
+    /// Returns the byte pointer to the begin of the data.
+    fn begin_ptr_mut(&mut self) -> *mut u8 {
+        self.aligned_mem_pages.as_mut_ptr() as *mut _
+    }
+
+    /// Creates a slice of data from the underlying memory of Type T.
+    pub fn mem_as_slice<T: Sized>(&self, length: usize) -> &[T] {
+        self.mem_with_offset_as_slice(length, None)
+    }
+
+    /// Creates a slice of data from the underlying memory of Type T at the
+    /// given offset. **The offset is in bytes!**
+    pub fn mem_with_offset_as_slice<T: Sized>(&self, length: usize, offset: Option<usize>) -> &[T] {
+        self.assert_mem_as_slice::<T>(offset, length);
+        unsafe {
+            let ptr = self.begin_ptr() as *const _;
+            core::slice::from_raw_parts(ptr, length)
+        }
+    }
+
+    /// Wrapper around [`Self::mem_with_offset_as`].
     pub fn mem_as<T: Sized>(&self) -> &T {
         self.mem_with_offset_as(None)
     }
 
-    /// Wrapper around [`mem_with_offset_as_mut`].
+    /// Wrapper around [`Self::mem_with_offset_as_mut`].
     pub fn mem_as_mut<T: Sized>(&mut self) -> &mut T {
         self.mem_with_offset_as_mut(None)
     }
 
-    /// Wrapper around [`mem_as`].
+    /// Wrapper around [`Self::mem_as`].
     pub fn mem_as_ptr<T: Sized>(&self) -> *const T {
         self.mem_as() as *const T
     }
 
-    /// Wrapper around [`mem_as_mut`].
+    /// Wrapper around [`Self::mem_as_mut`].
     pub fn mem_as_ptr_mut<T: Sized>(&mut self) -> *mut T {
         self.mem_as_mut() as *mut T
     }
 
-    /// Wrapper around [`mem_with_offset_as`].
+    /// Wrapper around [`Self::mem_with_offset_as`].
     pub fn mem_with_offset_as_ptr<T: Sized>(&self, offset: Option<usize>) -> *const T {
         self.mem_with_offset_as(offset) as *const T
     }
 
-    /// Wrapper around [`mem_with_offset_as_mut`].
+    /// Wrapper around [`Self::mem_with_offset_as_mut`].
     pub fn mem_with_offset_as_ptr_mut<T: Sized>(&mut self, offset: Option<usize>) -> *mut T {
         self.mem_with_offset_as_mut(offset) as *mut T
     }
@@ -140,8 +197,7 @@ impl<'a> MappingHelper<'a> {
     pub fn mem_with_offset_as<T: Sized>(&self, offset: Option<usize>) -> &T {
         self.assert_mem_as::<T>(offset);
         unsafe {
-            self.memory
-                .as_ptr()
+            self.begin_ptr()
                 .add(offset.unwrap_or(0))
                 .cast::<T>()
                 .as_ref()
@@ -153,8 +209,7 @@ impl<'a> MappingHelper<'a> {
     pub fn mem_with_offset_as_mut<T: Sized>(&mut self, offset: Option<usize>) -> &mut T {
         self.assert_mem_as::<T>(offset);
         unsafe {
-            self.memory
-                .as_mut_ptr()
+            self.begin_ptr_mut()
                 .add(offset.unwrap_or(0))
                 .cast::<T>()
                 .as_mut()
@@ -164,35 +219,54 @@ impl<'a> MappingHelper<'a> {
 
     /// Convenient helper. You can input the address that you just mapped
     /// and you get the new address back.
-    pub fn old_to_new_addr(&self, addr: usize) -> usize {
+    pub fn old_to_new_addr(&self, old_addr: usize) -> usize {
         let base_addr = self
             .src_mapping_base_address
             .expect("Method only valid if `map()` was called");
 
         assert!(
-            addr >= base_addr,
+            old_addr >= base_addr,
             "addr {:?} must be bigger than base addr {:?}",
             base_addr as *const usize,
-            addr as *const usize
+            old_addr as *const usize
         );
 
-        let offset = addr - base_addr;
+        let offset = old_addr - base_addr;
 
         assert!(
-            offset <= self.memory.len(),
+            offset <= self.len(),
             "provided addr {:?} out of memory range",
-            addr as *const usize,
+            old_addr as *const usize,
         );
 
-        unsafe { self.memory.as_ptr().add(offset) as usize }
+        let new_addr = unsafe { self.begin_ptr().add(offset) as usize };
+
+        log::debug!(
+            "old address {:#?} => new {:#?}",
+            old_addr as *const usize,
+            new_addr as *const usize
+        );
+
+        new_addr
     }
 
+    /// Common assertion method for `mem_*_as*`-functions.
     fn assert_mem_as<T: Sized>(&self, offset: Option<usize>) {
         let total_size = size_of::<T>();
         let offset = offset.unwrap_or(0);
-        if total_size + offset > self.memory.len() {
+        if total_size + offset > self.len() {
             panic!("the memory region is not big enough for the given type T with size {} at offset {}. Needs {} more bytes",
-                   total_size, offset, total_size + offset - self.memory.len());
+                   total_size, offset, total_size + offset - self.aligned_mem_pages.len());
+        }
+    }
+
+    /// Common assertion method for `mem_*_as*`-functions.
+    fn assert_mem_as_slice<T: Sized>(&self, offset: Option<usize>, length: usize) {
+        let total_size = size_of::<T>() * length;
+        let offset = offset.unwrap_or(0);
+        if total_size + offset > self.len() {
+            panic!("the memory region is not big enough for the given type T as slice with size {} at offset {}. Needs {} more bytes",
+                   total_size, offset, total_size + offset - self.aligned_mem_pages.len());
         }
     }
 }
@@ -201,8 +275,8 @@ impl<'a> Drop for MappingHelper<'a> {
     fn drop(&mut self) {
         unsafe {
             dealloc(
-                self.memory.as_mut_ptr(),
-                Layout::from_size_align(self.memory.len(), PAGE_SIZE).unwrap(),
+                self.aligned_mem_pages.as_mut_ptr() as *mut u8,
+                Layout::from_size_align(self.len(), PAGE_SIZE).unwrap(),
             )
         }
     }
@@ -216,7 +290,28 @@ mod tests {
     #[test]
     fn test_mapping_helper() {
         let foo = MappingHelper::new(2);
-        assert_eq!(foo.memory.len(), 4 * PAGE_SIZE);
-        assert_eq!(foo.memory.as_ptr() as usize % PAGE_SIZE, 0);
+        assert_eq!(foo.len(), 2 * PAGE_SIZE);
+        assert_eq!(foo.aligned_mem_pages.len(), 2);
+        assert_eq!(foo.mem_as_ptr::<u8>() as usize % PAGE_SIZE, 0);
+    }
+
+    #[test]
+    fn test_mapping_helper_slice() {
+        let mut mapping_helper = MappingHelper::new(1);
+        let mut original_data = [7_u8; PAGE_SIZE];
+        original_data[73] = 73;
+        unsafe {
+            core::ptr::write(
+                mapping_helper.begin_ptr_mut() as *mut [u8; PAGE_SIZE],
+                original_data,
+            );
+        }
+
+        let reference = mapping_helper.mem_as_slice::<u8>(PAGE_SIZE);
+        assert_eq!(reference.len(), PAGE_SIZE);
+        assert_eq!(reference[0], 7);
+        assert_eq!(reference[72], 7);
+        assert_eq!(reference[73], 73);
+        assert_eq!(reference[74], 7);
     }
 }

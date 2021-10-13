@@ -6,7 +6,6 @@ use core::fmt::Write;
 use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::hip::HIP;
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::syscall::create_ec::{
     create_ec,

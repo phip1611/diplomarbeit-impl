@@ -78,7 +78,7 @@ pub enum ExceptionEventOffset {
     VirtualizationFault = 20,
 
     /// Only for global non-Roottask ECs. Invoked on first schedule.
-    HedronStartup = 30 /* 0x1e */,
+    HedronStartup = 30, /* 0x1e */
 
     /// Hedron-Specific
     /// TODO talk with julian

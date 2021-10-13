@@ -18,9 +18,11 @@ use core::ops::{
 use core::ptr::NonNull;
 use libhedron::mem::PAGE_SIZE;
 
-/// Helper to create page-aligned data on the stack or in global memory. The data is guaranteed to
-/// be page-aligned. Be aware, that properties referenced by the inner data are not necessarily
-/// aligned too, for example the heap pointer inside a `Box`. For this, use [`PageAlignedBox`].
+/// Wrapping struct that acts as a smart pointer to align owned data. Can be used to align data
+/// on the stack, the heap (`Box<PageAligned<T>>`), or global static memory.
+/// **BE AWARE** that this doesn't work for situations, like `PageAligned<Vec<...>>`.
+/// `PageAligned<Vec<...>>` only aligns the managing structure of the Vector, but not the heap data
+/// the vector allocates internally. For this, `AlignedAlloc` might be a better option.
 ///
 /// This struct has `Copy` semantics if `T` is `Copy`.
 ///
@@ -33,7 +35,7 @@ use libhedron::mem::PAGE_SIZE;
 pub struct PageAligned<T>(T);
 
 impl<T> PageAligned<T> {
-    /// Constructor.
+    /// Constructor that takes ownership of the data. The data is guaranteed to be aligned.
     pub const fn new(t: T) -> Self {
         Self(t)
     }
@@ -43,6 +45,8 @@ impl<T> PageAligned<T> {
         self as *const _
     }
 
+    /// Returns the pointer to the data. The pointer is the address of a page, because
+    /// the data is page-aligned.
     pub const fn data_ptr(&self) -> *const T {
         (&self.0) as *const _
     }
@@ -96,7 +100,7 @@ impl<T> DerefMut for PageAligned<T> {
     }
 }
 
-/// Convenient wrapper around [`PageAlignedData`] for aligned stack-buffers, with exactly
+/// Convenient wrapper around [`PageAligned`] for aligned stack-buffers, with exactly
 /// the same restrictions and properties.
 #[repr(align(4096))]
 #[derive(Clone, Debug)]
@@ -193,6 +197,7 @@ mod tests {
     };
     use alloc::boxed::Box;
     use alloc::vec::Vec;
+    use core::pin::Pin;
 
     #[test]
     fn test_page_aligned() {
@@ -231,6 +236,11 @@ mod tests {
             stack_data.data_ptr() as usize,
             "Rust Compiler must behave as expected and not add any padding to the struct"
         );
+
+        // #######################################################################
+
+        let aligned = Pin::new(PageAligned::from([1, 2, 3]));
+        assert_eq!((&aligned) as *const _ as usize % PAGE_SIZE, 0, "pinned version must also be aligned");
 
         // #######################################################################
 

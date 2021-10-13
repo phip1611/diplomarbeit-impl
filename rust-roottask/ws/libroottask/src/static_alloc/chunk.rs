@@ -1,6 +1,7 @@
 //! Module for [`ChunkAllocator`].
 
 use core::alloc::Layout;
+use libhrstd::libm;
 
 /// Possible errors for [`ChunkAllocator`].
 /// TODO make more generic ?! later use in roottask and native hedron app with different allocator frontends?
@@ -66,6 +67,20 @@ impl<'a> ChunkAllocator<'a> {
         // size is a multiple of CHUNK_SIZE;
         // ensured in new()
         self.capacity() / Self::CHUNK_SIZE
+    }
+
+    /// Returns the current memory usage in percentage.
+    pub fn usage(&self) -> f64 {
+        let mut used_chunks = 0;
+        let chunk_count = self.chunk_count();
+        dbg!(chunk_count);
+        for chunk_i in 0..chunk_count {
+            if !self.chunk_is_free(chunk_i) {
+                used_chunks += 1;
+            }
+        }
+        let ratio = used_chunks as f64 / chunk_count as f64;
+        libm::round(ratio * 10000.0) / 100.0
     }
 
     /// Returns whether a chunk is free according to the bitmap.
@@ -219,6 +234,7 @@ impl<'a> ChunkAllocator<'a> {
         (ptr as usize - heap_begin_inclusive as usize) / Self::CHUNK_SIZE
     }
 
+    #[track_caller]
     pub unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
         assert!(layout.size() > 0, "size must be >= 0!");
 
@@ -231,9 +247,17 @@ impl<'a> ChunkAllocator<'a> {
             required_chunks += 1;
         }
 
-        let index = self
-            .find_free_coherent_chunks(required_chunks, layout.align() as u32)
-            .expect("out of memory");
+        let index = self.find_free_coherent_chunks(required_chunks, layout.align() as u32);
+
+        if let Err(_) = index {
+            panic!(
+                "Out of Memory. Can't fulfill the requested layout: {:?}. Current usage is: {}%/{}byte",
+                layout,
+                self.usage(),
+                self.usage() * self.capacity() as f64
+            );
+        }
+        let index = index.unwrap();
 
         for i in index..index + required_chunks {
             self.mark_chunk_as_used(i);
@@ -242,6 +266,7 @@ impl<'a> ChunkAllocator<'a> {
         self.chunk_index_to_ptr(index)
     }
 
+    #[track_caller]
     pub unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
         let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
         let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
@@ -402,19 +427,21 @@ mod tests {
 
         // check that it compiles
         let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+        assert_eq!(alloc.usage(), 0.0, "allocator must report usage of 0%!");
 
-        let layout1 = Layout::from_size_align(1, 1).unwrap();
-        let layout2 = Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap();
+        let layout1_single_byte = Layout::from_size_align(1, 1).unwrap();
+        let layout_page = Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap();
 
         // allocate 1 single byte
         let ptr1 = {
             unsafe {
-                let ptr = alloc.alloc(layout1.clone());
+                let ptr = alloc.alloc(layout1_single_byte.clone());
                 assert_eq!(
                     ptr as u64 % PAGE_SIZE as u64,
                     0,
                     "the first allocation must be always page-aligned"
                 );
+                assert_eq!(alloc.usage(), 3.13, "allocator must report usage of 3.15%!");
                 assert!(!alloc.chunk_is_free(0), "the first chunk is taken now!");
                 assert!(
                     alloc.chunk_is_free(1),
@@ -425,16 +452,21 @@ mod tests {
         };
 
         // allocate 1 page (consumes now the higher half of the available memory)
-        let _ptr2 = {
+        let ptr2 = {
             let ptr;
             unsafe {
-                ptr = alloc.alloc(layout2.clone());
+                ptr = alloc.alloc(layout_page.clone());
                 assert_eq!(
                     ptr as u64 % PAGE_SIZE as u64,
                     0,
                     "the second allocation must be page-aligned because this was requested!"
                 );
             }
+            assert_eq!(
+                alloc.usage(),
+                3.13 + 50.0,
+                "allocator must report usage of 53.13%!"
+            );
             (0..CHUNK_COUNT)
                 .into_iter()
                 .skip(CHUNK_COUNT / 2)
@@ -448,16 +480,28 @@ mod tests {
         // of two full pages
         {
             unsafe {
-                alloc.dealloc(ptr1, layout1);
-                let ptr3 = alloc.alloc(layout2);
+                alloc.dealloc(ptr1, layout1_single_byte);
+                let ptr3 = alloc.alloc(layout_page);
                 assert_eq!(ptr1, ptr3);
             }
+
+            assert_eq!(
+                alloc.usage(),
+                100.0,
+                "allocator must report usage of 100.0%, because two full pages (=100%) are allocated!"
+            );
 
             // assert that all chunks are taken
             for i in 0..CHUNK_COUNT {
                 assert!(!alloc.chunk_is_free(i), "all chunks must be in use!");
             }
         }
+
+        unsafe {
+            alloc.dealloc(ptr1, layout_page);
+            alloc.dealloc(ptr2, layout_page);
+        }
+        assert_eq!(alloc.usage(), 0.0, "allocator must report usage of 0%!");
     }
     #[test]
     #[should_panic]

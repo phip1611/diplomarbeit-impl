@@ -40,36 +40,15 @@ mod roottask_stack;
 #[macro_use]
 extern crate alloc;
 
-use alloc::vec::Vec;
-use libhrstd::cstr::CStr;
-use libhrstd::libhedron::capability::{
-    CrdMem,
-    MemCapPermissions,
-};
-use libhrstd::libhedron::hip::{
-    HipMemType,
-    HIP,
-};
+use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
-    DelegateFlags,
-};
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::PageAlignedByteBuf;
-use libhrstd::sync::mutex::SimpleMutex;
-use libhrstd::util::ansi::{
-    AnsiStyle,
-    Color,
-    TextStyle,
-};
-use libroottask::mem::MappingHelper;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let hip = unsafe { (hip_ptr as *const HIP).as_ref().unwrap() };
-    let utcb = unsafe { (utcb_ptr as *const Utcb).as_ref().unwrap() };
+    let _utcb = unsafe { (utcb_ptr as *const Utcb).as_ref().unwrap() };
 
     logger::init(hip.root_pd());
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
@@ -94,38 +73,17 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
 
         log::trace!("utcb ptr           : 0x{:016x}", utcb_ptr);
         log::trace!("hip ptr            : 0x{:016x}", hip_ptr);
+        log::debug!("===========================================================");
     }
 
-    log::debug!("===========================================================");
-    let mem_descs = hip.mem_desc_iterator().collect::<Vec<_>>();
-    /*log::debug!("Mem_descs: #{}", mem_descs.len());
-    log::debug!("{:#?}", mem_descs);*/
+    let rt_tar =
+        unsafe { libroottask::rt::multiboot_rt_tar::find_hedron_userland_tar(hip).unwrap() };
 
-    let mb_modules = mem_descs
-        .iter()
-        .filter(|x| x.typ() == HipMemType::MbModule)
-        .collect::<Vec<_>>();
-    for module in mb_modules.iter() {
-        let cmd_line_addr = module.cmdline().unwrap() as usize;
-        let mut mapping_region = MappingHelper::new(0);
-        mapping_region
-            .map(
-                hip.root_pd(),
-                hip.root_pd(),
-                cmd_line_addr,
-                MemCapPermissions::READ | MemCapPermissions::WRITE,
-                DelegateFlags::new(false, false, false, true, 0),
-            )
-            .unwrap();
-
-        let cmdline_addr = mapping_region.old_to_new_addr(cmd_line_addr) as *const u8;
-        let cmdline = CStr::try_from(cmdline_addr).unwrap();
-        let ansi_cmdline = AnsiStyle::new()
-            .text_style(TextStyle::Blink)
-            .foreground_color(Color::Magenta)
-            .msg(cmdline.as_str());
-        log::info!("cmdline={} (len={})", ansi_cmdline, cmdline.len());
+    for entry in rt_tar.entries() {
+        log::debug!("found file: {}", entry.filename().as_str());
     }
+
+    log::debug!("Heap Usage: {}%", roottask_heap::usage());
 
     /* test: floating point + SSE registers work
     let x = 2.0;

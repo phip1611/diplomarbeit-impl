@@ -26,7 +26,7 @@ pub enum GlobalStaticChunkAllocatorError {
 /// It must be initialized first by calling [`Self::init`].
 #[derive(Debug)]
 pub struct GlobalStaticChunkAllocator<'a> {
-    data: SimpleMutex<Option<ChunkAllocator<'a>>>,
+    inner_allocator: SimpleMutex<Option<ChunkAllocator<'a>>>,
 }
 
 impl<'a> GlobalStaticChunkAllocator<'a> {
@@ -35,7 +35,7 @@ impl<'a> GlobalStaticChunkAllocator<'a> {
 
     pub const fn new() -> Self {
         Self {
-            data: SimpleMutex::new(None),
+            inner_allocator: SimpleMutex::new(None),
         }
     }
 
@@ -46,7 +46,7 @@ impl<'a> GlobalStaticChunkAllocator<'a> {
         heap: &'a mut [u8],
         bitmap: &'a mut [u8],
     ) -> Result<(), GlobalStaticChunkAllocatorError> {
-        let mut lock = self.data.lock();
+        let mut lock = self.inner_allocator.lock();
         if lock.is_some() {
             log::error!("Allocator already initialized!");
             Err(GlobalStaticChunkAllocatorError::AlreadyInitialized)
@@ -60,15 +60,21 @@ impl<'a> GlobalStaticChunkAllocator<'a> {
             Ok(())
         }
     }
+
+    /// Wrapper around [`ChunkAllocator::usage`].
+    pub fn usage(&self) -> f64 {
+        self.inner_allocator.lock().as_ref().unwrap().usage()
+    }
 }
 
 unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
+    #[track_caller]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         // DON'T USE RECURSIVE ALLOCATING HERE
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
         // log::debug!("alloc: {:?}", layout);
-        let mut lock = self.data.lock();
+        let mut lock = self.inner_allocator.lock();
         let lock = lock.as_mut().expect("allocator is uninitialized");
         let x = lock.alloc(layout);
         /*log::debug!(
@@ -79,12 +85,13 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
         x
     }
 
+    #[track_caller]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         // DON'T USE RECURSIVE ALLOCATING HERE
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
         // log::debug!("dealloc: ptr={:?}, layout={:?}", ptr, layout);
-        let mut lock = self.data.lock();
+        let mut lock = self.inner_allocator.lock();
         let lock = lock.as_mut().expect("allocator is uninitialized");
         lock.dealloc(ptr, layout)
     }

@@ -3,14 +3,14 @@
 //! roottask.
 
 use core::alloc::Layout;
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::mem::PageAlignedByteBuf;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
-/// 1MiB heap -> 1024 chunks
-pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * PAGE_SIZE;
+/// 32768 chunks -> 8 MiB Heap
+pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * 32768;
 static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
+// always make sure, that the division is "clean", i.e. no remainder
 const BITMAP_SIZE: usize = HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE / 8;
 static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
@@ -30,6 +30,11 @@ static ALLOC: GlobalStaticChunkAllocator = GlobalStaticChunkAllocator::new();
 pub fn init() {
     unsafe { ALLOC.init(HEAP.get_mut(), BITMAP.get_mut()).unwrap() }
     log::debug!("initialized allocator");
+}
+
+/// Wrapper around [`GlobalStaticChunkAllocator::usage`].
+pub fn usage() -> f64 {
+    ALLOC.usage()
 }
 
 #[alloc_error_handler]

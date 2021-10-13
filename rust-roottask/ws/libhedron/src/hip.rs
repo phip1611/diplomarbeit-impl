@@ -74,7 +74,12 @@ pub struct HIP {
     /// of memory descriptors. The [`HipMemDescIterator`] iterates
     /// over them safely. As in the Hedron/C++ code, this doesn't
     /// increase the static size of this struct. Also see
-    /// https://stackoverflow.com/questions/6732184/
+    /// <https://stackoverflow.com/questions/6732184/>
+    ///
+    /// In sum, all [`HipMem`] objects describe the full physical
+    /// memory usage during handoff to the roottask. The memory of the roottask itself
+    /// is also covered, because the memory of the Multiboot module that holds
+    /// the ELF is directly used to run the roottask.
     _mem_desc_arr: [HipMem; 0],
 }
 
@@ -179,6 +184,11 @@ impl HIP {
     }
 
     /// Returns an iterator of type [`HipMemDescIterator`].
+    ///
+    /// In sum, all [`HipMem`] objects describe the full physical
+    /// memory usage during handoff to the roottask. The memory of the roottask itself
+    /// is also covered, because the memory of the Multiboot module that holds
+    /// the ELF is directly used to run the roottask.
     pub fn mem_desc_iterator(&self) -> HipMemDescIterator {
         assert_eq!(
             size_of::<HipMem>(),
@@ -303,9 +313,10 @@ impl HipMem {
     pub fn typ(&self) -> HipMemType {
         self.typ
     }
-    /// Returns the pointer to the command line.
+    /// Returns the pointer to the command line, it the memory type is `HipMemType::MbModule`
+    /// and the `cmdline` pointer != 0.
     pub fn cmdline(&self) -> Option<*const u8> {
-        if self.typ == HipMemType::MbModule {
+        if self.typ == HipMemType::MbModule && self.cmdline != 0 {
             Some(self.cmdline as *const u8)
         } else {
             None
