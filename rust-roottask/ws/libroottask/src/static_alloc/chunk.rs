@@ -151,7 +151,7 @@ impl<'a> ChunkAllocator<'a> {
     ///
     /// # Return
     /// Returns the index of the chunk or `Err` for out of memory.
-    fn find_next_free_chunk(
+    fn find_next_free_chunk_aligned(
         &self,
         start_chunk: Option<usize>,
         alignment: u32,
@@ -164,10 +164,12 @@ impl<'a> ChunkAllocator<'a> {
         }
 
         for i in start_chunk..self.chunk_count() {
-            // given the fact that the first chunk is page-aligned (see struct definition)
-            let is_aligned = (i * Self::CHUNK_SIZE) as u32 % alignment == 0;
-            if is_aligned && self.chunk_is_free(i) {
-                return Ok(i);
+            if self.chunk_is_free(i) {
+                let addr = unsafe { self.chunk_index_to_ptr(i) } as u32;
+                let is_aligned = addr % alignment == 0;
+                if is_aligned {
+                    return Ok(i);
+                }
             }
         }
 
@@ -181,12 +183,16 @@ impl<'a> ChunkAllocator<'a> {
     /// # Parameters
     /// - `chunk_num` number of chunks that must be all free without gap in-between; greater than 0
     /// - `alignment` required alignment of the chunk in memory
-    fn find_free_coherent_chunks(&self, chunk_num: usize, alignment: u32) -> Result<usize, ()> {
+    fn find_free_coherent_chunks_aligned(
+        &self,
+        chunk_num: usize,
+        alignment: u32,
+    ) -> Result<usize, ()> {
         assert!(
             chunk_num > 0,
             "chunk_num must be greater than 0! Allocating 0 blocks makes no sense"
         );
-        let mut begin_chunk_i = self.find_next_free_chunk(Some(0), alignment)?;
+        let mut begin_chunk_i = self.find_next_free_chunk_aligned(Some(0), alignment)?;
         let out_of_mem_cond = begin_chunk_i + (chunk_num - 1) >= self.chunk_count();
         while !out_of_mem_cond {
             // this var counts how many coherent chunks we found while iterating the bitmap
@@ -204,7 +210,10 @@ impl<'a> ChunkAllocator<'a> {
             // check again at next free block
             // "+1" because we want to skip the just discovered non-free block
             begin_chunk_i = self
-                .find_next_free_chunk(Some(begin_chunk_i + coherent_chunk_count + 1), alignment)
+                .find_next_free_chunk_aligned(
+                    Some(begin_chunk_i + coherent_chunk_count + 1),
+                    alignment,
+                )
                 .unwrap();
         }
         // out of memory
@@ -247,14 +256,14 @@ impl<'a> ChunkAllocator<'a> {
             required_chunks += 1;
         }
 
-        let index = self.find_free_coherent_chunks(required_chunks, layout.align() as u32);
+        let index = self.find_free_coherent_chunks_aligned(required_chunks, layout.align() as u32);
 
         if let Err(_) = index {
             panic!(
                 "Out of Memory. Can't fulfill the requested layout: {:?}. Current usage is: {}%/{}byte",
                 layout,
                 self.usage(),
-                self.usage() * self.capacity() as f64
+                ((self.usage() * self.capacity() as f64) as u64)
             );
         }
         let index = index.unwrap();
@@ -366,18 +375,18 @@ mod tests {
         bitmap[0] = 0x0f;
         let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
 
-        assert_eq!(4, alloc.find_next_free_chunk(None, 1).unwrap());
-        assert_eq!(4, alloc.find_next_free_chunk(Some(0), 1).unwrap());
+        assert_eq!(4, alloc.find_next_free_chunk_aligned(None, 1).unwrap());
+        assert_eq!(4, alloc.find_next_free_chunk_aligned(Some(0), 1).unwrap());
 
         // the very last chunk is available
         assert_eq!(
             15,
             alloc
-                .find_next_free_chunk(Some(alloc.chunk_count() - 1), 1)
+                .find_next_free_chunk_aligned(Some(alloc.chunk_count() - 1), 1)
                 .unwrap()
         );
         assert!(alloc
-            .find_next_free_chunk(Some(alloc.chunk_count()), 1)
+            .find_next_free_chunk_aligned(Some(alloc.chunk_count()), 1)
             .is_err());
     }
 
@@ -392,11 +401,11 @@ mod tests {
 
         let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
 
-        assert_eq!(4, alloc.find_free_coherent_chunks(1, 1).unwrap());
-        assert_eq!(4, alloc.find_free_coherent_chunks(2, 1).unwrap());
-        assert_eq!(4, alloc.find_free_coherent_chunks(3, 1).unwrap());
-        assert_eq!(4, alloc.find_free_coherent_chunks(4, 1).unwrap());
-        assert_eq!(12, alloc.find_free_coherent_chunks(5, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks_aligned(1, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks_aligned(2, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks_aligned(3, 1).unwrap());
+        assert_eq!(4, alloc.find_free_coherent_chunks_aligned(4, 1).unwrap());
+        assert_eq!(12, alloc.find_free_coherent_chunks_aligned(5, 1).unwrap());
     }
 
     #[test]
@@ -503,6 +512,21 @@ mod tests {
         }
         assert_eq!(alloc.usage(), 0.0, "allocator must report usage of 0%!");
     }
+
+    #[test]
+    fn test_alloc_alignment() {
+        const TWO_MIB: usize = 0x200000;
+        const HEAP_SIZE: usize = 2 * TWO_MIB;
+        static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
+        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
+
+        // check that it compiles
+        let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+        let ptr = unsafe { alloc.alloc(Layout::new::<u8>().align_to(TWO_MIB).unwrap()) };
+        assert_eq!(ptr as usize % TWO_MIB, 0, "must be aligned!");
+    }
+
     #[test]
     #[should_panic]
     fn test_alloc_out_of_memory() {
