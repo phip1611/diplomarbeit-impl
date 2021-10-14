@@ -12,9 +12,12 @@ set -e
 # make sure that this copy is up-to-date!
 HEDRON=/tftpboot/hypervisor.elf32
 
-ROOTTASK=./build/roottask-bin_debug.elf
+# "debug" or "release"
+RELEASE=debug
+
+ROOTTASK="./build/roottask-bin_${RELEASE}.elf"
 # all the other Rust binaries that get loaded by the Roottask
-HEDRON_USERLAND=./build/hedron-userland_debug.tar
+HEDRON_USERLAND="./build/hedron-userland_${RELEASE}.tar"
 
 #########################################################################
 # nice "hack" which make the script work, even if not executed from "./"
