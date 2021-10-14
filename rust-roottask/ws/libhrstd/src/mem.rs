@@ -240,7 +240,11 @@ mod tests {
         // #######################################################################
 
         let aligned = Pin::new(PageAligned::from([1, 2, 3]));
-        assert_eq!((&aligned) as *const _ as usize % PAGE_SIZE, 0, "pinned version must also be aligned");
+        assert_eq!(
+            (&aligned) as *const _ as usize % PAGE_SIZE,
+            0,
+            "pinned version must also be aligned"
+        );
 
         // #######################################################################
 

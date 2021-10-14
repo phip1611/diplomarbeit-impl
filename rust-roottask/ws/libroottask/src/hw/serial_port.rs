@@ -4,6 +4,8 @@
 //! Its a wrapper around an UART bus.
 //! Interesting infos can also be found under the name `16550_UART`
 
+// TODO replace this whole file by the crate https://github.com/rust-osdev/uart_16550
+
 use x86::io::{
     inb,
     outb,

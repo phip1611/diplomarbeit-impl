@@ -1,7 +1,10 @@
 //! Abstractions over C-Strings. CString and CStr are part of Rust `std` but not
 //! `core`, therefore I have to provide a custom abstraction.
 
-use alloc::string::{String, ToString};
+use alloc::string::{
+    String,
+    ToString,
+};
 use core::str::Utf8Error;
 
 /// Possible errors when constructing a [`CStr`].
