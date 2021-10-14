@@ -12,3 +12,4 @@ build-std-features = ["compiler-builtins-mem"]
 
 [build]
 target = "x86_64-unknown-hedron.json"
+rustflags = ["-C", "link-args=--entry=start"]

@@ -6,6 +6,5 @@ authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
 edition = "2021"
 publish = false # prevent accidentaly publishing
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+libhrstd = { path = "../libhrstd" }

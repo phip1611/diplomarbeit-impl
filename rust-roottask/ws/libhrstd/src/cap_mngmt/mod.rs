@@ -23,6 +23,8 @@ use libhedron::capability::CapSel;
 /// can be attached to.
 ///
 /// This structure needs a dynamic allocator.
+///
+/// TODO unused for weeks and needs refactorings before it can be used at all.
 #[derive(Debug, Ord, Eq, Copy, Clone)]
 pub struct CapSelRange {
     base: CapSel,
@@ -95,6 +97,7 @@ impl<'a> Deref for CapSelRangeGuard<'a> {
     }
 }
 
+/// TODO unused for weeks and needs refactorings before it can be used at all.
 #[derive(Debug)]
 pub struct CapSelManager {
     /// The minimum value for `base` in

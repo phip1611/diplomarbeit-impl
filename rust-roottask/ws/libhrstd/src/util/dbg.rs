@@ -9,7 +9,10 @@ macro_rules! dbg {
         // of temporaries - https://stackoverflow.com/a/48732525/1063961
         match $val {
             tmp => {
+                #[cfg(not(test))]
                 log::debug!("{} = {:#?}",stringify!($val), &tmp);
+                #[cfg(test)]
+                println!("{} = {:#?}",stringify!($val), &tmp);
                 tmp
             }
         }

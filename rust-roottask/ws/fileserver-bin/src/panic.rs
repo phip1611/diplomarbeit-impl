@@ -1,12 +1,6 @@
 use core::panic::PanicInfo;
-use core::sync::atomic::{
-    compiler_fence,
-    Ordering,
-};
 
 #[panic_handler]
-fn handle_panic(_info: &PanicInfo) -> ! {
-    loop {
-        compiler_fence(Ordering::SeqCst)
-    }
+pub fn handle_panic(info: &PanicInfo) -> ! {
+    libhrstd::rt::rust_rt::panic::handle_panic(info);
 }

@@ -6,7 +6,10 @@ authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]
 edition = "2021"
 publish = false # prevent accidentaly publishing
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["rt"]
+# Runtime for native Hedron apps, except the roottask.
+rt = []
 
 [dependencies]
 libhedron = { path = "../libhedron" }

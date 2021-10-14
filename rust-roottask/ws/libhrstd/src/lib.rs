@@ -28,6 +28,7 @@
 #![feature(const_fn_trait_bound)]
 #![feature(allocator_api)]
 #![feature(nonnull_slice_from_raw_parts)]
+#![feature(alloc_error_handler)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -44,14 +45,7 @@ pub use libm;
 pub mod cap_mngmt;
 pub mod cstr;
 pub mod mem;
+#[cfg(feature = "rt")]
+pub mod rt;
 pub mod sync;
 pub mod util;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
