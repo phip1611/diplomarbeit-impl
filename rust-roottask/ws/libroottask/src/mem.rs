@@ -14,6 +14,7 @@ use libhrstd::libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
 };
+use libhrstd::util::crd_bulk::CrdBulkLoopOrderOptimizer;
 
 type Page = [u8; PAGE_SIZE];
 
@@ -55,7 +56,14 @@ impl<'a> MappingHelper<'a> {
         let aligned_mem_pages = unsafe {
             // I use manual alloc/dealloc in favor of Vec or Box, because this way I have
             // full control over the alignment (Page Alignment)
-            let ptr = alloc(Layout::from_size_align(size, PAGE_SIZE).unwrap());
+
+            // this way I can profit from fewer syscalls, because I can use "order"
+            // optimization for delegations
+            let order = libhrstd::libm::log2((page_count * PAGE_SIZE) as f64);
+            let order = libhrstd::libm::trunc(order);
+            let alignment = libhrstd::libm::pow(2.0, order) as usize;
+
+            let ptr = alloc(Layout::from_size_align(size, alignment).unwrap());
             let ptr = ptr as *mut Page;
             core::slice::from_raw_parts_mut(ptr, page_count)
         };
@@ -95,41 +103,43 @@ impl<'a> MappingHelper<'a> {
         let base_addr = src_addr & !0xfff;
         self.src_mapping_base_address.replace(base_addr);
 
-        // We map all pages in a loop (and don't use the order optimization),
-        // because overhead here is negligible
-        let pages_count = self.aligned_mem_pages.len();
-        for i in 0..pages_count {
-            let src_page_num = base_src_page_num + i;
-            let dest_page_num = base_dest_page_num + i;
-
+        let iterator = CrdBulkLoopOrderOptimizer::new(
+            base_src_page_num as u64,
+            base_dest_page_num as u64,
+            self.aligned_mem_pages.len(),
+        );
+        for mapping_step in iterator {
             let src_crd = CrdMem::new(
-                src_page_num as u64,
-                0,
+                mapping_step.src_base,
+                mapping_step.order,
                 // important; permissions must be set for SrcCrd and DestCrd (ask julian: why?)
                 permissions,
             );
 
             let dest_crd = CrdMem::new(
-                dest_page_num as u64,
-                0,
+                mapping_step.dest_base,
+                mapping_step.order,
                 // important; permissions must be set for SrcCrd and DestCrd (ask julian: why?)
                 permissions,
             );
 
             log::debug!(
-                "MappingHelper: mapping page {} ({:?}) of pd {} to page {} ({:?}) of pd {}",
-                src_page_num,
-                base_addr as *const usize,
+                "MappingHelper: mapping page {} ({:?}) of pd {} to page {} ({:?}) of pd {} with order={} (2^order={})",
+                mapping_step.src_base,
+                (mapping_step.src_base as usize * PAGE_SIZE) as *const u64,
                 src_pd,
-                dest_page_num,
-                self.aligned_mem_pages.as_ptr(),
+                mapping_step.dest_base,
+                (mapping_step.dest_base as usize * PAGE_SIZE) as *const u64,
                 dest_pd,
+                mapping_step.order,
+                mapping_step.power
             );
 
             // We map all pages in a loop (and don't use the order-field optimization),
             // because overhead here is negligible and simpler code is more important
             pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, delegate_flags)?;
         }
+
         Ok(())
     }
 
