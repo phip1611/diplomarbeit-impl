@@ -12,7 +12,7 @@ cd "$DIR" || exit
 
 function fn_main() {
     fn_build_ws
-    fn_link_binaries_to_build_dir
+    fn_cp_binaries_to_build_dir
     fn_runtime_environment_tarball
 }
 
@@ -22,7 +22,7 @@ function fn_build_ws() {
     cd ..
 }
 
-function fn_link_binaries_to_build_dir() {
+function fn_cp_binaries_to_build_dir() {
     rm -rf "./build"
 
     SEARCH_DEBUG_FILES=$(find . -maxdepth 6 -type f ! -path . | grep "x86_64-unknown-hedron/debug")
@@ -39,6 +39,11 @@ function fn_link_binaries_to_build_dir() {
             # ln -fs "$FILE" "./build/${NAME}_release.elf"
             # we have to copy; QEMUs "-initrd" doesn't work with links
             cp "$FILE" "./build/${NAME}_debug.elf"
+
+            # also stripped binaries, because they are smaller
+            # => less mem delegations => faster
+            cp "$FILE" "./build/${NAME}_debug_stripped.elf"
+            strip "./build/${NAME}_debug_stripped.elf"
         fi
     done
 
@@ -51,6 +56,11 @@ function fn_link_binaries_to_build_dir() {
             # ln -fs "$FILE" "./build/${NAME}_release.elf"
             # we have to copy; QEMUs "-initrd" doesn't work with links
             cp "$FILE" "./build/${NAME}_release.elf"
+
+            # also stripped binaries, because they are smaller
+            # => less mem delegations => faster
+            cp "$FILE" "./build/${NAME}_release_stripped.elf"
+            strip "./build/${NAME}_release_stripped.elf"
         fi
     done
 }
@@ -62,7 +72,7 @@ function fn_runtime_environment_tarball() {
     (
         cd "./build" || exit
         # space separated string
-        HRSTD_RT_DEBUG_FILES=$(find . -name "*.elf" ! -path . | grep "_debug" | grep -v "roottask" | tr '\r\n' ' ')
+        HRSTD_RT_DEBUG_FILES=$(find . -name "*.elf" ! -path . | grep "_debug_stripped" | grep -v "roottask" | tr '\r\n' ' ')
         tar cfv "hedron-userland_debug.tar" $HRSTD_RT_DEBUG_FILES
     )
 
@@ -70,7 +80,7 @@ function fn_runtime_environment_tarball() {
     (
         cd "./build" || exit
         # space separated string
-        HRSTD_RT_RELEASE_FILES=$(find . -name "*.elf" ! -path . | grep "_release" | grep -v "roottask" | tr '\r\n' ' ')
+        HRSTD_RT_RELEASE_FILES=$(find . -name "*.elf" ! -path . | grep "_release_stripped" | grep -v "roottask" | tr '\r\n' ' ')
         tar cfv "hedron-userland_release.tar" $HRSTD_RT_RELEASE_FILES
     )
 }
