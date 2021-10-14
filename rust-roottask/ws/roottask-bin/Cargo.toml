@@ -11,9 +11,11 @@ libhrstd = { path = "../libhrstd" }
 libroottask = { path = "../libroottask" }
 
 
-x86 = "0.41.0"
-log = { version = "0.4.14", default-features = false }
-arrayvec = { version = "0.7.1", default-features = false }
+x86 = "0.41"
+log = { version = "0.4", default-features = false }
+arrayvec = { version = "0.7", default-features = false }
+runs_inside_qemu = "1.1"
+# runs_inside_qemu = { path = "/home/pschuster/dev/runs-inside-qemu" }
 
 
 [profile.dev]

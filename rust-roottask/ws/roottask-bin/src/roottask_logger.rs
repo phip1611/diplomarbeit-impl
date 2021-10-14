@@ -1,15 +1,8 @@
-use crate::logger::debugcon::DebugconLogger;
-use crate::logger::serial::SerialLogger;
-use arrayvec::ArrayString;
+//! Module to initialize typical Rust logging for the Roottask itself.
+
 use core::fmt::Write;
-use libhrstd::libhedron::capability::CapSel;
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::sync::mutex::SimpleMutex;
-use libhrstd::util::ansi::{
-    AnsiStyle,
-    Color,
-    TextStyle,
-};
+
+use arrayvec::ArrayString;
 use log::{
     Level,
     LevelFilter,
@@ -18,10 +11,16 @@ use log::{
     Record,
 };
 
-mod debugcon;
-mod serial;
+use libhrstd::libhedron::capability::CapSel;
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::sync::mutex::SimpleMutex;
+use libhrstd::util::ansi::{
+    AnsiStyle,
+    Color,
+    TextStyle,
+};
 
-static LOGGER: GenericLogger = GenericLogger::new();
+static LOGGER: GenericLogger = GenericLogger;
 
 /// Generic logger for the roottask which decides where things
 /// should be logged to. Can use multiple/different loggers internally.
@@ -29,23 +28,13 @@ static LOGGER: GenericLogger = GenericLogger::new();
 /// Synchronizes logging, therefore it can be used in a local EC to provide
 /// a logging service for other components.
 #[derive(Debug)]
-struct GenericLogger {
-    debugcon: SimpleMutex<Option<DebugconLogger>>,
-    serial: SimpleMutex<Option<SerialLogger>>,
-}
+struct GenericLogger;
 
 impl GenericLogger {
-    const fn new() -> Self {
-        GenericLogger {
-            debugcon: SimpleMutex::new(None),
-            serial: SimpleMutex::new(None),
-        }
-    }
-
     /// Builds the formatted error message in a stack-allocated array.
     /// Because we don't have nested logging, this is fine and cheap.
     ///
-    /// Make sure that stack in `assembly.S` is big enough.
+    /// Make sure that stack of roottask is big enough.
     fn fmt_msg(record: &Record) -> ArrayString<PAGE_SIZE> {
         let mut buf = ArrayString::new();
 
@@ -78,10 +67,14 @@ impl GenericLogger {
 
         let res = writeln!(
             &mut buf,
-            "[{level:>5}] {file:>15}{at_sign}{line}{double_point} {msg}",
+            "[{level:>5}] {crate_name}:{file:>15}{at_sign}{line}{double_point} {msg}",
             // level is padded to 5 chars and right-aligned
             // style around
             level = Self::style_for_level(record.level()).msg(level.as_str()),
+            crate_name = record
+                .module_path()
+                .map(|module| module.split_once("::").map(|x| x.0).unwrap_or(module))
+                .unwrap_or("<unknown mod>"),
             file = file_style,
             at_sign = AnsiStyle::new().text_style(TextStyle::Dimmed).msg("@"),
             line = line_style,
@@ -112,18 +105,6 @@ impl GenericLogger {
             Level::Trace => AnsiStyle::new().foreground_color(Color::Green),
         }
     }
-
-    /// Activates the logger backend.
-    pub fn update_debugcon(&self, debugcon: DebugconLogger) {
-        let mut lock = self.debugcon.lock();
-        lock.replace(debugcon);
-    }
-
-    /// Activates the logger backend.
-    pub fn update_serial(&self, serial: SerialLogger) {
-        let mut lock = self.serial.lock();
-        lock.replace(serial);
-    }
 }
 
 impl Log for GenericLogger {
@@ -134,13 +115,9 @@ impl Log for GenericLogger {
 
     fn log(&self, record: &Record) {
         let msg = Self::fmt_msg(record);
-
-        if let Some(l) = self.debugcon.lock().as_ref() {
-            l.write(msg.as_str()).unwrap();
-        }
-        if let Some(l) = self.serial.lock().as_ref() {
-            l.write(msg.as_str()).unwrap();
-        }
+        crate::services::stderr::writer_mut()
+            .write_str(msg.as_str())
+            .unwrap();
     }
 
     fn flush(&self) {
@@ -148,22 +125,12 @@ impl Log for GenericLogger {
     }
 }
 
-/// Initializes the root task logger(s).
-/// Needs the roottasks protection domain selector.
-pub fn init(root_pd_sel: CapSel) {
+/// Initializes the Rust logger for the root task. Forwards to the default STDERR location.
+pub fn init() {
     log::set_max_level(LevelFilter::max());
-    log::set_logger(&LOGGER).unwrap();
+    log::set_logger(&LOGGER).expect("call this only once!");
 
-    DebugconLogger::init(root_pd_sel);
-    LOGGER.update_debugcon(DebugconLogger);
-    log::debug!("Debugcon-Logger is available");
-
-    let res = SerialLogger::init(root_pd_sel);
-    if res.is_ok() {
-        // only if serial device is available
-        LOGGER.update_serial(SerialLogger);
-        log::debug!("Serial-Logger is available");
-    } else {
-        log::debug!("Serial-Logger is not available");
-    }
+    // Q&D: execute this once, so catch the logging-messages, which gives us nice
+    //  info about the environment (hypervisor or not, ...)
+    let _ = runs_inside_qemu::runs_inside_qemu();
 }

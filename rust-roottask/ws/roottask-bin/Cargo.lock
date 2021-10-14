@@ -127,7 +127,18 @@ dependencies = [
  "libhrstd",
  "libroottask",
  "log",
+ "runs_inside_qemu",
  "x86",
+]
+
+[[package]]
+name = "runs_inside_qemu"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c57088e75f8c0068e15e5fba96ef3d4a2b72af05a8d68a870c4efd2eb46aa52"
+dependencies = [
+ "log",
+ "raw-cpuid",
 ]
 
 [[package]]

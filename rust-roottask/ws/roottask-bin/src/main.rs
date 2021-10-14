@@ -30,11 +30,12 @@
 // any global definitions required to be in assembly
 global_asm!(include_str!("assembly.S"));
 
-mod logger;
 mod panic;
 mod roottask_exception;
 mod roottask_heap;
+mod roottask_logger;
 mod roottask_stack;
+mod services;
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -50,7 +51,9 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let hip = unsafe { (hip_ptr as *const HIP).as_ref().unwrap() };
     let _utcb = unsafe { (utcb_ptr as *const Utcb).as_ref().unwrap() };
 
-    logger::init(hip.root_pd());
+    services::init_writers(hip);
+    roottask_logger::init();
+
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
     // log::info!("guard-page inactive");
     roottask_stack::init(hip);

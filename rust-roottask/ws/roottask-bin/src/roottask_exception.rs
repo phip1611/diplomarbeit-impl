@@ -20,6 +20,7 @@ use libhrstd::util::ansi::{
     Color,
     TextStyle,
 };
+use libroottask::capability_space::RootCapabilitySpace;
 use libroottask::stack::StaticStack;
 
 /// The root task has 0 as event selector base. This means, initially
@@ -57,12 +58,9 @@ static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
 ///
 /// If it fails, the program aborts.
 pub fn init(hip: &HIP) {
-    // todo make dynamic cap sel
-    let ec_cap_sel = 64;
-
     create_ec(
         EcKind::Local,
-        ec_cap_sel,
+        RootCapabilitySpace::RootExceptionLocalEc.val(),
         hip.root_pd(),
         unsafe { CALLBACK_STACK.get_stack_top_ptr() } as u64,
         ROOT_EXC_EVENT_BASE,
@@ -83,7 +81,7 @@ pub fn init(hip: &HIP) {
     // it is 0 (See ROOT_EXC_EVENT_BASE).
     // We install an actual kernel object of type portal at the given indices.
 
-    let from = ROOT_EXC_EVENT_BASE;
+    let from = RootCapabilitySpace::ExceptionEventBase.val();
     let to = hip.num_exc_sel() as u64;
     // iterate from 0 to 32 (exception capability selector space)
     for excp_offset in from..to {
@@ -94,7 +92,7 @@ pub fn init(hip: &HIP) {
         create_pt(
             portal_cap_sel,
             hip.root_pd(),
-            ec_cap_sel,
+            RootCapabilitySpace::RootExceptionLocalEc.val(),
             // Mtd::DEFAULT,
             Mtd::all(),
             general_exception_handler as *const u64,
