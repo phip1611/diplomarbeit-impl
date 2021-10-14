@@ -2,12 +2,12 @@
 
 use crate::mem::PAGE_SIZE;
 use crate::mtd::Mtd;
+use arrayvec::ArrayString;
 use core::fmt::{
     Debug,
     Formatter,
 };
 use core::mem::size_of;
-use arrayvec::ArrayString;
 
 /// Capacity in bytes of the UTCB Data area.
 pub const UTCB_DATA_CAPACITY: usize = PAGE_SIZE - size_of::<UtcbHead>();
@@ -26,16 +26,20 @@ pub enum UtcbError {
     TooManyTypedItems,
 }
 
-/// User Thread Control Block (UTCB). An execution context
-/// * uses its UTCB to send or receive messages (IPC),
-/// * ~~to transfer typed items during capability delegation~~ (not used anymore,
-///     see dedicated delegate syscall),
-/// * and to get information after an exception or event (VM exit).
+/// User Thread Control Block (UTCB). An execution context uses it's UTCB for
+/// IPC and Exception handling. An UTCB is page-aligned and one page in size.
+/// Consists of [`UtcbHead`] and [`UtcbData`].
+///
+/// # IPC
+/// * transfer typed (NOVA-way for capability translation and delegation items
+/// * transfer untyped items (= arbitrary, context-specific data)
+/// # Exception Handling (and Answering)
+/// * See []
 ///
 /// An UTCB is never constructed inside the userspace. The one provided by the kernel gets
 /// reused and refilled instead.
 ///
-/// Consists of [`UtcbHead`] and [`UtcbData`].
+
 #[repr(C, align(4096))]
 pub struct Utcb {
     head: UtcbHead,
@@ -147,7 +151,7 @@ impl Utcb {
         }
     }
 
-    /// TODO naming
+    /// Returns the data as [`UtcbDataException`].
     pub fn exception_data(&self) -> &UtcbDataException {
         unsafe { &self.data.exception_data }
     }
@@ -213,8 +217,11 @@ pub struct UtcbDataItems([u64; PAGE_SIZE - size_of::<UtcbHead>()]);
 
 /// Payload structure of [`UtcbData`] if a portal gets called after an event (exception or VM exit).
 /// What data is filled here depends on the [`super::mtd::Mtd`] that is attached to the portal.
-// this is copy because this is a limitation for unions in Rust currently
+///
+/// It is also used as payload for the REPLY syscall after an exception. According to the
+/// MTD, the registers will be set.
 #[derive(Debug, Copy, Clone)]
+// this is copy because this is a limitation for unions in Rust currently
 #[repr(C)]
 pub struct UtcbDataException {
     pub mtd: Mtd,
@@ -379,18 +386,9 @@ mod tests {
                 size_of_val(&utcb.bytes),
                 size_of_val(&utcb.exception_data),
             );*/
-            assert_eq!(
-                size_of_val(&utcb.bytes),
-                size_of_val(&utcb.untyped_items),
-            );
-            assert_eq!(
-                size_of_val(&utcb.bytes),
-                size_of_val(&utcb.typed_items),
-            );
-            assert_eq!(
-                size_of_val(&utcb.bytes),
-                size_of::<UtcbData>(),
-            );
+            assert_eq!(size_of_val(&utcb.bytes), size_of_val(&utcb.untyped_items));
+            assert_eq!(size_of_val(&utcb.bytes), size_of_val(&utcb.typed_items));
+            assert_eq!(size_of_val(&utcb.bytes), size_of::<UtcbData>());
         }
     }
 
