@@ -43,13 +43,15 @@ extern crate alloc;
 
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::syscall::ipc::call;
 use libhrstd::libhedron::utcb::Utcb;
+use libroottask::capability_space::RootCapabilitySpace;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 #[no_mangle]
 fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let hip = unsafe { (hip_ptr as *const HIP).as_ref().unwrap() };
-    let _utcb = unsafe { (utcb_ptr as *const Utcb).as_ref().unwrap() };
+    let utcb = unsafe { (utcb_ptr as *mut Utcb).as_mut().unwrap() };
 
     services::init_writers(hip);
     roottask_logger::init();
@@ -78,6 +80,14 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
         log::trace!("hip ptr            : 0x{:016x}", hip_ptr);
         log::debug!("===========================================================");
     }
+
+    // now init services
+    services::init_services(hip);
+
+    let msg = b"hallo welt 123 fooa\n";
+    utcb.store_data(msg.clone());
+    call(RootCapabilitySpace::RoottaskStdoutPortal.val());
+    log::info!("done");
 
     let rt_tar =
         unsafe { libroottask::rt::multiboot_rt_tar::find_hedron_userland_tar(hip).unwrap() };

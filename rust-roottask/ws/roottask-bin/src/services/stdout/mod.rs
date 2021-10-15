@@ -6,11 +6,18 @@ use core::fmt::{
 use runs_inside_qemu::runs_inside_qemu;
 
 use libhrstd::libhedron::hip::HIP;
+use libhrstd::libhedron::mtd::Mtd;
+use libhrstd::libhedron::syscall::create_ec::create_local_ec;
+use libhrstd::libhedron::syscall::create_pt::create_pt;
+use libhrstd::libhedron::syscall::ipc::reply;
+use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::mem::PageAligned;
 use libhrstd::sync::mutex::{
     SimpleMutex,
     SimpleMutexGuard,
 };
 use libroottask::capability_space::RootCapabilitySpace;
+use libroottask::stack::StaticStack;
 
 use crate::services::stdout::debugcon::DebugconWriter;
 use crate::services::stdout::serial::SerialWriter;
@@ -20,6 +27,11 @@ mod serial;
 
 /// Global instance of the writer. Protects/synchronizes writers.
 static STDOUT_WRITER: SimpleMutex<StdoutWriter> = SimpleMutex::new(StdoutWriter::new());
+
+static mut STDOUT_SERVICE_STACK: StaticStack<4> = StaticStack::new();
+
+/// UTCB for the exception handler portal.
+static mut STDOUT_SERVICE_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
 
 /// Initializes the stdout writer struct. Afterwards [`writer`] can be called.
 pub fn init_writer(hip: &HIP) {
@@ -36,8 +48,32 @@ pub fn writer_mut<'a>() -> SimpleMutexGuard<'a, StdoutWriter> {
 
 /// Initializes the service portals for the functionality of this module.
 /// Must be called after [`init_writer`].
-pub fn init_service() {
-    todo!("must implement portals");
+pub fn init_service(hip: &HIP) {
+    create_local_ec(
+        RootCapabilitySpace::RoottaskStdoutLocalEc.val(),
+        hip.root_pd(),
+        unsafe { STDOUT_SERVICE_STACK.get_stack_top_ptr() } as u64,
+        RootCapabilitySpace::ExceptionEventBase.val(),
+        0,
+        unsafe { STDOUT_SERVICE_UTCB.page_num() } as u64,
+    )
+    .unwrap();
+    create_pt(
+        RootCapabilitySpace::RoottaskStdoutPortal.val(),
+        hip.root_pd(),
+        RootCapabilitySpace::RoottaskStdoutLocalEc.val(),
+        Mtd::empty(),
+        stdout_service_handler as *const u64,
+    )
+    .unwrap();
+}
+
+fn stdout_service_handler(arg: u64) -> ! {
+    log::info!("barfoo");
+    let slice = unsafe { core::slice::from_raw_parts(STDOUT_SERVICE_UTCB.utcb_data_begin(), 20) };
+    let str = core::str::from_utf8(slice).unwrap();
+    log::info!("got via IPC: {}", str);
+    reply();
 }
 
 /// Handles the locations where Stdout-Output goes to.

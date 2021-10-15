@@ -39,6 +39,7 @@ extern crate libhrstd;
 pub mod capability_space;
 pub mod hw;
 pub mod io_port;
+pub mod loader;
 pub mod mem;
 pub mod rt;
 pub mod stack;

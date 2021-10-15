@@ -71,6 +71,13 @@ impl Utcb {
         (&self.data) as *const UtcbData as *const u8
     }
 
+    /// Returns the pointer to the beginning of the data area of the UTCB.
+    /// The microhypervisor transfers untyped items from the here upwards.
+    /// Each untyped item is 64 bit (one word) long.
+    pub fn utcb_data_begin_mut(&mut self) -> *mut u8 {
+        (&mut self.data) as *mut UtcbData as *mut u8
+    }
+
     /// Returns all available untyped items as slice. The application must
     /// parse the data by itself. The microhypervisor transfers untyped items from the beginning of
     /// the UTCB data area upwards.
@@ -129,7 +136,8 @@ impl Utcb {
     }
 
     /// Copies the bytes of T into the UTCB, if enough space is available. Overwrites any
-    /// typed items, if the data is large enough.
+    /// typed items, if the size of the data requires this. NOTE that only the data
+    /// itself is put into the UTCB, but not any data that is referenced from there.
     pub fn store_data<T: Sized>(&mut self, data: T) -> Result<(), UtcbError> {
         let required_size = size_of::<T>();
         let untyped_item_size = size_of::<UntypedItem>();
@@ -394,7 +402,7 @@ mod tests {
 
     /// Tests to store and load arbitrary data types from and to the untyped item section of the UTCB.
     #[test]
-    fn test_store_load_utcb() {
+    fn test_store_load_utcb_1() {
         let mut utcb = Utcb::new();
         assert_eq!(
             size_of_val(&utcb),
@@ -402,6 +410,26 @@ mod tests {
             "Utcb must be a page size long"
         );
         let array = [1_u64, 3, 3, 7];
+        utcb.store_data(array).unwrap();
+
+        assert_eq!(utcb.untyped_items_count(), 4);
+        assert_eq!(utcb.typed_items_count(), 0);
+
+        let copy = utcb.load_data::<[u64; 4]>().unwrap();
+        assert_eq!(&array, copy);
+
+        let large_array = [0_u8; PAGE_SIZE];
+        assert!(
+            utcb.store_data(large_array).is_err(),
+            "data too big for utcb"
+        );
+    }
+
+    #[test]
+    fn test_store_load_utcb_2() {
+        let mut utcb = Utcb::new();
+
+        let msg = "hallo welt";
         utcb.store_data(array).unwrap();
 
         assert_eq!(utcb.untyped_items_count(), 4);

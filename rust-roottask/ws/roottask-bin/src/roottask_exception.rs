@@ -7,10 +7,7 @@ use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::syscall::create_ec::{
-    create_ec,
-    EcKind,
-};
+use libhrstd::libhedron::syscall::create_ec::create_local_ec;
 use libhrstd::libhedron::syscall::create_pt::create_pt;
 use libhrstd::libhedron::syscall::pt_ctrl::pt_ctrl;
 use libhrstd::libhedron::utcb::Utcb;
@@ -58,16 +55,13 @@ static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
 ///
 /// If it fails, the program aborts.
 pub fn init(hip: &HIP) {
-    create_ec(
-        EcKind::Local,
+    create_local_ec(
         RootCapabilitySpace::RootExceptionLocalEc.val(),
         hip.root_pd(),
         unsafe { CALLBACK_STACK.get_stack_top_ptr() } as u64,
         ROOT_EXC_EVENT_BASE,
         0,
         unsafe { EXCEPTION_UTCB.page_num() } as u64,
-        false,
-        false,
     )
     .unwrap();
 

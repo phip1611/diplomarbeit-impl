@@ -20,6 +20,8 @@ pub enum RootCapabilitySpace {
     RootSc = 34,
     /// Local EC that handles exceptions of the roottask itself.
     RootExceptionLocalEc = 35,
+    RoottaskStdoutLocalEc = 36,
+    RoottaskStdoutPortal = 37,
 }
 
 impl RootCapabilitySpace {

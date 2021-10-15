@@ -1,23 +1,19 @@
 //! Module to initialize typical Rust logging for the Roottask itself.
 
-use core::fmt::Write;
-
 use arrayvec::ArrayString;
+use core::fmt::Write;
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::util::ansi::{
+    AnsiStyle,
+    Color,
+    TextStyle,
+};
 use log::{
     Level,
     LevelFilter,
     Log,
     Metadata,
     Record,
-};
-
-use libhrstd::libhedron::capability::CapSel;
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::sync::mutex::SimpleMutex;
-use libhrstd::util::ansi::{
-    AnsiStyle,
-    Color,
-    TextStyle,
 };
 
 static LOGGER: GenericLogger = GenericLogger;
