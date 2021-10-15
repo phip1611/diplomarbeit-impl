@@ -41,6 +41,10 @@ pub fn init_writer(hip: &HIP) {
     // log::debug!("stdout available");
 }
 
+fn utcb() -> &'static Utcb {
+    unsafe { &STDOUT_SERVICE_UTCB }
+}
+
 /// Returns a mutable reference to [`StdoutWriter`].
 pub fn writer_mut<'a>() -> SimpleMutexGuard<'a, StdoutWriter> {
     STDOUT_WRITER.lock()
@@ -70,9 +74,7 @@ pub fn init_service(hip: &HIP) {
 
 fn stdout_service_handler(arg: u64) -> ! {
     log::info!("barfoo");
-    let slice = unsafe { core::slice::from_raw_parts(STDOUT_SERVICE_UTCB.utcb_data_begin(), 20) };
-    let str = core::str::from_utf8(slice).unwrap();
-    log::info!("got via IPC: {}", str);
+    log::info!("got via IPC: {}", utcb().load_data::<&str>().unwrap());
     reply();
 }
 

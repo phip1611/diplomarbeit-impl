@@ -1,4 +1,10 @@
-//! Module for [`Utcb`] and sub structs.
+//! Module for [`Utcb`] and sub structs including utility functions to efficiently work
+//! with the UTCB.
+//!
+//! To serialize/deserialize arbitrary user data into the UTCB, this crate uses `postcard`
+//! as implementation for `serde`. It is mandatory, that this happens without heap allocations,
+//! because in native Hedron-apps we need a portal call to allocate memory, therefore we must
+//! avoid the chicken-egg problem!
 
 use crate::mem::PAGE_SIZE;
 use crate::mtd::Mtd;
@@ -8,6 +14,10 @@ use core::fmt::{
     Formatter,
 };
 use core::mem::size_of;
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 /// Capacity in bytes of the UTCB Data area.
 pub const UTCB_DATA_CAPACITY: usize = PAGE_SIZE - size_of::<UtcbHead>();
@@ -16,7 +26,7 @@ pub const UNTYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<UntypedI
 /// Capacity count for typed items in UTCB Data area.
 pub const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>();
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum UtcbError {
     /// Indicates that the payload is larger than [`UTCB_DATA_CAPACITY`].
     PayloadTooLarge,
@@ -24,6 +34,8 @@ pub enum UtcbError {
     TooManyUntypedItems,
     /// Indicates that there are more typed items than [`TYPED_ITEM_CAPACITY`].
     TooManyTypedItems,
+    /// Indicates that there was an error during deserialization.
+    DeserializeError(postcard::Error),
 }
 
 /// User Thread Control Block (UTCB). An execution context uses it's UTCB for
@@ -64,25 +76,11 @@ impl Utcb {
         (self.head.items >> 16) as u16
     }
 
-    /// Returns the pointer to the beginning of the data area of the UTCB.
-    /// The microhypervisor transfers untyped items from the here upwards.
-    /// Each untyped item is 64 bit (one word) long.
-    pub fn utcb_data_begin(&self) -> *const u8 {
-        (&self.data) as *const UtcbData as *const u8
-    }
-
-    /// Returns the pointer to the beginning of the data area of the UTCB.
-    /// The microhypervisor transfers untyped items from the here upwards.
-    /// Each untyped item is 64 bit (one word) long.
-    pub fn utcb_data_begin_mut(&mut self) -> *mut u8 {
-        (&mut self.data) as *mut UtcbData as *mut u8
-    }
-
     /// Returns all available untyped items as slice. The application must
     /// parse the data by itself. The microhypervisor transfers untyped items from the beginning of
     /// the UTCB data area upwards.
     pub fn untyped_items(&self) -> &[u64] {
-        unsafe { &self.data.untyped_items[0..self.untyped_items_count() as usize] }
+        &self.data.untyped_items()[0..self.untyped_items_count() as usize]
     }
 
     /// Sets the number of untyped items.
@@ -112,56 +110,60 @@ impl Utcb {
     /// Each typed item occupies two words.
     pub fn typed_items(&self) -> &[TypedItem] {
         // typed items are at end of array
-        let end_i = unsafe { self.data.untyped_items.len() } - 1;
+        let end_i = UNTYPED_ITEM_CAPACITY - 1;
         let begin_i = end_i - self.typed_items_count() as usize;
-        unsafe { &self.data.typed_items[begin_i..] }
+        &self.data.typed_items()[begin_i..]
     }
 
-    /// Interprets the bytes in the "untyped items" area as a type `T` and
-    /// returns a reference to it.
-    pub fn load_data<T: Sized>(&self) -> Result<&T, UtcbError> {
-        let required_byte_count = size_of::<T>();
-        let size_untyped_item = size_of::<UntypedItem>();
-        let avaiable_byte_count = self.untyped_items_count() as usize * size_untyped_item;
-        if required_byte_count < avaiable_byte_count {
-            log::warn!(
-                "required_byte_count({}) < available_byte_count({})",
-                required_byte_count,
-                avaiable_byte_count
-            );
-            return Err(UtcbError::PayloadTooLarge);
-        }
-        let ptr = unsafe { self.data.untyped_items.as_ptr() as *const u8 as *const T };
-        Ok(unsafe { ptr.as_ref().unwrap() })
+    /// Loads data from the UTCB, that was stored using [`store_data`].
+    /// Returns a new, owned copy.
+    pub fn load_data<'a, T: Deserialize<'a>>(&'a self) -> Result<T, UtcbError> {
+        /*let size_untyped_item = size_of::<UntypedItem>();
+        let used_bytes = self.untyped_items_count() as usize * size_untyped_item;*/
+
+        /*let payload_bytes = &self.data.bytes()[0..used_bytes];
+        let deserialized = bincode::deserialize(payload_bytes).unwrap();*/
+
+        // I ignore untyped items check here, because postcard itself encodes
+        // the length in the array.
+
+        // it is really important, that this works without heap allocations!
+        let res = postcard::from_bytes(self.data.bytes())
+            .map_err(|err| UtcbError::DeserializeError(err))?;
+
+        Ok(res)
     }
 
-    /// Copies the bytes of T into the UTCB, if enough space is available. Overwrites any
-    /// typed items, if the size of the data requires this. NOTE that only the data
-    /// itself is put into the UTCB, but not any data that is referenced from there.
-    pub fn store_data<T: Sized>(&mut self, data: T) -> Result<(), UtcbError> {
-        let required_size = size_of::<T>();
+    /// Puts arbitrary data into the UTCB using `serde` + `bincode`. It's a wrapper around
+    /// the "untyped item"-fature of the UTCB.
+    /// Note that size is limited to [`UTCB_DATA_CAPACITY`].
+    /// Ignores/overwrite any typed items in the UTCB.
+    pub fn store_data<T: Serialize>(&mut self, data: &T) -> Result<(), UtcbError> {
+        // it is really important, that this works without heap allocations!
+        let serialized_bytes = postcard::to_slice(data, self.data.bytes_mut())
+            .map_err(|_err| UtcbError::PayloadTooLarge)?;
+
         let untyped_item_size = size_of::<UntypedItem>();
-        if required_size > UTCB_DATA_CAPACITY {
-            Err(UtcbError::PayloadTooLarge)
+        let required_untyped_items = if serialized_bytes.len() % untyped_item_size == 0 {
+            serialized_bytes.len() / untyped_item_size
         } else {
-            let required_untyped_items = if required_size % untyped_item_size == 0 {
-                required_size / untyped_item_size
-            } else {
-                (required_size / untyped_item_size) + 1
-            };
+            (serialized_bytes.len() / untyped_item_size) + 1
+        };
 
-            self.set_number_untyped_items(required_untyped_items as u16)?;
-            self.set_number_typed_items(0)?;
-            unsafe {
-                core::ptr::write(self.data.untyped_items.as_mut_ptr() as *mut T, data);
-            }
-            Ok(())
-        }
+        self.set_number_untyped_items(required_untyped_items as u16)?;
+        self.set_number_typed_items(0)?;
+
+        Ok(())
     }
 
-    /// Returns the data as [`UtcbDataException`].
+    /// Returns the data as reference to [`UtcbDataException`].
     pub fn exception_data(&self) -> &UtcbDataException {
-        unsafe { &self.data.exception_data }
+        self.data.exception_data()
+    }
+
+    /// Returns the data as mutable reference to [`UtcbDataException`].
+    pub fn exception_data_mut(&mut self) -> &mut UtcbDataException {
+        self.data.exception_data_mut()
     }
 }
 
@@ -184,7 +186,7 @@ impl Debug for Utcb {
 /// * exception or event data
 #[repr(C)]
 pub union UtcbData {
-    /// Raw byte accessor.
+    /// Raw byte accessor. Starts at the same location as `untyped items`, i.e. both grow upwards.
     bytes: [u8; UTCB_DATA_CAPACITY],
     /// Used to transfer arbitrary data. The buffer is only filled with the count of items,
     /// that is defined in the header. Untyped items start from the beginning of the Utcb data
@@ -198,13 +200,46 @@ pub union UtcbData {
     exception_data: UtcbDataException,
 }
 
+#[allow(dead_code)]
 impl UtcbData {
     /// Constructor.
     pub const fn new() -> Self {
-        // initialize with zeroes only.
+        // Initializes the union with zeroes only.
         Self {
             bytes: [0; UTCB_DATA_CAPACITY],
         }
+    }
+
+    fn bytes(&self) -> &[u8; UTCB_DATA_CAPACITY] {
+        unsafe { &self.bytes }
+    }
+
+    fn bytes_mut(&mut self) -> &mut [u8; UTCB_DATA_CAPACITY] {
+        unsafe { &mut self.bytes }
+    }
+
+    fn untyped_items(&self) -> &[u64; UNTYPED_ITEM_CAPACITY] {
+        unsafe { &self.untyped_items }
+    }
+
+    fn untyped_items_mut(&mut self) -> &mut [u64; UNTYPED_ITEM_CAPACITY] {
+        unsafe { &mut self.untyped_items }
+    }
+
+    fn typed_items(&self) -> &[TypedItem; TYPED_ITEM_CAPACITY] {
+        unsafe { &self.typed_items }
+    }
+
+    fn typed_items_mut(&mut self) -> &mut [TypedItem; TYPED_ITEM_CAPACITY] {
+        unsafe { &mut self.typed_items }
+    }
+
+    fn exception_data(&self) -> &UtcbDataException {
+        unsafe { &self.exception_data }
+    }
+
+    fn exception_data_mut(&mut self) -> &mut UtcbDataException {
+        unsafe { &mut self.exception_data }
     }
 }
 
@@ -402,7 +437,7 @@ mod tests {
 
     /// Tests to store and load arbitrary data types from and to the untyped item section of the UTCB.
     #[test]
-    fn test_store_load_utcb_1() {
+    fn test_store_load_utcb() {
         let mut utcb = Utcb::new();
         assert_eq!(
             size_of_val(&utcb),
@@ -410,38 +445,17 @@ mod tests {
             "Utcb must be a page size long"
         );
         let array = [1_u64, 3, 3, 7];
-        utcb.store_data(array).unwrap();
+        utcb.store_data(&array).unwrap();
 
         assert_eq!(utcb.untyped_items_count(), 4);
         assert_eq!(utcb.typed_items_count(), 0);
 
         let copy = utcb.load_data::<[u64; 4]>().unwrap();
-        assert_eq!(&array, copy);
+        assert_eq!(array, copy);
 
-        let large_array = [0_u8; PAGE_SIZE];
-        assert!(
-            utcb.store_data(large_array).is_err(),
-            "data too big for utcb"
-        );
-    }
-
-    #[test]
-    fn test_store_load_utcb_2() {
-        let mut utcb = Utcb::new();
-
-        let msg = "hallo welt";
-        utcb.store_data(array).unwrap();
-
-        assert_eq!(utcb.untyped_items_count(), 4);
-        assert_eq!(utcb.typed_items_count(), 0);
-
-        let copy = utcb.load_data::<[u64; 4]>().unwrap();
-        assert_eq!(&array, copy);
-
-        let large_array = [0_u8; PAGE_SIZE];
-        assert!(
-            utcb.store_data(large_array).is_err(),
-            "data too big for utcb"
-        );
+        let msg = "foobar hello world lorem ipsum".repeat(135);
+        utcb.store_data(&msg.as_str()).unwrap();
+        let copy = utcb.load_data::<&str>().unwrap();
+        assert_eq!(copy, msg);
     }
 }

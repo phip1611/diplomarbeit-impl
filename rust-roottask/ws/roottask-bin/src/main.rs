@@ -84,8 +84,8 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     // now init services
     services::init_services(hip);
 
-    let msg = b"hallo welt 123 fooa\n";
-    utcb.store_data(msg.clone());
+    let msg = "hallo welt 123 fooa\n";
+    utcb.store_data(&msg).unwrap();
     call(RootCapabilitySpace::RoottaskStdoutPortal.val());
     log::info!("done");
 
