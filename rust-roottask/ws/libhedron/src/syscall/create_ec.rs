@@ -8,21 +8,85 @@ use crate::syscall::generic::{
 
 /// Kind of an EC. Bits 4-5 in ARG1 of syscall.
 #[derive(Copy, Clone, Debug)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, dead_code)]
 #[repr(u8)]
-pub enum EcKind {
+enum EcKind {
     /// Local EC without scheduling context.
-    /// Usually used as functionality available
-    /// through a portal.
-    Local = 0,
-    Global = 1,
-    vCpu = 2,
+    /// Used as functionality available through a portal.
+    Local = 0b00,
+    Global = 0b01,
+    vCpu = 0b10,
 }
 
 impl EcKind {
-    pub fn val(self) -> u8 {
+    /// Bitmask for EcKind. Bits 5-4.
+    const BITMASK: u64 = 0x30;
+
+    fn val(self) -> u8 {
         self as u8
     }
+}
+
+/// Creates a local EC.
+///
+/// # Parameters
+/// - `ec_cap_sel` Free [`CapSel`] where this EC is installed in the PD specified by `parent_pd_sel`
+/// - `parent_pd_sel` [`CapSel`] of existing PD, where the EC belongs to
+/// - `stack_ptr` Virtual address of stack. NOT PAGE NUMBER.
+/// - `evt_base_sel` [`CapSel`] for the event base.
+/// - `cpu_num` Number of the CPU. ECs are permanently bound to a CPU.
+/// - `utcb_page_num` Page number of the UTCB. NOT A VIRTUAL ADDRESS.
+pub fn create_local_ec(
+    ec_cap_sel: CapSel,
+    parent_pd_sel: CapSel,
+    stack_ptr: u64,
+    evt_base_sel: CapSel,
+    cpu_num: u64,
+    utcb_page_num: u64,
+) -> Result<(), SyscallStatus> {
+    assert_ne!(stack_ptr, 0, "stack_ptr is null!");
+    assert_ne!(utcb_page_num, 0, "utcb_page_num is null!");
+    assert!(cpu_num < NUM_CPUS as u64, "CPU-num to high");
+
+    create_ec(
+        EcKind::Local,
+        ec_cap_sel,
+        parent_pd_sel,
+        stack_ptr,
+        evt_base_sel,
+        cpu_num,
+        utcb_page_num,
+        false,
+        // TODO do I ever need this?
+        false,
+    )
+}
+
+/// Creates a global EC.
+pub fn create_global_ec(
+    ec_cap_sel: CapSel,
+    parent_pd_sel: CapSel,
+    stack_ptr: u64,
+    evt_base_sel: CapSel,
+    cpu_num: u64,
+    utcb_page_num: u64,
+) -> Result<(), SyscallStatus> {
+    assert_ne!(stack_ptr, 0, "stack_ptr is null!");
+    assert_ne!(utcb_page_num, 0, "utcb_page_num is null!");
+    assert!(cpu_num < NUM_CPUS as u64, "CPU-num to high");
+
+    create_ec(
+        EcKind::Global,
+        ec_cap_sel,
+        parent_pd_sel,
+        stack_ptr,
+        evt_base_sel,
+        cpu_num,
+        utcb_page_num,
+        false,
+        // TODO do I ever need this?
+        false,
+    )
 }
 
 /// `create_ec` creates an EC kernel object and a capability pointing to
@@ -60,8 +124,9 @@ impl EcKind {
 /// - `cpu_num`        Number of CPU (ECs are CPU local). 0 to 63 (maximum supported CPU count by Hedron)
 /// - `utcb_vlapic_page_num` A page number where the UTCB / vLAPIC page will be created. Page 0 means no vLAPIC page or UTCB is created.
 /// - `use_apic_access_page` Whether a vCPU should respect the APIC Access Page. Ignored for non-vCPUs or if no vLAPIC page is created.
+///                          Important for interrupt handling.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
-pub fn create_ec(
+fn create_ec(
     kind: EcKind,
     dest_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -75,7 +140,7 @@ pub fn create_ec(
 ) -> Result<(), SyscallStatus> {
     let mut arg1 = 0;
     arg1 |= CreateEc.val();
-    arg1 |= ((kind.val() as u64) << 4) & 0x30;
+    arg1 |= ((kind.val() as u64) << 4) & EcKind::BITMASK;
 
     // Ignored for non-vCPUs or if no vLAPIC page is created.
     if use_apic_access_page {
