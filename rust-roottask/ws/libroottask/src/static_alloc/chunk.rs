@@ -24,6 +24,10 @@ pub enum ChunkAllocatorError {
 ///
 /// It is a generic allocator but can be wrapped to be used as the allocator for the Rust runtime,
 /// i.e. the functionality of the `alloc` crate.
+///
+/// TODO: In fact, the chunk allocator only needs the bitmap reference, but not the
+///  one from the heap. Future work: completely throw this away and instead do some
+///  mixture of PAge-Frame-Allocator and Virtual Memory Mapper
 #[derive(Debug)]
 pub struct ChunkAllocator<'a> {
     heap: &'a mut [u8],

@@ -13,7 +13,10 @@ use core::fmt::{
     Debug,
     Formatter,
 };
-use core::mem::size_of;
+use core::mem::{
+    size_of,
+    size_of_val,
+};
 use serde::{
     Deserialize,
     Serialize,
@@ -36,6 +39,8 @@ pub enum UtcbError {
     TooManyTypedItems,
     /// Indicates that there was an error during deserialization.
     DeserializeError(postcard::Error),
+    /// No data, when data was expected.
+    NoData,
 }
 
 /// User Thread Control Block (UTCB). An execution context uses it's UTCB for
@@ -118,6 +123,9 @@ impl Utcb {
     /// Loads data from the UTCB, that was stored using [`store_data`].
     /// Returns a new, owned copy.
     pub fn load_data<'a, T: Deserialize<'a>>(&'a self) -> Result<T, UtcbError> {
+        if self.untyped_items_count() == 0 {
+            return Err(UtcbError::NoData);
+        }
         /*let size_untyped_item = size_of::<UntypedItem>();
         let used_bytes = self.untyped_items_count() as usize * size_untyped_item;*/
 
@@ -139,6 +147,10 @@ impl Utcb {
     /// Note that size is limited to [`UTCB_DATA_CAPACITY`].
     /// Ignores/overwrite any typed items in the UTCB.
     pub fn store_data<T: Serialize>(&mut self, data: &T) -> Result<(), UtcbError> {
+        if size_of_val(data) == 0 {
+            return Err(UtcbError::NoData);
+        }
+
         // it is really important, that this works without heap allocations!
         let serialized_bytes = postcard::to_slice(data, self.data.bytes_mut())
             .map_err(|_err| UtcbError::PayloadTooLarge)?;

@@ -86,7 +86,7 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
 
     let msg = "hallo welt 123 fooa\n";
     utcb.store_data(&msg).unwrap();
-    call(RootCapabilitySpace::RoottaskStdoutPortal.val());
+    call(RootCapabilitySpace::RoottaskStdoutPortal.val()).unwrap();
     log::info!("done");
 
     let rt_tar =
