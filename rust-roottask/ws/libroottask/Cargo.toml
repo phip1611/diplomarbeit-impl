@@ -10,6 +10,7 @@ publish = false # prevent accidentaly publishing
 libhrstd = { path = "../libhrstd", default-features = false } # for mutex; libhedron is transitive dep
 
 log = { version = "0.4", default-features = false }
+arrayvec = { version = "0.7", default-features = false }
 x86 = "0.41"
 bitflags = "1.3"
 enum-iterator = "0.7"

@@ -23,6 +23,8 @@
 #![feature(const_ptr_offset)]
 #![feature(const_fmt_arguments_new)]
 #![feature(const_mut_refs)]
+#![feature(allocator_api)]
+#![feature(const_btree_new)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -41,6 +43,8 @@ pub mod hw;
 pub mod io_port;
 pub mod loader;
 pub mod mem;
+pub mod process;
+pub mod roottask_exception;
 pub mod rt;
 pub mod stack;
 pub mod static_alloc;

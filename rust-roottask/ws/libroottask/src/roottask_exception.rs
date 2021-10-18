@@ -1,5 +1,10 @@
-//! Exception-handling for roottask.
+//! General exception-handling for roottask. Registers a portal for each single possible
+//! exception. Other parts of the roottask has the option to register themselves
+//! as handler, without further interaction with the kernel
+//! (i.e. dedicated syscalls to create new PTs).
 
+use crate::capability_space::RootCapabilitySpace;
+use crate::stack::StaticStack;
 use arrayvec::ArrayString;
 use core::convert::TryFrom;
 use core::fmt::Write;
@@ -12,13 +17,12 @@ use libhrstd::libhedron::syscall::create_pt::create_pt;
 use libhrstd::libhedron::syscall::pt_ctrl::pt_ctrl;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PageAligned;
+use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::ansi::{
     AnsiStyle,
     Color,
     TextStyle,
 };
-use libroottask::capability_space::RootCapabilitySpace;
-use libroottask::stack::StaticStack;
 
 /// The root task has 0 as event selector base. This means, initially
 /// capability selectors 0..32 refer to a null capability, but can be used
@@ -47,6 +51,14 @@ static mut CALLBACK_STACK: StaticStack<4> = StaticStack::new();
 
 /// UTCB for the exception handler portal.
 static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
+
+/// Number of possible exceptions
+const NUM_EXC: usize = (RootCapabilitySpace::ExceptionEnd.val() + 1) as usize;
+
+/// Map that stores if specialized exception handlers are available.
+static SPECIALIZES_EXCEPTION_HANDLER_MAP: SimpleMutex<
+    [Option<fn(ExceptionEventOffset, &mut Utcb) -> !>; NUM_EXC],
+> = SimpleMutex::new([None; NUM_EXC]);
 
 /// Initializes a local EC and N portals to cover N exceptions.
 /// All exceptions are considered as unrecoverable in this roottask.
@@ -114,24 +126,48 @@ pub fn init(hip: &HIP) {
     }
 }
 
-/// General exception handler for all x86 exceptions that can happen.
+/// Registers a special exception handler for a specific exception.
+pub fn register_specialized_exc_handler(
+    excp_id: ExceptionEventOffset,
+    fnc: fn(ExceptionEventOffset, &mut Utcb) -> !,
+) {
+    let mut map = SPECIALIZES_EXCEPTION_HANDLER_MAP.lock();
+    if map[excp_id.val() as usize].is_some() {
+        panic!(
+            "already registered a special exception handler for exception = {:?}",
+            excp_id
+        );
+    }
+    map[excp_id.val() as usize] = Some(fnc);
+}
+
+/// General exception handler for all x86 exceptions that can happen + Hedron specific exceptions.
 /// The handler aborts the program if an exception occurs. Panics the Rust program.
 fn general_exception_handler(exception_id: u64) -> ! {
     let id = ExceptionEventOffset::try_from(exception_id).expect("Unsupported exception variant");
-    let mut buf = ArrayString::<32>::new();
-    write!(&mut buf, "{:#?}", id).unwrap();
+    let mut map = SPECIALIZES_EXCEPTION_HANDLER_MAP.lock();
 
-    panic!(
-        "Mayday, caught exception id={} - aborting program\n{:#?}",
-        AnsiStyle::new()
-            .foreground_color(Color::Red)
-            .text_style(TextStyle::Bold)
-            .msg(buf.as_str()),
-        unsafe { EXCEPTION_UTCB.exception_data() }
-    );
+    log::debug!("cought exception (via portal): {:?}", id);
 
-    // entweder return mit reply syscall
-    // oder panic => game over
+    if let Some(fnc) = map[id.val() as usize] {
+        log::debug!("forwarding to specialized exception handler");
+        fnc(id, unsafe { &mut EXCEPTION_UTCB })
+    } else {
+        log::debug!("no specialized exception handler available");
 
-    // Problem bei normalem return: keine rücksprugnadresse
+        let mut buf = ArrayString::<32>::new();
+        write!(&mut buf, "{:#?}", id).unwrap();
+        panic!(
+            "Mayday, caught exception id={} - aborting program\n{:#?}",
+            AnsiStyle::new()
+                .foreground_color(Color::Red)
+                .text_style(TextStyle::Bold)
+                .msg(buf.as_str()),
+            unsafe { EXCEPTION_UTCB.exception_data() }
+        );
+        // entweder return mit reply syscall
+        // oder panic => game over
+
+        // Problem bei normalem return: keine rücksprugnadresse
+    }
 }

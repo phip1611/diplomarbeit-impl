@@ -29,6 +29,7 @@
 #![feature(allocator_api)]
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(alloc_error_handler)]
+#![feature(const_btree_new)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -39,10 +40,12 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
-pub use libhedron;
 pub use libm;
 
+pub use libhedron;
+
 pub mod cap_mngmt;
+pub mod capability_space;
 pub mod cstr;
 pub mod mem;
 #[cfg(feature = "rt")]

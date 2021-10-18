@@ -10,6 +10,7 @@
 #![feature(const_mut_refs)]
 #![feature(const_ptr_offset)]
 #![feature(stmt_expr_attributes)]
+#![feature(const_btree_new)]
 #![deny(
     clippy::all,
     clippy::cargo,
@@ -31,7 +32,6 @@
 global_asm!(include_str!("assembly.S"));
 
 mod panic;
-mod roottask_exception;
 mod roottask_heap;
 mod roottask_logger;
 mod roottask_stack;
@@ -41,11 +41,23 @@ mod services;
 #[macro_use]
 extern crate alloc;
 
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::pin::Pin;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::syscall::ipc::call;
 use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::mem::{
+    AlignedAlloc,
+    PageAlignedAlloc,
+};
 use libroottask::capability_space::RootCapabilitySpace;
+use libroottask::process::{
+    ProcessManager,
+    PROCESS_MNG,
+};
+use libroottask::roottask_exception;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 #[no_mangle]
@@ -84,16 +96,26 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     // now init services
     services::init_services(hip);
 
+    PROCESS_MNG.lock().init();
+
     let msg = "hallo welt 123 fooa\n";
     utcb.store_data(&msg).unwrap();
     call(RootCapabilitySpace::RoottaskStdoutPortal.val()).unwrap();
     log::info!("done");
 
+    log::debug!("Heap Usage: {}%", roottask_heap::usage());
+
     let rt_tar =
         unsafe { libroottask::rt::multiboot_rt_tar::find_hedron_userland_tar(hip).unwrap() };
 
     for entry in rt_tar.entries() {
-        log::debug!("found file: {}", entry.filename().as_str());
+        log::debug!("found file in tar: {}", entry.filename().as_str());
+        let mut aligned_elf = Vec::with_capacity_in(entry.size(), PageAlignedAlloc);
+        aligned_elf.extend(entry.data());
+        PROCESS_MNG.lock().start(
+            Pin::new(aligned_elf.into_boxed_slice()),
+            entry.filename().as_str().to_string(),
+        );
     }
 
     log::debug!("Heap Usage: {}%", roottask_heap::usage());

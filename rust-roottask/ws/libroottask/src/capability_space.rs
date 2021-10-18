@@ -22,11 +22,18 @@ pub enum RootCapabilitySpace {
     RootExceptionLocalEc = 35,
     RoottaskStdoutLocalEc = 36,
     RoottaskStdoutPortal = 37,
+
+    /// This + PID => capability index offset for the PD of a process.
+    ProcessPdBase = 100,
+    /// This + PID => capability index offset for the global EC of a process.
+    ProcessEcBase = 200,
+    /// This + PID => capability index offset for the SC of a process.
+    ProcessScBase = 300,
 }
 
 impl RootCapabilitySpace {
     /// Returns the numeric value.
-    pub fn val(self) -> CapSel {
+    pub const fn val(self) -> CapSel {
         self as _
     }
 }

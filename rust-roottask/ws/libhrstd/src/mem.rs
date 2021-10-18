@@ -187,6 +187,24 @@ unsafe impl<const N: usize> Allocator for AlignedAlloc<N> {
     }
 }
 
+/// Version of [`AlignedAlloc`], that works without const generics. Const generics
+/// have to many bugs yet for this use case, including but not limited
+/// to https://github.com/rust-lang/rust/issues/81698.
+#[derive(Debug)]
+pub struct PageAlignedAlloc;
+
+unsafe impl Allocator for PageAlignedAlloc {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        let ptr = unsafe { alloc(layout.align_to(PAGE_SIZE).unwrap()) };
+        let ptr = NonNull::new(ptr).ok_or(AllocError)?;
+        Ok(NonNull::slice_from_raw_parts(ptr, layout.size()))
+    }
+
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        dealloc(ptr.as_ptr(), layout.align_to(PAGE_SIZE).unwrap());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::mem::{
