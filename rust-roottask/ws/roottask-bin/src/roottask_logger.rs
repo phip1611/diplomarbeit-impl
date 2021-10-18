@@ -38,6 +38,11 @@ impl GenericLogger {
         let mut level = ArrayString::<5>::new();
         write!(&mut level, "{:>5}", record.level().as_str()).unwrap();
 
+        let crate_name = record
+            .module_path()
+            .map(|module| module.split_once("::").map(|x| x.0).unwrap_or(module))
+            .unwrap_or("<unknown mod>");
+
         // file name: origin of logging msg
         let file = record
             .file()
@@ -53,13 +58,9 @@ impl GenericLogger {
                 }
             })
             .unwrap_or("<unknown file>");
-        let file_style = AnsiStyle::new().msg(file).text_style(TextStyle::Dimmed);
 
         let mut line = ArrayString::<5>::new();
         write!(&mut line, "{}", record.line().unwrap_or(0)).unwrap();
-        let line_style = AnsiStyle::new()
-            .msg(line.as_str())
-            .text_style(TextStyle::Dimmed);
 
         let res = writeln!(
             &mut buf,
@@ -67,13 +68,14 @@ impl GenericLogger {
             // level is padded to 5 chars and right-aligned
             // style around
             level = Self::style_for_level(record.level()).msg(level.as_str()),
-            crate_name = record
-                .module_path()
-                .map(|module| module.split_once("::").map(|x| x.0).unwrap_or(module))
-                .unwrap_or("<unknown mod>"),
-            file = file_style,
+            crate_name = AnsiStyle::new()
+                .foreground_color(Color::Magenta)
+                .msg(crate_name),
+            file = AnsiStyle::new().msg(file).text_style(TextStyle::Dimmed),
             at_sign = AnsiStyle::new().text_style(TextStyle::Dimmed).msg("@"),
-            line = line_style,
+            line = AnsiStyle::new()
+                .msg(line.as_str())
+                .text_style(TextStyle::Dimmed),
             double_point = AnsiStyle::new().text_style(TextStyle::Bold).msg(":"),
             msg = record.args(),
         );
