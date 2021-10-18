@@ -3,6 +3,7 @@
 use crate::static_alloc::chunk::{
     ChunkAllocator,
     ChunkAllocatorError,
+    DEFAULT_ALLOCATOR_CHUNK_SIZE,
 };
 use core::alloc::{
     GlobalAlloc,
@@ -20,19 +21,22 @@ pub enum GlobalStaticChunkAllocatorError {
 
 /// Wrapping struct around [`ChunkAllocator`] which enables the usage
 /// of this allocator in a global context, i.e. as global allocator.
+/// Memory is allocated in blocks/chunks with a size of
+/// [`GlobalStaticChunkAllocator::CHUNK_SIZE`].
 ///
 /// The struct synchronized accesses to the underlying memory.
-///
-/// It must be initialized first by calling [`Self::init`].
+/// It must be initialized by calling [`Self::init`], otherwise allocations
+/// result in panics.
 #[derive(Debug)]
 pub struct GlobalStaticChunkAllocator<'a> {
-    inner_allocator: SimpleMutex<Option<ChunkAllocator<'a>>>,
+    inner_allocator: SimpleMutex<Option<ChunkAllocator<'a, DEFAULT_ALLOCATOR_CHUNK_SIZE>>>,
 }
 
 impl<'a> GlobalStaticChunkAllocator<'a> {
-    // Re-Exports the chunk size of the underlying allocator implementation.
-    pub const CHUNK_SIZE: usize = ChunkAllocator::CHUNK_SIZE;
+    /// Publicly make the default chunk size available.
+    pub const CHUNK_SIZE: usize = DEFAULT_ALLOCATOR_CHUNK_SIZE;
 
+    /// Constructor.
     pub const fn new() -> Self {
         Self {
             inner_allocator: SimpleMutex::new(None),
@@ -106,9 +110,9 @@ mod tests {
 
     // must be a multiple of 8; 32 is equivalent to two pages
     const CHUNK_COUNT: usize = 32;
-    const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+    const HEAP_SIZE: usize = DEFAULT_ALLOCATOR_CHUNK_SIZE * CHUNK_COUNT;
     static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
-    const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+    const BITMAP_SIZE: usize = HEAP_SIZE / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8;
     static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
     static ALLOCATOR: GlobalStaticChunkAllocator = GlobalStaticChunkAllocator::new();

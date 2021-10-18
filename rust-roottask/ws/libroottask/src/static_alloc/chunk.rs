@@ -8,7 +8,7 @@ use libhrstd::libm;
 #[derive(Debug)]
 pub enum ChunkAllocatorError {
     /// The backing memory for the heap must be
-    /// - an even multiple of [`ChunkAllocator::CHUNK_SIZE`], and
+    /// - an even multiple of [`DEFAULT_ALLOCATOR_CHUNK_SIZE`], and
     /// - a multiple of 8 to be correctly represented by the bitmap.
     BadHeapMemory,
     /// The number of bits in the backing memory for the heap bitmap
@@ -16,44 +16,55 @@ pub enum ChunkAllocatorError {
     BadBitmapMemory,
 }
 
+pub const DEFAULT_ALLOCATOR_CHUNK_SIZE: usize = 256;
+
 /// First-fit allocator that takes mutable references to arbitrary external memory
 /// backing storages. It uses them to manage memory. It is mandatory to wrap
 /// this allocator by a mutex or a similar primitive, if it should be used
 /// in a global context. It can take (global) static memory arrays as backing
-/// storage. It allocates memory in chunks of [`Self::CHUNK_SIZE`].
+/// storage. It allocates memory in chunks of custom length, i.e. `256` or `4096`.
+/// Default value is [`DEFAULT_ALLOCATOR_CHUNK_SIZE`].
 ///
-/// It is a generic allocator but can be wrapped to be used as the allocator for the Rust runtime,
-/// i.e. the functionality of the `alloc` crate.
+/// This can be used to construct allocators, that manage the heap for the roottask
+/// or virtual memory.
 ///
 /// TODO: In fact, the chunk allocator only needs the bitmap reference, but not the
 ///  one from the heap. Future work: completely throw this away and instead do some
 ///  mixture of PAge-Frame-Allocator and Virtual Memory Mapper
 #[derive(Debug)]
-pub struct ChunkAllocator<'a> {
+pub struct ChunkAllocator<'a, const CHUNK_SIZE: usize> {
     heap: &'a mut [u8],
     bitmap: &'a mut [u8],
 }
 
-impl<'a> ChunkAllocator<'a> {
-    /// Unit of size in bytes for memory allocations.
-    pub const CHUNK_SIZE: usize = 256;
+impl<'a, const CHUNK_SIZE: usize> ChunkAllocator<'a, CHUNK_SIZE> {
+    /// Returns the default const generic value of `CHUNK_SIZE`.
+    pub const fn default_chunk_size() -> usize {
+        // keep in sync with struct definition!
+        DEFAULT_ALLOCATOR_CHUNK_SIZE
+    }
+
+    /// Returns the used chunk size.
+    pub const fn chunk_size(&self) -> usize {
+        CHUNK_SIZE
+    }
 
     /// Creates a new allocator object. Verifies that the provided memory has the correct properties.
-    /// - heap length must be a multiple of [`Self::CHUNK_SIZE`]
+    /// - heap length must be a multiple of [`CHUNK_SIZE`]
     /// - the heap must be >=
     pub const fn new(
         heap: &'a mut [u8],
         bitmap: &'a mut [u8],
     ) -> Result<Self, ChunkAllocatorError> {
         let is_empty = heap.len() == 0;
-        let is_not_multiple_of_chunk_size = heap.len() % Self::CHUNK_SIZE != 0;
-        let is_not_coverable_by_bitmap = heap.len() < 8 * Self::CHUNK_SIZE;
+        let is_not_multiple_of_chunk_size = heap.len() % CHUNK_SIZE != 0;
+        let is_not_coverable_by_bitmap = heap.len() < 8 * CHUNK_SIZE;
         if is_empty || is_not_multiple_of_chunk_size || is_not_coverable_by_bitmap {
             return Err(ChunkAllocatorError::BadHeapMemory);
         }
 
         // check bitmap memory has correct length
-        let expected_bitmap_length = heap.len() / Self::CHUNK_SIZE / 8;
+        let expected_bitmap_length = heap.len() / CHUNK_SIZE / 8;
         if bitmap.len() != expected_bitmap_length {
             return Err(ChunkAllocatorError::BadBitmapMemory);
         }
@@ -70,7 +81,7 @@ impl<'a> ChunkAllocator<'a> {
     pub fn chunk_count(&self) -> usize {
         // size is a multiple of CHUNK_SIZE;
         // ensured in new()
-        self.capacity() / Self::CHUNK_SIZE
+        self.capacity() / CHUNK_SIZE
     }
 
     /// Returns the current memory usage in percentage.
@@ -230,7 +241,7 @@ impl<'a> ChunkAllocator<'a> {
             chunk_index < self.chunk_count(),
             "chunk_index out of range!"
         );
-        self.heap.as_ptr().add(chunk_index * Self::CHUNK_SIZE) as *mut u8
+        self.heap.as_ptr().add(chunk_index * CHUNK_SIZE) as *mut u8
     }
 
     /// Returns the chunk index of the given pointer (which points to the beginning of a chunk).
@@ -244,15 +255,15 @@ impl<'a> ChunkAllocator<'a> {
             heap_begin_inclusive,
             heap_end_exclusive
         );
-        (ptr as usize - heap_begin_inclusive as usize) / Self::CHUNK_SIZE
+        (ptr as usize - heap_begin_inclusive as usize) / CHUNK_SIZE
     }
 
     #[track_caller]
     pub unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
         assert!(layout.size() > 0, "size must be >= 0!");
 
-        let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
-        let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
+        let mut required_chunks = layout.size() / CHUNK_SIZE;
+        let modulo = layout.size() % CHUNK_SIZE;
 
         // log::debug!("alloc: layout={:?} ({} chunks]", layout, required_chunks);
 
@@ -281,8 +292,8 @@ impl<'a> ChunkAllocator<'a> {
 
     #[track_caller]
     pub unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
-        let mut required_chunks = layout.size() / ChunkAllocator::CHUNK_SIZE;
-        let modulo = layout.size() % ChunkAllocator::CHUNK_SIZE;
+        let mut required_chunks = layout.size() / CHUNK_SIZE;
+        let modulo = layout.size() % CHUNK_SIZE;
         if modulo != 0 {
             required_chunks += 1;
         }
@@ -305,33 +316,38 @@ mod tests {
     fn test_compiles() {
         // must be a multiple of 8
         const CHUNK_COUNT: usize = 16;
-        const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+        const HEAP_SIZE: usize = DEFAULT_ALLOCATOR_CHUNK_SIZE * CHUNK_COUNT;
         static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
-        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        const BITMAP_SIZE: usize = HEAP_SIZE / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8;
         static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
         // check that it compiles
-        let mut _alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+        let mut _alloc = unsafe {
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(HEAP.get_mut(), BITMAP.get_mut())
+                .unwrap()
+        };
     }
 
     #[test]
     fn test_chunk_count() {
         // step by 8 => heap size must be dividable by 8 for the bitmap
         for chunk_count in (8..128).step_by(8) {
-            let heap_size: usize = chunk_count * ChunkAllocator::CHUNK_SIZE;
+            let heap_size: usize = chunk_count * DEFAULT_ALLOCATOR_CHUNK_SIZE;
             let mut heap = vec![0_u8; heap_size];
-            let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
-            let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+            let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
+            let alloc = ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap)
+                .unwrap();
             assert_eq!(chunk_count, alloc.chunk_count());
         }
     }
 
     #[test]
     fn test_indices_helpers_1() {
-        let heap_size: usize = 16 * ChunkAllocator::CHUNK_SIZE;
+        let heap_size: usize = 16 * DEFAULT_ALLOCATOR_CHUNK_SIZE;
         let mut heap = vec![0_u8; heap_size];
-        let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
-        let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+        let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
+        let alloc =
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap).unwrap();
 
         assert_eq!((0, 3), alloc.chunk_index_to_bitmap_indices(3));
         assert_eq!((0, 7), alloc.chunk_index_to_bitmap_indices(7));
@@ -342,10 +358,11 @@ mod tests {
 
     #[test]
     fn test_indices_helpers_2() {
-        let heap_size: usize = 16 * ChunkAllocator::CHUNK_SIZE;
+        let heap_size: usize = 16 * DEFAULT_ALLOCATOR_CHUNK_SIZE;
         let mut heap = vec![0_u8; heap_size];
-        let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
-        let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+        let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
+        let alloc =
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap).unwrap();
 
         assert_eq!((0, 7), alloc.chunk_index_to_bitmap_indices(7));
         assert_eq!((1, 0), alloc.chunk_index_to_bitmap_indices(8));
@@ -358,11 +375,12 @@ mod tests {
 
     #[test]
     fn test_chunk_is_free() {
-        let heap_size: usize = 16 * ChunkAllocator::CHUNK_SIZE;
+        let heap_size: usize = 16 * DEFAULT_ALLOCATOR_CHUNK_SIZE;
         let mut heap = vec![0_u8; heap_size];
-        let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
+        let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
         bitmap[0] = 0x0f;
-        let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+        let alloc =
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap).unwrap();
 
         assert!(!alloc.chunk_is_free(0));
         assert!(!alloc.chunk_is_free(1));
@@ -373,11 +391,12 @@ mod tests {
 
     #[test]
     fn test_find_next_free_chunk() {
-        let heap_size: usize = 16 * ChunkAllocator::CHUNK_SIZE;
+        let heap_size: usize = 16 * DEFAULT_ALLOCATOR_CHUNK_SIZE;
         let mut heap = vec![0_u8; heap_size];
-        let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
+        let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
         bitmap[0] = 0x0f;
-        let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+        let alloc =
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap).unwrap();
 
         assert_eq!(4, alloc.find_next_free_chunk_aligned(None, 1).unwrap());
         assert_eq!(4, alloc.find_next_free_chunk_aligned(Some(0), 1).unwrap());
@@ -396,14 +415,15 @@ mod tests {
 
     #[test]
     fn test_find_free_coherent_chunks() {
-        let heap_size: usize = 24 * ChunkAllocator::CHUNK_SIZE;
+        let heap_size: usize = 24 * DEFAULT_ALLOCATOR_CHUNK_SIZE;
         let mut heap = vec![0_u8; heap_size];
-        let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
+        let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
 
         bitmap[0] = 0x0f;
         bitmap[1] = 0x0f;
 
-        let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+        let alloc =
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap).unwrap();
 
         assert_eq!(4, alloc.find_free_coherent_chunks_aligned(1, 1).unwrap());
         assert_eq!(4, alloc.find_free_coherent_chunks_aligned(2, 1).unwrap());
@@ -414,16 +434,17 @@ mod tests {
 
     #[test]
     fn test_chunk_index_to_ptr() {
-        let heap_size: usize = 8 * ChunkAllocator::CHUNK_SIZE;
+        let heap_size: usize = 8 * DEFAULT_ALLOCATOR_CHUNK_SIZE;
         let mut heap = vec![0_u8; heap_size];
         let ptr = heap.as_ptr();
-        let mut bitmap = vec![0_u8; heap_size / ChunkAllocator::CHUNK_SIZE / 8];
-        let alloc = ChunkAllocator::new(&mut heap, &mut bitmap).unwrap();
+        let mut bitmap = vec![0_u8; heap_size / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8];
+        let alloc =
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(&mut heap, &mut bitmap).unwrap();
 
         unsafe {
             assert_eq!(ptr, alloc.chunk_index_to_ptr(0));
             assert_eq!(
-                ptr as usize + ChunkAllocator::CHUNK_SIZE,
+                ptr as usize + DEFAULT_ALLOCATOR_CHUNK_SIZE,
                 alloc.chunk_index_to_ptr(1) as usize
             );
         }
@@ -433,13 +454,16 @@ mod tests {
     fn test_alloc() {
         // must be a multiple of 8; 32 is equivalent to two pages
         const CHUNK_COUNT: usize = 32;
-        const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+        const HEAP_SIZE: usize = DEFAULT_ALLOCATOR_CHUNK_SIZE * CHUNK_COUNT;
         static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
-        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        const BITMAP_SIZE: usize = HEAP_SIZE / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8;
         static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
         // check that it compiles
-        let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+        let mut alloc = unsafe {
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(HEAP.get_mut(), BITMAP.get_mut())
+                .unwrap()
+        };
         assert_eq!(alloc.usage(), 0.0, "allocator must report usage of 0%!");
 
         let layout1_single_byte = Layout::from_size_align(1, 1).unwrap();
@@ -522,11 +546,14 @@ mod tests {
         const TWO_MIB: usize = 0x200000;
         const HEAP_SIZE: usize = 2 * TWO_MIB;
         static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
-        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        const BITMAP_SIZE: usize = HEAP_SIZE / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8;
         static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
         // check that it compiles
-        let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+        let mut alloc = unsafe {
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(HEAP.get_mut(), BITMAP.get_mut())
+                .unwrap()
+        };
         let ptr = unsafe { alloc.alloc(Layout::new::<u8>().align_to(TWO_MIB).unwrap()) };
         assert_eq!(ptr as usize % TWO_MIB, 0, "must be aligned!");
     }
@@ -536,13 +563,16 @@ mod tests {
     fn test_alloc_out_of_memory() {
         // must be a multiple of 8; 32 is equivalent to two pages
         const CHUNK_COUNT: usize = 32;
-        const HEAP_SIZE: usize = ChunkAllocator::CHUNK_SIZE * CHUNK_COUNT;
+        const HEAP_SIZE: usize = DEFAULT_ALLOCATOR_CHUNK_SIZE * CHUNK_COUNT;
         static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
-        const BITMAP_SIZE: usize = HEAP_SIZE / ChunkAllocator::CHUNK_SIZE / 8;
+        const BITMAP_SIZE: usize = HEAP_SIZE / DEFAULT_ALLOCATOR_CHUNK_SIZE / 8;
         static mut BITMAP: PageAlignedByteBuf<BITMAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 
         // check that it compiles
-        let mut alloc = unsafe { ChunkAllocator::new(HEAP.get_mut(), BITMAP.get_mut()).unwrap() };
+        let mut alloc = unsafe {
+            ChunkAllocator::<DEFAULT_ALLOCATOR_CHUNK_SIZE>::new(HEAP.get_mut(), BITMAP.get_mut())
+                .unwrap()
+        };
 
         unsafe {
             let _ = alloc.alloc(Layout::from_size_align(16384, PAGE_SIZE).unwrap());

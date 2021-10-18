@@ -7,8 +7,10 @@ use libhrstd::mem::PageAlignedByteBuf;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
-/// 32768 chunks -> 8 MiB Heap
-pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * 32768;
+/// Chunk size must be a multiple of 8, so that the bitmap can cover all fields properly.
+const MULTIPLE_OF: usize = 8;
+/// 32768 chunks -> 8 MiB Heap. Must be be a multiple of 8.
+pub const HEAP_SIZE: usize = GlobalStaticChunkAllocator::CHUNK_SIZE * MULTIPLE_OF * 4096;
 static mut HEAP: PageAlignedByteBuf<HEAP_SIZE> = PageAlignedByteBuf::new_zeroed();
 // always make sure, that the division is "clean", i.e. no remainder
 const BITMAP_SIZE: usize = HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE / 8;
