@@ -2,7 +2,7 @@
 //!
 //! Covers the low-level part. Just the raw system calls with nice typings.
 
-use core::mem::transmute;
+use enum_iterator::IntoEnumIterator;
 
 /// Does a NOVA/Hedron syscall with 5 arguments.
 /// On success, the "out2"-value is returned.
@@ -29,9 +29,13 @@ pub unsafe fn generic_syscall(
         in("r8") arg5,
         lateout("rdi") out1,
         lateout("rsi") out2,
+        // mark as clobbered
+        // https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html
+        // NOVA/Hedron spec lists all registers that may be altered
+        lateout("r11") _,
+        lateout("rcx") _,
     );
-    // transmute is safe because SysCallStatus has repr(u64)
-    let (out1, out2) = (transmute::<_, SyscallStatus>(out1), out2);
+    let (out1, out2) = (SyscallStatus::from(out1), out2);
     if out1 == SyscallStatus::Success {
         Ok(out2)
     } else {
@@ -106,7 +110,7 @@ impl MachineCtrlSubSyscall {
 
 /// Possible return values from the syscall.
 /// All except the 0 value are error codes.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, IntoEnumIterator)]
 #[repr(u64)]
 pub enum SyscallStatus {
     /// The operation completed successfully
@@ -129,8 +133,39 @@ pub enum SyscallStatus {
     BadDev = 8,
 }
 
+impl From<u64> for SyscallStatus {
+    /// Constructs a SyscallStatus with respect to [`SYSCALL_STATUS_BITMASK`].
+    fn from(val: u64) -> Self {
+        let val = val & Self::SYSCALL_STATUS_BITMASK;
+
+        // generated during compile time; probably not recognized by IDE
+        for variant in Self::into_enum_iter() {
+            if variant.val() == val {
+                return variant;
+            }
+        }
+
+        panic!("invalid variant! id={}", val);
+    }
+}
+
 impl SyscallStatus {
+    /// Only the lowest 8 bits are used to encode the status.
+    const SYSCALL_STATUS_BITMASK: u64 = 0xff;
+
     pub fn val(self) -> u64 {
         self as u64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::syscall::generic::SyscallStatus;
+
+    #[test]
+    fn test_syscall_status() {
+        // text that bitmask gets used
+        assert_eq!(SyscallStatus::from(0x2500), SyscallStatus::Success);
+        assert_eq!(SyscallStatus::from(1), SyscallStatus::Timeout);
     }
 }
