@@ -520,10 +520,15 @@ impl CrdObjPT {
     /// Creates a new CRD for a portal object capability. This CRD is
     /// of kind [`CrdKind::CrdKindObject`]. Therefore, it only refers
     /// to a PT, if it is used in the right context, i.e. correct syscall.
-    pub fn new(pt_num: u64, order: u8, permissions: PTCapPermissions) -> Self {
+    ///
+    /// # Parameters
+    /// - `pt_sel` - Capability selector of the portal
+    /// - `order` - order fur bulk transfer from pt_sel to the desired offset.
+    ///             `pt_sel` must be order-aligned!
+    pub fn new(pt_sel: CapSel, order: u8, permissions: PTCapPermissions) -> Self {
         Self::new_generic(
             CrdKind::CrdKindObject,
-            pt_num.into(),
+            pt_sel.into(),
             order.into(),
             permissions.val().into(),
         )
@@ -623,7 +628,8 @@ bitflags::bitflags! {
     pub struct PTCapPermissions: u8 {
         /// The target PD can execute the `pt_ctrl`-syscall on the given portal.
         const PT_CTRL = bit!(0);
-        /// The target PD can execute the `call`-syscall on the given portal.
+        /// The target PD can execute the `call`-syscall on the given portal and the portal
+        /// can be called by Hedron for exception handling.
         const CALL = bit!(1);
     }
 }

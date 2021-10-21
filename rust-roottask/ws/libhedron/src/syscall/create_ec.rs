@@ -62,16 +62,18 @@ pub fn create_local_ec(
     )
 }
 
-/// Creates a global EC.
+/// Creates a global EC. This will result in a [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
+/// exception in the PD, where the new global EC belongs to. Note that in comparison to
+/// [`create_local_ec`], this doesn't take a `stack_ptr` argument, because the stack
+/// is set in the handler of the [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
+/// exception.
 pub fn create_global_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
-    stack_ptr: u64,
     evt_base_sel: CapSel,
     cpu_num: u64,
     utcb_page_num: u64,
 ) -> Result<(), SyscallStatus> {
-    assert_ne!(stack_ptr, 0, "stack_ptr is null!");
     assert_ne!(utcb_page_num, 0, "utcb_page_num is null!");
     assert!(cpu_num < NUM_CPUS as u64, "CPU-num to high");
 
@@ -79,7 +81,7 @@ pub fn create_global_ec(
         EcKind::Global,
         ec_cap_sel,
         parent_pd_sel,
-        stack_ptr,
+        0,
         evt_base_sel,
         cpu_num,
         utcb_page_num,

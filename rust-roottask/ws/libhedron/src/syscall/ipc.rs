@@ -33,12 +33,20 @@ pub fn call(portal_sel: CapSel) -> Result<(), SyscallStatus> {
 /// Syscall used in invoked portals. Replies to the caller of a portal,
 /// i.e. the kernel that send an exception message or a normal user application
 /// (IPC). The data is transferred via the UTCB.
-pub fn reply() -> ! {
+///
+/// Pitfall: Hedron doesn't reset the RSP of the local EC that handles calls.
+/// Therefore, during a reply, the userland has to do this by itself, in order
+/// to fulfill the next request as expected.
+pub fn reply(local_ec_stack_top: u64) -> ! {
     unsafe {
-        generic_syscall(SyscallNum::Reply.val(), 0, 0, 0, 0)
-            .map(|_x| ())
-            .map_err(|e| e.0)
-    }
-    .unwrap();
+        asm!(
+            "mov rsp, {0}",
+            "syscall",
+            in(reg) local_ec_stack_top,
+            in("rdi") SyscallNum::Reply.val(),
+            // no clobbers here, because there isn't code after this anyway
+            options(nostack) // probably no effect, but strictly speaking correct
+        )
+    };
     unreachable!("syscall reply failed?!")
 }

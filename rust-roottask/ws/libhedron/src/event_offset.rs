@@ -1,14 +1,13 @@
 //! An Event Offset describes the offset into occurrences of a specific domain from the event base
 //! of the EC. For example, the roottask uses zero as event base. When we create a local EC
-//! with the event base, `capabilitie_space[base + excp_offset]` will select a capability for
+//! with the event base, `capability_space[base + excp_offset]` will select a capability for
 //! a portal. If present (not null capability), this portal will handle the exception.
 //!
 //! Possible domains:
 //! - exceptions (for regular ECs)
-//! - vmx intercepts (for virtual CPUs)  [not required for my work/thesis]
-//! - svm intercepts                     [not required for my work/thesis]
+//! - vmx intercepts (for virtual CPUs)  (not required for my work/thesis)
+//! - svm intercepts                     (not required for my work/thesis)
 
-use core::convert::TryFrom;
 use enum_iterator::IntoEnumIterator;
 
 /// Offsets from event base for x86 exceptions.
@@ -77,7 +76,18 @@ pub enum ExceptionEventOffset {
     /// Virtualization Exception (#VE).
     VirtualizationFault = 20,
 
-    /// Only for global non-Roottask ECs. Invoked on first schedule.
+    _Unknown21 = 21,
+    _Unknown22 = 22,
+    _Unknown23 = 23,
+    _Unknown24 = 24,
+    _Unknown25 = 25,
+    _Unknown26 = 26,
+    _Unknown27 = 27,
+    _Unknown28 = 28,
+    _Unknown29 = 29,
+
+    /// Triggered only by global non-Roottask ECs, when they are created. Enables the
+    /// runtime to set-up the initial CPU state, for example the `rip`.
     HedronGlobalEcStartup = 30, /* 0x1e */
 
     /// Hedron-Specific
@@ -93,7 +103,7 @@ impl ExceptionEventOffset {
     }
 }
 
-/*impl From<u64> for ExceptionEventOffset {
+impl From<u64> for ExceptionEventOffset {
     fn from(val: u64) -> Self {
         for exc in ExceptionEventOffset::into_enum_iter() {
             if exc.val() == val {
@@ -102,19 +112,13 @@ impl ExceptionEventOffset {
         }
         panic!("invalid exception variant! id={}", val);
     }
-}*/
+}
 
-impl TryFrom<u64> for ExceptionEventOffset {
-    type Error = ();
-
-    fn try_from(val: u64) -> Result<Self, Self::Error> {
-        for exc in ExceptionEventOffset::into_enum_iter() {
-            if exc.val() == val {
-                return Ok(exc);
-            }
-        }
-        Err(())
-    }
+/// Possible exceptions of VMs (vCPUS) on Hedron.
+#[derive(Debug, Copy, Clone, PartialEq, IntoEnumIterator)]
+#[repr(u64)]
+pub enum VMExceptionEventOffset {
+    _Todo,
 }
 
 #[cfg(test)]
@@ -126,7 +130,8 @@ mod tests {
     fn test() {
         let expected = ExceptionEventOffset::GeneralProtectionFault;
         let input = 13;
-        let actual = ExceptionEventOffset::try_from(input).unwrap();
+        // let actual = ExceptionEventOffset::try_from(input).unwrap();
+        let actual = ExceptionEventOffset::from(input);
         assert_eq!(expected, actual);
     }
 }

@@ -41,6 +41,7 @@ pub mod event_offset;
 pub mod hip;
 pub mod mem;
 pub mod mtd;
+pub mod qpd;
 pub mod syscall;
 pub mod utcb;
 

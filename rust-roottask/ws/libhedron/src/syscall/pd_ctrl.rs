@@ -110,6 +110,17 @@ pub fn pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     const SOURCE_PD_BITMASK: u64 = !0xff;
     const SOURCE_PD_BITSHIFT: u64 = 8;
 
+    /*log::trace!(
+        "delegate[{:?}] PD({})=>PD({}): src cap base={}, order={}; dest cap base={}, order={}",
+        source_crd.kind(),
+        source_pd,
+        dest_pd,
+        source_crd.base(),
+        source_crd.order(),
+        dest_crd.base(),
+        dest_crd.order(),
+    );*/
+
     let mut arg1 = 0;
     arg1 |= SyscallNum::PdCtrl.val() & SYSCALL_BITMASK;
     arg1 |= (PdCtrlSubSyscall::PdCtrlDelegate.val() << SUB_SYSCALL_BITSHIFT) & SUB_SYSCALL_BITMASK;

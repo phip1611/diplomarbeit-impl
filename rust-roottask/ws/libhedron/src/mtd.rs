@@ -5,10 +5,11 @@ use bitflags::bitflags;
 bitflags! {
     /// The Message Transfer Descriptor (MTD) is an architecture-specific
     /// bitfield that controls the contents of an exception or intercept message.
-    /// This is the data that is the payload of the [`super::utcb::Utcb`].
+    /// This is the data that is the payload of the [`super::utcb::Utcb`] in case
+    /// of an exception.
     ///
     /// The MTD is provided by the portal associated with the event (for example
-    /// exception or VM exit)and conveyed to the receiver as part of the exception
+    /// exception or VM exit) and conveyed to the receiver as part of the exception
     /// or intercept message. For each bit set to 1, the microhypervisor transfers
     /// the architectural state associated with that bit either to/from the
     /// respective fields of the UTCB data area or directly in architectural registers.
@@ -21,6 +22,7 @@ bitflags! {
         const GPR_BSD = 1 << 1;
         /// Stands for register `rSP`.
         const RSP = 1 << 2;
+        /// Include the instruction pointer in exception messages.
         const RIP_LEN = 1 << 3;
         const RFLAGS = 1 << 4;
         const DS_ES = 1 << 5;

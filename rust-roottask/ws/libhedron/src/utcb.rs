@@ -71,6 +71,19 @@ impl Utcb {
         }
     }
 
+    /// Returns a pointer to self.
+    pub const fn self_ptr(&self) -> *const Utcb {
+        self as *const _
+    }
+
+    /// Returns the page number of the UTCB. Panics if the UTCB is not page-aligned.
+    pub fn page_num(&self) -> u64 {
+        let ptr = self.self_ptr();
+        let page_addr = ptr as usize;
+        assert_eq!(page_addr % PAGE_SIZE, 0, "must be page aligned!");
+        page_addr as u64
+    }
+
     /// Number of untyped items, alias arbitrary payload.
     pub fn untyped_items_count(&self) -> u16 {
         self.head.items as u16
@@ -275,7 +288,7 @@ pub struct UtcbDataItems([u64; PAGE_SIZE - size_of::<UtcbHead>()]);
 ///
 /// It is also used as payload for the REPLY syscall after an exception. According to the
 /// MTD, the registers will be set.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 // this is copy because this is a limitation for unions in Rust currently
 #[repr(C)]
 pub struct UtcbDataException {
@@ -350,6 +363,79 @@ pub struct UtcbDataException {
     pub cr4_mon: u64,
     pub spec_ctrl: u64,
     pub tsc_timeout: u64,
+}
+
+impl Debug for UtcbDataException {
+    fn fmt(&self, f: &mut Formatter<'_>) -> serde::__private::fmt::Result {
+        f.debug_struct("UtcbDataException")
+            .field("mtd", &self.mtd)
+            .field("inst_len", &self.inst_len)
+            .field("rip", &(self.rip as *const u64))
+            .field("rflags", &(self.rflags as *const u64))
+            .field("intr_state", &(self.intr_state as *const u32))
+            .field("actv_state", &(self.actv_state as *const u32))
+            .field("intr_info", &(self.intr_info as *const u32))
+            .field("intr_error", &(self.intr_error as *const u32))
+            .field("vect_info", &(self.vect_info as *const u32))
+            .field("vect_error", &(self.vect_error as *const u32))
+            .field("rax", &(self.rax as *const u64))
+            .field("rcx", &(self.rcx as *const u64))
+            .field("rdx", &(self.rdx as *const u64))
+            .field("rbx", &(self.rbx as *const u64))
+            .field("rsp", &(self.rsp as *const u64))
+            .field("rbp", &(self.rbp as *const u64))
+            .field("rsi", &(self.rsi as *const u64))
+            .field("rdi", &(self.rdi as *const u64))
+            .field("r8", &(self.r8 as *const u64))
+            .field("r9", &(self.r9 as *const u64))
+            .field("r10", &(self.r10 as *const u64))
+            .field("r11", &(self.r11 as *const u64))
+            .field("r12", &(self.r12 as *const u64))
+            .field("r13", &(self.r13 as *const u64))
+            .field("r14", &(self.r14 as *const u64))
+            .field("r15", &(self.r15 as *const u64))
+            .field("qual", &self.qual)
+            .field("ctrl", &self.ctrl)
+            .field("xrc0", &(self.xrc0 as *const u64))
+            .field("cr0", &(self.cr0 as *const u64))
+            .field("cr2", &(self.cr2 as *const u64))
+            .field("cr3", &(self.cr3 as *const u64))
+            .field("cr4", &(self.cr4 as *const u64))
+            .field("pdpte", &self.pdpte)
+            .field("cr8", &(self.cr8 as *const u64))
+            .field("efer", &(self.efer as *const u64))
+            .field("pat", &(self.pat as *const u64))
+            .field("star", &(self.star as *const u64))
+            .field("lstar", &(self.lstar as *const u64))
+            .field("fmask", &(self.fmask as *const u64))
+            .field("kernel_gs_base", &(self.kernel_gs_base as *const u64))
+            .field("dr7", &(self.dr7 as *const u64))
+            .field("sysenter_cs", &(self.sysenter_cs as *const u64))
+            .field("sysenter_rsp", &(self.sysenter_rsp as *const u64))
+            .field("sysenter_rip", &(self.sysenter_rip as *const u64))
+            .field("es", &self.es)
+            .field("cs", &self.cs)
+            .field("ss", &self.ss)
+            .field("ds", &self.ds)
+            .field("fs", &self.fs)
+            .field("gs", &self.gs)
+            .field("ld", &self.ld)
+            .field("tr", &self.tr)
+            .field("gd", &self.gd)
+            .field("id", &self.id)
+            .field("tsc_val", &(self.tsc_val as *const u64))
+            .field("tsc_off", &(self.tsc_off as *const u64))
+            .field("tsc_aux", &(self.tsc_aux as *const u32))
+            .field("exc_bitmap", &(self.exc_bitmap as *const u32))
+            .field("tpr_threshold", &(self.tpr_threshold as *const u32))
+            .field("eoi_bitmap", &self.eoi_bitmap)
+            .field("vintr_status", &(self.vintr_status as *const u16))
+            .field("cr0_mon", &(self.cr0_mon as *const u64))
+            .field("cr4_mon", &(self.cr4_mon as *const u64))
+            .field("spec_ctrl", &(self.spec_ctrl as *const u64))
+            .field("tsc_timeout", &(self.tsc_timeout as *const u64))
+            .finish()
+    }
 }
 
 #[derive(Debug)]

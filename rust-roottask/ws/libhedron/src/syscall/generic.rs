@@ -34,6 +34,8 @@ pub unsafe fn generic_syscall(
         // NOVA/Hedron spec lists all registers that may be altered
         lateout("r11") _,
         lateout("rcx") _,
+        // Memory Clobber not necessary, because this is the default in Rust
+        options(nostack) // probably no effect, but strictly speaking correct
     );
     let (out1, out2) = (SyscallStatus::from(out1), out2);
     if out1 == SyscallStatus::Success {
