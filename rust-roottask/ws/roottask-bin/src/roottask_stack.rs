@@ -1,4 +1,5 @@
-//! Initial stack for the roottask. References in `assembly.S`.
+//! Initial global stack for the roottask. Referenced in `assembly.S`.
+//! See [`ROOTTASK_STACK`]
 
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;

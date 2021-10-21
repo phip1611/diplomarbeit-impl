@@ -52,7 +52,7 @@ use libhrstd::mem::{
     AlignedAlloc,
     PageAlignedAlloc,
 };
-use libroottask::capability_space::RootCapabilitySpace;
+use libroottask::capability_space::RootCapSpace;
 use libroottask::process::{
     ProcessManager,
     PROCESS_MNG,
@@ -100,7 +100,7 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
 
     let msg = "hallo welt 123 fooa\n";
     utcb.store_data(&msg).unwrap();
-    call(RootCapabilitySpace::RoottaskStdoutPortal.val()).unwrap();
+    call(RootCapSpace::RoottaskStdoutServicePortal.val()).unwrap();
     log::info!("done");
 
     log::debug!("Heap Usage: {}%", roottask_heap::usage());
@@ -108,12 +108,16 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let rt_tar =
         unsafe { libroottask::rt::multiboot_rt_tar::find_hedron_userland_tar(hip).unwrap() };
 
-    for entry in rt_tar.entries() {
+    for entry in rt_tar
+        .entries()
+        // Q&D: only Hello World
+        .skip(1)
+    {
         log::debug!("found file in tar: {}", entry.filename().as_str());
         let mut aligned_elf = Vec::with_capacity_in(entry.size(), PageAlignedAlloc);
         aligned_elf.extend(entry.data());
         PROCESS_MNG.lock().start(
-            Pin::new(aligned_elf.into_boxed_slice()),
+            aligned_elf.into_boxed_slice(),
             entry.filename().as_str().to_string(),
         );
     }
@@ -127,9 +131,9 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     */
 
     /* test: trigger devided by zero exception*/
-    {
+    /*{
         unsafe { asm!("mov rax, 5", "mov rdi, 0", "div rax, rdi") }
-    }
+    }*/
 
     // test: trigger GPF
     /*{
@@ -139,6 +143,7 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     }*/
 
     log::info!("Rust Roottask started");
-    panic!("SHHIIIIIT");
+
+    // panic!("panic works");
     loop {}
 }

@@ -16,7 +16,7 @@ use libhrstd::sync::mutex::{
     SimpleMutex,
     SimpleMutexGuard,
 };
-use libroottask::capability_space::RootCapabilitySpace;
+use libroottask::capability_space::RootCapSpace;
 use libroottask::stack::StaticStack;
 
 use crate::services::stdout::debugcon::DebugconWriter;
@@ -54,18 +54,18 @@ pub fn writer_mut<'a>() -> SimpleMutexGuard<'a, StdoutWriter> {
 /// Must be called after [`init_writer`].
 pub fn init_service(hip: &HIP) {
     create_local_ec(
-        RootCapabilitySpace::RoottaskStdoutLocalEc.val(),
+        RootCapSpace::RoottaskStdoutServiceLocalEc.val(),
         hip.root_pd(),
         unsafe { STDOUT_SERVICE_STACK.get_stack_top_ptr() } as u64,
-        RootCapabilitySpace::ExceptionEventBase.val(),
+        RootCapSpace::ExceptionEventBase.val(),
         0,
         unsafe { STDOUT_SERVICE_UTCB.page_num() } as u64,
     )
     .unwrap();
     create_pt(
-        RootCapabilitySpace::RoottaskStdoutPortal.val(),
+        RootCapSpace::RoottaskStdoutServicePortal.val(),
         hip.root_pd(),
-        RootCapabilitySpace::RoottaskStdoutLocalEc.val(),
+        RootCapSpace::RoottaskStdoutServiceLocalEc.val(),
         Mtd::empty(),
         stdout_service_handler as *const u64,
     )
@@ -75,7 +75,7 @@ pub fn init_service(hip: &HIP) {
 fn stdout_service_handler(arg: u64) -> ! {
     log::info!("barfoo");
     log::info!("got via IPC: {}", utcb().load_data::<&str>().unwrap());
-    reply();
+    reply(unsafe { STDOUT_SERVICE_STACK.get_stack_top_ptr() } as u64);
 }
 
 /// Handles the locations where Stdout-Output goes to.

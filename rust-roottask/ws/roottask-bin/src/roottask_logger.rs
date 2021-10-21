@@ -3,6 +3,7 @@
 use arrayvec::ArrayString;
 use core::fmt::Write;
 use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::ansi::{
     AnsiStyle,
     Color,
@@ -16,7 +17,9 @@ use log::{
     Record,
 };
 
-static LOGGER: GenericLogger = GenericLogger;
+/// Logger instance that gets passed to the [`log`]-crate.
+/// Synchronizes all logs.
+static LOGGER: GenericLogger = GenericLogger::new();
 
 /// Generic logger for the roottask which decides where things
 /// should be logged to. Can use multiple/different loggers internally.
@@ -24,9 +27,23 @@ static LOGGER: GenericLogger = GenericLogger;
 /// Synchronizes logging, therefore it can be used in a local EC to provide
 /// a logging service for other components.
 #[derive(Debug)]
-struct GenericLogger;
+struct GenericLogger {
+    // Advisory lock for logging.
+    //
+    // I'm not 100% sure if I need synchronization at this point, but because other threads
+    // (global ECs) can invoke portals, which may log, it's better to synchronize at the
+    // the logger level too and not just at the level of the serial writer!
+    lock: SimpleMutex<()>,
+}
 
 impl GenericLogger {
+    /// Creates a new [`GenericLogger`].
+    const fn new() -> Self {
+        Self {
+            lock: SimpleMutex::new(()),
+        }
+    }
+
     /// Builds the formatted error message in a stack-allocated array.
     /// Because we don't have nested logging, this is fine and cheap.
     ///
@@ -112,10 +129,14 @@ impl Log for GenericLogger {
     }
 
     fn log(&self, record: &Record) {
-        let msg = Self::fmt_msg(record);
-        crate::services::stderr::writer_mut()
-            .write_str(msg.as_str())
-            .unwrap();
+        // this is synchronized, because this may be invoked by multiple portals
+        // (which are called from other PDs/global ECs).
+        self.lock.lock().execute_while_locked(|| {
+            let msg = Self::fmt_msg(record);
+            crate::services::stderr::writer_mut()
+                .write_str(msg.as_str())
+                .unwrap();
+        });
     }
 
     fn flush(&self) {

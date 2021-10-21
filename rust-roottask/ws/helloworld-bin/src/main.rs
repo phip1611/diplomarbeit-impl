@@ -23,7 +23,11 @@
 #[macro_use]
 extern crate alloc;
 
+use libhrstd::rt::services::stdout::stdout_write;
+
 mod panic;
 
 #[no_mangle]
-fn start() {}
+fn start() {
+    stdout_write("hello from rust hello world!");
+}
