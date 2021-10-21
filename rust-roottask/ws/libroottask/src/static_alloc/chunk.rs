@@ -88,7 +88,6 @@ impl<'a, const CHUNK_SIZE: usize> ChunkAllocator<'a, CHUNK_SIZE> {
     pub fn usage(&self) -> f64 {
         let mut used_chunks = 0;
         let chunk_count = self.chunk_count();
-        dbg!(chunk_count);
         for chunk_i in 0..chunk_count {
             if !self.chunk_is_free(chunk_i) {
                 used_chunks += 1;
@@ -260,7 +259,11 @@ impl<'a, const CHUNK_SIZE: usize> ChunkAllocator<'a, CHUNK_SIZE> {
 
     #[track_caller]
     pub unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
-        assert!(layout.size() > 0, "size must be >= 0!");
+        let layout = if layout.size() == 0 {
+            Layout::from_size_align(1, layout.align()).unwrap()
+        } else {
+            layout
+        };
 
         let mut required_chunks = layout.size() / CHUNK_SIZE;
         let modulo = layout.size() % CHUNK_SIZE;

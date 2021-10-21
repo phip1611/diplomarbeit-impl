@@ -81,8 +81,6 @@ fn find_tar_mb_mod(hip: &HIP) -> Option<&HipMem> {
         );
 
         let first_arg = cmdline.split_once(' ').map(|(_file, first_arg)| first_arg);
-        dbg!(cmdline);
-        dbg!(first_arg);
 
         // cmdline-string is sometihng like: "./build/roottask-bin_debug.elf roottask"
         // I want to check if the first parameter (after first space) is "userland".
