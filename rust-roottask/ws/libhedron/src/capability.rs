@@ -100,7 +100,6 @@ impl From<u8> for CrdKind {
 ///
 /// Don't use the raw Crd-type directly but rather [`CrdMem`], [`CrdPortIO`],
 /// [`CrdObjEC`], [`CrdObjSC`], [`CrdObjSM`], [`CrdObjPD`], and [`CrdObjPT`].
-#[derive(Copy, Clone)]
 pub struct Crd<Permissions, Specialization, ObjectSpecialization> {
     /// Contains the raw bits used to encode the CRD, according to the spec.
     val: u64,
@@ -232,6 +231,16 @@ impl<Permissions, Specialization, ObjectSpecialization>
     const BASE_BITMASK: u64 = !0xfff;
     const BASE_LEFT_SHIFT: u64 = 12;
 
+    /// Constructs a new, unvalidated Crd from a u64 value.
+    fn new_from_val(val: u64) -> Self {
+        Self {
+            val,
+            _zst1: PhantomData::default(),
+            _zst2: PhantomData::default(),
+            _zst3: PhantomData::default(),
+        }
+    }
+
     /// Generic constructor. Can be used by the specialisations with stronger typed arguments
     /// or arguments with context-aware names.
     fn new_generic(kind: CrdKind, base: UI52Bit, order: UI5Bit, permissions: UI5Bit) -> Self {
@@ -277,6 +286,19 @@ impl<Permissions, Specialization, ObjectSpecialization>
     fn gen_permissions(self) -> u8 {
         ((self.val & Self::PERMISSIONS_BITMASK) >> Self::PERMISSIONS_LEFT_SHIFT) as u8
     }
+}
+
+impl<Permissions, Specialization, ObjectSpecialization> Clone
+    for Crd<Permissions, Specialization, ObjectSpecialization>
+{
+    fn clone(&self) -> Self {
+        Self::new_from_val(self.val)
+    }
+}
+
+impl<Permissions, Specialization, ObjectSpecialization> Copy
+    for Crd<Permissions, Specialization, ObjectSpecialization>
+{
 }
 
 // Common getter for all permissions
