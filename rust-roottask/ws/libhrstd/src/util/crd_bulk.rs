@@ -191,7 +191,7 @@ mod tests {
     fn test_order_loop_optimizer_complex() {
         // pretend we want to map 15 pages
         // from src-page 15 to dest-page 0.
-        let mut optimizer = CrdBulkLoopOrderOptimizer::new(16, 4, 32);
+        let optimizer = CrdBulkLoopOrderOptimizer::new(16, 4, 32);
         let entries = optimizer.collect::<alloc::vec::Vec<_>>();
         dbg!(entries);
         /*{

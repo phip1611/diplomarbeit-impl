@@ -44,11 +44,13 @@ pub use libm;
 
 pub use libhedron;
 
-pub mod cap_mngmt;
 pub mod capability_space;
 pub mod cstr;
 pub mod mem;
+pub mod portal_identifier;
+pub mod process;
 #[cfg(feature = "rt")]
 pub mod rt;
 pub mod sync;
+pub mod uaddress_space;
 pub mod util;
