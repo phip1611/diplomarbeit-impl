@@ -1,8 +1,15 @@
+use alloc::rc::Rc;
 use core::fmt::{
     Debug,
     Write,
 };
 
+use libhrstd::cap_space::root::RootCapSpace;
+use libhrstd::kobjects::{
+    LocalEcObject,
+    PtCtx,
+    PtObject,
+};
 use runs_inside_qemu::runs_inside_qemu;
 
 use libhrstd::libhedron::hip::HIP;
@@ -16,7 +23,9 @@ use libhrstd::sync::mutex::{
     SimpleMutex,
     SimpleMutexGuard,
 };
-use libroottask::capability_space::RootCapSpace;
+use libroottask::process_mng::manager::ProcessManager;
+use libroottask::process_mng::process::Process;
+use libroottask::pt_multiplex::roottask_generic_portal_callback;
 use libroottask::stack::StaticStack;
 
 use crate::services::stdout::debugcon::DebugconWriter;
@@ -52,30 +61,31 @@ pub fn writer_mut<'a>() -> SimpleMutexGuard<'a, StdoutWriter> {
 
 /// Initializes the service portals for the functionality of this module.
 /// Must be called after [`init_writer`].
-pub fn init_service(hip: &HIP) {
-    create_local_ec(
+pub fn init_service(roottask: &Process) {
+    let ec = LocalEcObject::create(
         RootCapSpace::RoottaskStdoutServiceLocalEc.val(),
-        hip.root_pd(),
+        &roottask.pd_obj(),
         unsafe { STDOUT_SERVICE_STACK.get_stack_top_ptr() } as u64,
-        RootCapSpace::ExceptionEventBase.val(),
-        0,
-        unsafe { STDOUT_SERVICE_UTCB.page_num() } as u64,
-    )
-    .unwrap();
-    create_pt(
+        unsafe { STDOUT_SERVICE_UTCB.page_addr() } as u64,
+    );
+    let pt = PtObject::create(
         RootCapSpace::RoottaskStdoutServicePortal.val(),
-        hip.root_pd(),
-        RootCapSpace::RoottaskStdoutServiceLocalEc.val(),
+        &ec,
         Mtd::empty(),
-        stdout_service_handler as *const u64,
-    )
-    .unwrap();
+        roottask_generic_portal_callback,
+        None,
+    );
+    libroottask::pt_multiplex::add_callback_hook(pt.portal_id(), stdout_service_handler);
 }
 
-fn stdout_service_handler(arg: u64) -> ! {
-    log::info!("barfoo");
-    log::info!("got via IPC: {}", utcb().load_data::<&str>().unwrap());
-    reply(unsafe { STDOUT_SERVICE_STACK.get_stack_top_ptr() } as u64);
+fn stdout_service_handler(
+    pt: &Rc<PtObject>,
+    process: &Process,
+    utcb: &mut Utcb,
+    do_reply: &mut bool,
+) {
+    log::info!("got via IPC: {}", utcb.load_data::<&str>().unwrap());
+    *do_reply = true;
 }
 
 /// Handles the locations where Stdout-Output goes to.

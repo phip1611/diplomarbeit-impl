@@ -16,3 +16,5 @@ libhedron = { path = "../libhedron" }
 log = { version = "0.4.14", default-features = false }
 # convenient methods, such as round() or sin(); not part of the core-lib of rust
 libm = "0.2"
+enum-iterator = "0.7"
+

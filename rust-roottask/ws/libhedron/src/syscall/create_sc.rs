@@ -8,12 +8,19 @@ use crate::syscall::generic::{
     SyscallStatus,
 };
 
+/// Creates a SC object for a global EC.
 pub fn create_sc(
     cap_sel: CapSel,
     owned_pd_sel: CapSel,
     bound_ec_sel: CapSel,
     scheduling_params: Qpd,
 ) -> Result<(), SyscallStatus> {
+    log::trace!(
+        "syscall create_sc: sel={}, pd={}, ec={}",
+        cap_sel,
+        owned_pd_sel,
+        bound_ec_sel
+    );
     let mut arg1 = 0;
     arg1 |= SyscallNum::CreateSc.val() & 0xf;
     arg1 |= cap_sel << 8;

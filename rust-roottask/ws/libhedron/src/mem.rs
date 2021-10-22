@@ -4,5 +4,5 @@
 /// only runs on x86_64, this will probably never change.
 pub const PAGE_SIZE: usize = 4096;
 
-/// Maximum virtual address inside the address space of user applications.
+/// Maximum virtual address inside the address space of user applications (page-aligned).
 pub const MAX_USER_ADDR: usize = 0x7ffffffff000;

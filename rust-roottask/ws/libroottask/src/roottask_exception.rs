@@ -3,11 +3,24 @@
 //! as handler, without further interaction with the kernel
 //! (i.e. dedicated syscalls to create new PTs).
 
-use crate::capability_space::RootCapSpace;
+use crate::process_mng::manager::ProcessManager;
+use crate::process_mng::process::Process;
+use crate::pt_multiplex::roottask_generic_portal_callback;
 use crate::stack::StaticStack;
+use alloc::rc::{
+    Rc,
+    Weak,
+};
 use arrayvec::ArrayString;
 use core::convert::TryFrom;
 use core::fmt::Write;
+use libhrstd::cap_space::root::RootCapSpace;
+use libhrstd::kobjects::PtCtx::ErrorExceptionHandler;
+use libhrstd::kobjects::{
+    LocalEcObject,
+    PdObject,
+    PtObject,
+};
 use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::consts::NUM_EXC;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
@@ -19,8 +32,10 @@ use libhrstd::libhedron::syscall::pd_ctrl::pd_ctrl_delegate;
 use libhrstd::libhedron::syscall::pt_ctrl::pt_ctrl;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PageAligned;
-use libhrstd::portal_identifier::PortalIdentifier;
-use libhrstd::process::ROOTTASK_PROCESS_PID;
+use libhrstd::process::consts::{
+    ProcessId,
+    ROOTTASK_PROCESS_PID,
+};
 use libhrstd::sync::fakelock::FakeLock;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
@@ -54,38 +69,26 @@ pub static LOCAL_EXC_EC_STACK_TOP: StaticGlobalPtr<u8> =
 /// UTCB for the exception handler portal.
 static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
 
-/// Payload for generic exceptions of the roottask itself.
-/// Useful to better trace the origin of portal calls.
-const PORTAL_ID_ROOTTASK_PAYLOAD: u64 = 0x001001001001;
+/// Holds a weak reference to the local EC object used for handling exceptions inside
+/// the roottask.
+static EXCEPTION_LOCAL_EC: SimpleMutex<Option<Weak<LocalEcObject>>> = SimpleMutex::new(None);
 
-/// Map that stores if specialized exception handlers are available.
-/// Each handler callback must either panic or return with a `REPLY`
-/// syscall.
-// TODO proper locking!
-static SPECIALIZES_EXCEPTION_HANDLER_MAP: FakeLock<
-    [Option<fn(PortalIdentifier, &mut Utcb) -> !>; NUM_EXC],
-> = FakeLock::new([None; NUM_EXC]);
-
-/// Initializes a local EC and N portals to cover N exceptions.
-/// All exceptions are considered as unrecoverable in this roottask.
-/// Therefore, they panic. See [`roottask_lib::hedron::event_offset::ExceptionEventOffset`]
-/// to see possible exceptions.
-///
-/// If it fails, the program aborts.
-pub fn init(hip: &HIP) {
-    create_local_ec(
+/// Initializes a local EC and N portals to cover N exceptions for the roottask.
+pub fn init(root_process: &Process) {
+    // adds itself to the root process
+    let exception_local_ec = LocalEcObject::create(
         RootCapSpace::RootExceptionLocalEc.val(),
-        hip.root_pd(),
+        &root_process.pd_obj(),
         LOCAL_EXC_EC_STACK_TOP.val(),
-        RootCapSpace::ExceptionEventBase.val(),
-        0,
-        unsafe { EXCEPTION_UTCB.page_num() } as u64,
-    )
-    .unwrap();
-
+        unsafe { EXCEPTION_UTCB.self_ptr() } as u64,
+    );
+    EXCEPTION_LOCAL_EC
+        .lock()
+        .replace(Rc::downgrade(&exception_local_ec));
     unsafe {
-        CALLBACK_STACK.activate_guard_page(hip.root_pd());
+        CALLBACK_STACK.activate_guard_page(RootCapSpace::RootPd.val());
     }
+
     log::info!("created local ec for exception handling; guard page is active");
     log::trace!(
         "local exception handler ec stack top  (incl): {:016x?}",
@@ -98,82 +101,78 @@ pub fn init(hip: &HIP) {
     // We install an actual kernel object of type portal at the given indices.
 
     // iterate from 0 to 32 (exception capability selector space)
-    for excp_offset in 0..NUM_EXC {
-        let portal_cap_sel = RootCapSpace::ExceptionEventBase.val() + excp_offset as CapSel;
-        create_exc_handler_portal(
-            RootCapSpace::ExceptionEventBase.val() + excp_offset as CapSel,
-            PortalIdentifier::new(
-                portal_cap_sel,
-                ROOTTASK_PROCESS_PID,
-                PORTAL_ID_ROOTTASK_PAYLOAD,
-            ),
-        );
+    for exc_offset in 0..NUM_EXC {
+        // TODO maybe this should not register the startup exception?!
+        //  or the roottask_exception module offers to register custom hooks too.. maybe the nicer way!
+        let portal_cap_sel = RootCapSpace::ExceptionEventBase.val() + exc_offset as CapSel;
+        create_exc_pt_for_process(exc_offset as u64, portal_cap_sel, ROOTTASK_PROCESS_PID);
     }
 }
 
-/// Registers a special exception handler for a specific exception.
-pub fn register_specialized_exc_handler(
-    excp_id: ExceptionEventOffset,
-    fnc: fn(PortalIdentifier, &mut Utcb) -> !,
-) {
-    let mut map = SPECIALIZES_EXCEPTION_HANDLER_MAP.get_mut();
-    if map[excp_id.val() as usize].is_some() {
-        panic!(
-            "already registered a special exception handler for exception = {:?}",
-            excp_id
-        );
-    }
-    map[excp_id.val() as usize] = Some(fnc);
-}
-
-/// Creates a new portal inside the root PD, that is associated with the generic callback handler
-/// function [`portal_cb_exc_handler`]. Associates the portal with the local EC and its stack and
-/// UTCB. Ensures the right [`PortalIdentifier`] gets passed to the portal.
+/// Creates a new exception portal, that is bound to the local EC defined in this module.
+/// It needs to know the target process/PID, so that the roottask exception handler knows
+/// what process triggered a specific exception.
+///
+/// Makes sure that the correct callback hook gets called for this portal too.
 ///
 /// # Parameters
-/// * `portal_sel` Portal selector in the cap space of the roottask
-pub fn create_exc_handler_portal(portal_sel: CapSel, pid: PortalIdentifier) {
-    create_pt(
-        portal_sel,
-        RootCapSpace::RootPd.val(),
-        RootCapSpace::RootExceptionLocalEc.val(),
+/// * `portal_cap_sel` Capability selector for portal in root PD
+/// * `process_id` Process ID, where this exception portal gets installed/delegated.
+pub fn create_exc_pt_for_process(
+    exc_offset: u64,
+    portal_cap_sel: CapSel,
+    process_id: ProcessId,
+) -> Rc<PtObject> {
+    let ec = EXCEPTION_LOCAL_EC
+        .lock()
+        .as_ref()
+        .expect("call init first")
+        .upgrade()
+        .unwrap();
+    let pt = PtObject::create(
+        portal_cap_sel,
+        &ec,
         Mtd::all(),
-        portal_cb_exc_handler as *const u64,
-    )
-    .unwrap();
-    pt_ctrl(portal_sel, pid.val()).unwrap();
+        roottask_generic_portal_callback,
+        Some(ErrorExceptionHandler {
+            err: exc_offset,
+            process_id,
+        }),
+    );
+    crate::pt_multiplex::add_callback_hook(pt.portal_id(), generic_error_exception_handler);
+    pt
 }
 
-/// Handler for portal calls triggered by exceptions from Hedron. The handler itself is generic
-/// for all applications, but specialized handlers inside the roottask can register themselves via
-/// [`register_specialized_exc_handler`].
+/// Handler that handles all error exceptions that Hedron can trigger, both from the roottask or
+/// other processes.
 ///
-/// By default the handler aborts the program by throwing a Rust panic.
-fn portal_cb_exc_handler(portal_id: PortalIdentifier) -> ! {
-    log::debug!("caught via exception portal: {:?}", portal_id);
-    // TODO use real lock!
-    // ATTENTION; DEAD LOCK POTENTIAL!
-    let mut map = SPECIALIZES_EXCEPTION_HANDLER_MAP.get_mut();
-
-    if let Some(fnc) = map[portal_id.exc() as usize] {
-        log::debug!("forwarding to specialized exception handler");
-        fnc(portal_id, unsafe { &mut EXCEPTION_UTCB })
-    } else {
-        log::debug!("no specialized exception handler available");
-
-        let mut buf = ArrayString::<128>::new();
-        write!(&mut buf, "{:?}", portal_id).unwrap();
-        panic!(
-            "Mayday, caught exception id={} - aborting program\n{:#?}",
-            AnsiStyle::new()
-                .foreground_color(Color::Red)
-                .text_style(TextStyle::Bold)
-                .msg(buf.as_str()),
-            unsafe { EXCEPTION_UTCB.exception_data() }
+/// Doesn't reply, because this is done a layer above.
+pub fn generic_error_exception_handler(
+    pt: &Rc<PtObject>,
+    process: &Process,
+    utcb: &mut Utcb,
+    do_reply: &mut bool,
+) {
+    let exc_process = pt.ctx().unwrap().exc_pid().1;
+    // All exception portals live in the roottask, therefore their parent is the roottask.
+    // Therefore we need to get the target PID (the process that triggered an exception) from the context.
+    let is_roottask = exc_process == ROOTTASK_PROCESS_PID;
+    let exc = ExceptionEventOffset::try_from(pt.ctx().unwrap().exc_pid().0).unwrap();
+    if is_roottask {
+        log::debug!(
+            "caught exception {:?} from roottask via pt={}",
+            exc,
+            pt.portal_id()
         );
-        // entweder return mit reply syscall
-        // oder panic => game over
-
-        // Problem bei normalem return: keine rücksprugnadresse
+    } else {
+        log::debug!(
+            "caught exception {:?} from pid={} via pt={}",
+            exc,
+            process.pid(),
+            pt.portal_id()
+        );
     }
+    log::debug!("{:#?}", utcb.exception_data());
+    *do_reply = false;
+    panic!("can't handle exceptions currently - game over");
 }

@@ -6,7 +6,7 @@ use crate::syscall::generic::{
     SyscallStatus,
 };
 
-/// Creates a new portal and attaches it to an EC.
+/// Creates a new portal and attaches it to the owning local EC.
 /// It is up to the caller to pass a new, yet unused capability selector.
 /// If the call is successful, the kernel will install this kernel object
 /// into the capability space of the PD.

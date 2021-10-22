@@ -1,12 +1,12 @@
 //! See [`CapabilitySpace`].
 
-use enum_iterator::IntoEnumIterator;
-use libhrstd::libhedron::capability::CapSel;
-use libhrstd::libhedron::consts::{
+use crate::libhedron::capability::CapSel;
+use crate::libhedron::consts::{
     NUM_CPUS,
     NUM_EXC,
 };
-use libhrstd::process::NUM_PROCESSES;
+use crate::process::consts::NUM_PROCESSES;
+use enum_iterator::IntoEnumIterator;
 
 const PROCESS_PD_BASE: u64 = 100;
 const PROCESS_PD_END: u64 = PROCESS_PD_BASE + NUM_PROCESSES;
@@ -66,6 +66,7 @@ pub enum RootCapSpace {
     ProcessExcPtBase = PROCESS_EXC_PT_BASE,
     /// Last inclusive index relative to [`ProcessExcPtBase`].
     ProcessExcPtEnd = PROCESS_EXC_PT_END,
+    _Max,
 }
 
 impl RootCapSpace {
@@ -78,6 +79,7 @@ impl RootCapSpace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::libhedron::consts::NUM_CAP_SEL;
     use alloc::vec::Vec;
 
     #[test]
@@ -88,5 +90,10 @@ mod tests {
             .map(|x| (x, x.val()))
             .collect::<Vec<_>>();
         dbg!(variants);
+    }
+
+    #[test]
+    fn test_assert_max_cap_sel() {
+        assert!(RootCapSpace::_Max.val() <= NUM_CAP_SEL);
     }
 }

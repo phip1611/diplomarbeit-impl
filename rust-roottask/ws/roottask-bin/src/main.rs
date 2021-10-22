@@ -41,9 +41,14 @@ mod services;
 #[macro_use]
 extern crate alloc;
 
+use crate::roottask_stack::{
+    STACK_SIZE,
+    STACK_TOP_PTR,
+};
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::pin::Pin;
+use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::syscall::ipc::call;
@@ -52,18 +57,15 @@ use libhrstd::mem::{
     AlignedAlloc,
     PageAlignedAlloc,
 };
-use libroottask::capability_space::RootCapSpace;
-use libroottask::process::{
-    ProcessManager,
-    PROCESS_MNG,
-};
+use libroottask::process_mng::manager;
+use libroottask::process_mng::manager::PROCESS_MNG;
 use libroottask::roottask_exception;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 #[no_mangle]
-fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
-    let hip = unsafe { (hip_ptr as *const HIP).as_ref().unwrap() };
-    let utcb = unsafe { (utcb_ptr as *mut Utcb).as_mut().unwrap() };
+fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
+    let hip = unsafe { (hip_addr as *const HIP).as_ref().unwrap() };
+    let utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
 
     services::init_writers(hip);
     roottask_logger::init();
@@ -73,7 +75,6 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     roottask_stack::init(hip);
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
     roottask_heap::init();
-    roottask_exception::init(hip);
 
     #[rustfmt::skip]
     {
@@ -88,15 +89,25 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
         log::trace!("heap size (pages)  : {:>18}", roottask_heap::HEAP_SIZE / PAGE_SIZE);
         log::trace!("heap size (chunks) : {:>18}", roottask_heap::HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE);
 
-        log::trace!("utcb ptr           : 0x{:016x}", utcb_ptr);
-        log::trace!("hip ptr            : 0x{:016x}", hip_ptr);
+        log::trace!("utcb ptr           : 0x{:016x}", utcb_addr);
+        log::trace!("hip ptr            : 0x{:016x}", hip_addr);
         log::debug!("===========================================================");
     }
 
+    manager::PROCESS_MNG.lock().init(
+        hip_addr,
+        utcb_addr,
+        (STACK_SIZE / PAGE_SIZE) as u64,
+        STACK_TOP_PTR.val(),
+    );
+    roottask_exception::init(manager::PROCESS_MNG.lock().root());
     // now init services
-    services::init_services(hip);
+    services::init_services(manager::PROCESS_MNG.lock().root());
 
-    PROCESS_MNG.lock().init();
+    log::debug!(
+        "process mng: {:#?}",
+        manager::PROCESS_MNG.lock().processes()
+    );
 
     let msg = "hallo welt 123 fooa\n";
     utcb.store_data(&msg).unwrap();
@@ -114,9 +125,11 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
         .skip(1)
     {
         log::debug!("found file in tar: {}", entry.filename().as_str());
+        // TODO no vec but own physical mapping abstraction (including read + write + execute!)
         let mut aligned_elf = Vec::with_capacity_in(entry.size(), PageAlignedAlloc);
         aligned_elf.extend(entry.data());
-        PROCESS_MNG.lock().start(
+        assert_eq!(aligned_elf.len(), entry.size());
+        PROCESS_MNG.lock().start_process(
             aligned_elf.into_boxed_slice(),
             entry.filename().as_str().to_string(),
         );
@@ -130,9 +143,9 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
     let _z = x * y;
     */
 
-    /* test: trigger devided by zero exception*/
+    /* test: trigger devided by zero exception */
     /*{
-        unsafe { asm!("mov rax, 5", "mov rdi, 0", "div rax, rdi") }
+        unsafe { asm!("mov rax, 5", "mov rdi, 0", "div rax, rdi") };
     }*/
 
     // test: trigger GPF
@@ -141,6 +154,15 @@ fn roottask_rust_entry(hip_ptr: u64, utcb_ptr: u64) -> ! {
             x86::io::outb(0x0, 0);
         }
     }*/
+
+    log::info!(
+        "{:#?}",
+        PROCESS_MNG
+            .lock()
+            .lookup_process(1)
+            .unwrap()
+            .delegated_pts()
+    );
 
     log::info!("Rust Roottask started");
 
