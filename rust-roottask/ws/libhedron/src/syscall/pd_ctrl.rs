@@ -19,29 +19,35 @@ pub struct DelegateFlags(u64);
 
 impl DelegateFlags {
     /// # Parameters
-    /// - `host`
-    /// - `device`
-    /// - `guest`
-    /// - `hypervisor` Only valid in roottask, silently ignored otherwise. Means "take cap from kern".
+    /// - `in_host_pt` Mapping needs to go into host page table / I/O space. Only valid for memory and I/O delegations.
+    /// - `in_device_pt` Mapping needs to go into device page table. Only valid for memory delegations.
+    /// - `in_guest_pt` Mapping needs to go into guest page table / IO space. Valid for memory and I/O delegations.
+    /// - `use_hypervisor_as_src` Source is actually hypervisor PD. Only valid when used by the roottask, silently ignored otherwise.
     /// - `hotspot` A hotspot is used to disambiguate send and receive windows for
     ///             delegations. The hotspot carries additional information for some types
     ///             of mappings as well.
-    pub fn new(host: bool, device: bool, guest: bool, hypervisor: bool, hotspot: u64) -> Self {
+    pub fn new(
+        in_host_pt: bool,
+        in_device_pt: bool,
+        in_guest_pt: bool,
+        use_hypervisor_as_src: bool,
+        hotspot: u64,
+    ) -> Self {
         let mut base = 0;
         // refers to Typed Item Kind "Delegate"
         // "Translate" (0x0) will eventually be removed. Therefore we hard-code this bit here.
         base |= 1;
-        // flags
-        if host {
+        // this flag is inverted in Hedron
+        if !in_host_pt {
             base |= 1 << 8;
         }
-        if device {
+        if in_device_pt {
             base |= 1 << 9;
         }
-        if guest {
+        if in_guest_pt {
             base |= 1 << 10;
         }
-        if hypervisor {
+        if use_hypervisor_as_src {
             base |= 1 << 11;
         }
         // hotspot

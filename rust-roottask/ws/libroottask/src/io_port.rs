@@ -29,6 +29,6 @@ pub fn request_io_ports(pd: CapSel, io_cdr: CrdPortIO) -> Result<(), SyscallStat
         io_cdr,
         // Not sure if dest crd is used at all in this case
         io_cdr,
-        DelegateFlags::new(false, false, false, true, 0),
+        DelegateFlags::new(true, false, false, true, 0),
     )
 }

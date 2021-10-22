@@ -67,7 +67,7 @@ fn find_tar_mb_mod(hip: &HIP) -> Option<&HipMem> {
                 hip.root_pd(),
                 cmdline_addr,
                 MemCapPermissions::READ | MemCapPermissions::WRITE,
-                DelegateFlags::new(false, false, false, true, 0),
+                DelegateFlags::new(true, false, false, true, 0),
             )
             .unwrap();
 
@@ -113,7 +113,7 @@ fn map_tar_mb_mod(hip: &HIP, mb_mod: &HipMem) -> TarArchive {
             hip.root_pd(),
             mb_mod.addr() as usize,
             MemCapPermissions::READ | MemCapPermissions::WRITE,
-            DelegateFlags::new(false, false, false, true, 0),
+            DelegateFlags::new(true, false, false, true, 0),
         )
         .unwrap();
 

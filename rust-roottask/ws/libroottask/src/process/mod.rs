@@ -145,7 +145,7 @@ impl Process {
             pd_sel_in_root,
             CrdObjPD::new(pd_sel_in_root, 0, PDCapPermissions::CREATE_EC),
             CrdObjPD::new(UserAppCapSpace::Pd.val(), 0, PDCapPermissions::CREATE_EC),
-            DelegateFlags::new(false, false, false, false, 0),
+            DelegateFlags::new(true, false, false, false, 0),
         )
         .unwrap();
     }
@@ -174,7 +174,7 @@ impl Process {
                 // Must be callable
                 CrdObjPT::new(roottask_pt_sel, 0, PTCapPermissions::CALL),
                 CrdObjPT::new(exc_i, 0, PTCapPermissions::CALL),
-                DelegateFlags::new(false, false, false, false, 0),
+                DelegateFlags::new(true, false, false, false, 0),
             )
             .unwrap();
         }
@@ -202,7 +202,7 @@ impl Process {
             pd_sel_in_root,
             CrdObjEC::new(pd_sel_in_root, 0, ECCapPermissions::empty()),
             CrdObjEC::new(UserAppCapSpace::Ec.val(), 0, ECCapPermissions::empty()),
-            DelegateFlags::new(false, false, false, false, 0),
+            DelegateFlags::new(true, false, false, false, 0),
         )
         .unwrap();
     }
@@ -227,7 +227,7 @@ impl Process {
             pd_sel_in_root,
             CrdObjSC::new(pd_sel_in_root, 0, SCCapPermissions::empty()),
             CrdObjSC::new(UserAppCapSpace::Sc.val(), 0, SCCapPermissions::empty()),
-            DelegateFlags::new(false, false, false, false, 0),
+            DelegateFlags::new(true, false, false, false, 0),
         )
         .unwrap();
     }
@@ -250,7 +250,7 @@ impl Process {
                 0,
                 MemCapPermissions::READ | MemCapPermissions::WRITE,
             ),
-            DelegateFlags::new(false, false, false, false, 0),
+            DelegateFlags::new(true, false, false, false, 0),
         )
         .unwrap();
     }
@@ -263,14 +263,28 @@ impl Process {
             0,
             "STACK-Size must be a multiple of PAGE_SIZE."
         );
-        log::debug!("mapping stack into new PD");
-        let src_stack_page_num = stack.as_ptr() as u64 / PAGE_SIZE as u64;
+        log::debug!(
+            "mapping stack (virt stack top=0x{:016x}) into new PD",
+            VIRT_STACK_TOP
+        );
+        let src_stack_bottom_page_num = stack.as_ptr() as u64 / PAGE_SIZE as u64;
         CrdBulkLoopOrderOptimizer::new(
-            src_stack_page_num,
+            src_stack_bottom_page_num,
             VIRT_STACK_BOTTOM_PAGE_NUM,
             USER_STACK_SIZE / PAGE_SIZE,
         )
         .for_each(|iter| {
+            log::debug!(
+                    "mapping page for stack: page {} ({:?}) of pd {} to page {} ({:?}) of pd {} with order={} (2^order={})",
+                    iter.src_base,
+                    (iter.src_base as usize * PAGE_SIZE) as *const u64,
+                    RootCapSpace::RootPd.val(),
+                    iter.dest_base,
+                    (iter.dest_base as usize * PAGE_SIZE) as *const u64,
+                    pd_sel_in_root,
+                    iter.order,
+                    iter.power
+                );
             pd_ctrl_delegate(
                 RootCapSpace::RootPd.val(),
                 pd_sel_in_root,
@@ -284,7 +298,7 @@ impl Process {
                     iter.order,
                     MemCapPermissions::READ | MemCapPermissions::WRITE,
                 ),
-                DelegateFlags::new(false, false, false, false, 0),
+                DelegateFlags::new(true, false, false, false, 0),
             )
             .unwrap();
         });
@@ -308,6 +322,21 @@ impl Process {
                 pr_hdr.ph.offset() as usize % PAGE_SIZE,
                 0,
                 "expects that all segments are page aligned inside the file!!"
+            );
+            assert_eq!(
+                pr_hdr.ph.vaddr() as usize  % PAGE_SIZE,
+                0,
+                "virtual address must be page-aligned!"
+            );
+            assert_eq!(
+                pr_hdr.ph.vaddr(),
+                pr_hdr.ph.paddr(),
+                "virtual address must be physical address"
+            );
+            assert_eq!(
+                pr_hdr.ph.filesz(),
+                pr_hdr.ph.memsz(),
+                "filesize must be memsize"
             );
 
             // mem in roottask: pointer/page into address space of the roottask
@@ -346,15 +375,15 @@ impl Process {
                         iter.src_base,
                         iter.order,
                         // todo not all read and write but only as needed
-                        MemCapPermissions::READ | MemCapPermissions::WRITE,
+                        MemCapPermissions::READ | MemCapPermissions::WRITE | MemCapPermissions::EXECUTE,
                     ),
                     CrdMem::new(
                         iter.dest_base,
                         iter.order,
                         // todo not all read and write but only as needed
-                        MemCapPermissions::READ | MemCapPermissions::WRITE,
+                        MemCapPermissions::READ | MemCapPermissions::WRITE | MemCapPermissions::EXECUTE,
                     ),
-                    DelegateFlags::new(false, false, false, false, 0),
+                    DelegateFlags::new(true, false, false, false, 0),
                 )
                 .unwrap()
             });
@@ -371,7 +400,7 @@ impl Process {
                 // Must be callable
                 CrdObjPT::new(from, 0, PTCapPermissions::CALL),
                 CrdObjPT::new(to, 0, PTCapPermissions::CALL),
-                DelegateFlags::new(false, false, false, false, 0),
+                DelegateFlags::new(true, false, false, false, 0),
             )
             .unwrap();
         }
@@ -488,8 +517,8 @@ fn startup_callback(pid: PortalIdentifier, utcb: &mut Utcb) -> ! {
 
     // this influences what information are transferred to the portal exception handler
     // WTF?! I guess we set the GENERAL MTD of the new utcb?! TODO Ask julian
-    // utcb.exception_data_mut().mtd = Mtd::all();
-    utcb.exception_data_mut().mtd = Mtd::RSP | Mtd::RIP_LEN;
+    utcb.exception_data_mut().mtd = Mtd::all();
+    // utcb.exception_data_mut().mtd = Mtd::RSP | Mtd::RIP_LEN;
 
     log::info!(
         "startup: setting rip to 0x{:x}",

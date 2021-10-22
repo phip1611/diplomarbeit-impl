@@ -121,7 +121,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
             crd,
             // ignored here I think
             crd,
-            DelegateFlags::new(false, false, false, true, 0),
+            DelegateFlags::new(true, false, false, true, 0),
         )
         .unwrap();
     }
