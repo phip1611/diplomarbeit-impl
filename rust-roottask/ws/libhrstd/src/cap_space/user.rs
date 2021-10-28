@@ -3,7 +3,9 @@
 use crate::libhedron::capability::CapSel;
 use crate::libhedron::consts::NUM_EXC;
 
-/// User application capability space. Describes the capability space of Hedron-native Apps.
+/// User application capability space.
+/// Describes the capability space of the PD of Hedron-native Apps.
+/// Each process has a 1:1 mapping to a PD.
 ///
 /// The variant value corresponds to the [`crate::libhrstd::libhedron::capability::CapSel`]
 /// that refers to the given capability.

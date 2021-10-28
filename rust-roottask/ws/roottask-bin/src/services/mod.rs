@@ -1,4 +1,5 @@
 use libhrstd::libhedron::hip::HIP;
+use libroottask::process_mng::process::Process;
 
 pub mod stderr;
 pub mod stdout;
@@ -12,7 +13,7 @@ pub fn init_writers(hip: &HIP) {
 
 /// Initializes stdout and stderr writers.
 /// See [`stdout::StdoutWriter`] and [`stderr::StderrWriter`].
-pub fn init_services(hip: &HIP) {
-    stdout::init_service(hip);
+pub fn init_services(roottask: &Process) {
+    stdout::init_service(roottask);
     // stderr::init_service(hip);
 }

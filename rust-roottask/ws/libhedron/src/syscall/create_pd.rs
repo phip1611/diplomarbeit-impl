@@ -42,6 +42,11 @@ pub fn create_pd(
     cap_sel: CapSel,
     parent_pd_sel: CapSel,
 ) -> Result<(), SyscallStatus> {
+    log::trace!(
+        "syscall create_pd: pd={:?}, parent_pd={}",
+        cap_sel,
+        parent_pd_sel
+    );
     let mut arg1 = 0;
     arg1 |= SyscallNum::CreatePd.val() & 0xf;
     if passthrough_access {

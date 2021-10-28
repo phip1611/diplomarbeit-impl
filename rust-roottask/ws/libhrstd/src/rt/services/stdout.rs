@@ -1,4 +1,4 @@
-use crate::capability_space::UserAppCapSpace;
+use crate::cap_space::user::UserAppCapSpace;
 use crate::rt::load_utcb::load_utcb_mut;
 use libhedron::syscall::ipc::call;
 

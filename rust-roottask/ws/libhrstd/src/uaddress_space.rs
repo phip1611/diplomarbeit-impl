@@ -5,7 +5,7 @@ use crate::libhedron::mem::{
     PAGE_SIZE,
 };
 
-/// Virtual address of the [`UTCB`] in user processes.
+/// Virtual page-aligned address of the [`UTCB`] in user processes.
 pub const VIRT_UTCB_ADDR: u64 = (MAX_USER_ADDR - PAGE_SIZE) as u64;
 
 /// Page number of [`VIRT_UTCB_ADDR`].
@@ -16,7 +16,7 @@ pub const VIRT_UTCB_PAGE_NUM: u64 = VIRT_UTCB_ADDR / PAGE_SIZE as u64;
 /// + 8: stack offset for correct alignment
 pub const VIRT_STACK_TOP: u64 = VIRT_UTCB_ADDR - 64 + 8;
 
-/// The bottom address of the stack.
+/// The page-aligned bottom address of the stack.
 pub const VIRT_STACK_BOTTOM_ADDR: u64 = VIRT_UTCB_ADDR - USER_STACK_SIZE as u64;
 
 /// The page number of [`VIRT_STACK_BOTTOM_ADDR`].

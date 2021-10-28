@@ -11,6 +11,8 @@ use core::alloc::{
     Allocator,
     Layout,
 };
+use core::fmt::Debug;
+use core::mem::size_of;
 use core::ops::{
     Deref,
     DerefMut,
@@ -205,14 +207,69 @@ unsafe impl Allocator for PageAlignedAlloc {
     }
 }
 
+/// Page-aligned array on the heap, that ensures that the heap memory stays the same
+/// throughout the lifetime of this object (pinned). The size is fixed.
+#[derive(Debug)]
+pub struct PinnedPageAlignedHeapArray<T: Copy + Debug> {
+    ptr: *mut T,
+    len: usize,
+    layout: Layout,
+}
+
+impl<T: Copy + Debug> PinnedPageAlignedHeapArray<T> {
+    /// This is similar to `Box::new([0; 1024])` with the exception, that the
+    /// array is not created on the stack at first but directly on the heap.
+    pub fn new(fill_elem: T, len: usize) -> Self {
+        assert!(len > 0, "length must be > 0");
+        let total_size = size_of::<T>() * len;
+        let layout = Layout::from_size_align(total_size, PAGE_SIZE).unwrap();
+        let ptr = unsafe { alloc(layout.clone()) } as *mut T;
+        assert!(!ptr.is_null());
+
+        unsafe {
+            for i in 0..len {
+                core::ptr::write(ptr.add(i), fill_elem);
+            }
+        }
+
+        Self { ptr, len, layout }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
+    }
+
+    pub fn as_slice_mut(&mut self) -> &[T] {
+        unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) }
+    }
+
+    /// Returns the pointer to the begin of the array on the heap. The pointer is guaranteed
+    /// to be page-aligned.
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl<T: Copy + Debug> Drop for PinnedPageAlignedHeapArray<T> {
+    fn drop(&mut self) {
+        unsafe { dealloc(self.ptr.cast(), self.layout) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::mem::{
         AlignedAlloc,
         PageAligned,
         PageAlignedBuf,
         PAGE_SIZE,
     };
+    use crate::uaddress_space::USER_STACK_SIZE;
     use alloc::boxed::Box;
     use alloc::vec::Vec;
     use core::pin::Pin;
@@ -288,5 +345,28 @@ mod tests {
             0,
             "vec must be aligned"
         );
+    }
+
+    #[test]
+    fn test_pinned_page_aligned_heap_array() {
+        let stack = PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE);
+        assert_eq!(
+            stack.as_ptr() as usize % PAGE_SIZE,
+            0,
+            "must be page aligned"
+        );
+        for i in 0..USER_STACK_SIZE {
+            assert_eq!(stack.as_slice()[i], 0);
+        }
+
+        let stack = PinnedPageAlignedHeapArray::new(7_u8, USER_STACK_SIZE);
+        assert_eq!(
+            stack.as_ptr() as usize % PAGE_SIZE,
+            0,
+            "must be page aligned"
+        );
+        for i in 0..USER_STACK_SIZE {
+            assert_eq!(stack.as_slice()[i], 7);
+        }
     }
 }

@@ -8,6 +8,7 @@
 //! - vmx intercepts (for virtual CPUs)  (not required for my work/thesis)
 //! - svm intercepts                     (not required for my work/thesis)
 
+use core::convert::TryFrom;
 use enum_iterator::IntoEnumIterator;
 
 /// Offsets from event base for x86 exceptions.
@@ -103,14 +104,16 @@ impl ExceptionEventOffset {
     }
 }
 
-impl From<u64> for ExceptionEventOffset {
-    fn from(val: u64) -> Self {
+impl TryFrom<u64> for ExceptionEventOffset {
+    type Error = ();
+
+    fn try_from(val: u64) -> Result<Self, Self::Error> {
         for exc in ExceptionEventOffset::into_enum_iter() {
             if exc.val() == val {
-                return exc;
+                return Ok(exc);
             }
         }
-        panic!("invalid exception variant! id={}", val);
+        Err(())
     }
 }
 
@@ -130,8 +133,7 @@ mod tests {
     fn test() {
         let expected = ExceptionEventOffset::GeneralProtectionFault;
         let input = 13;
-        // let actual = ExceptionEventOffset::try_from(input).unwrap();
-        let actual = ExceptionEventOffset::from(input);
+        let actual = ExceptionEventOffset::try_from(input).unwrap();
         assert_eq!(expected, actual);
     }
 }

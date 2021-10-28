@@ -185,6 +185,7 @@ dependencies = [
 name = "libhrstd"
 version = "0.1.0"
 dependencies = [
+ "enum-iterator",
  "libhedron",
  "libm",
  "log",

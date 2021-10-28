@@ -1,9 +1,11 @@
 //! Module for [`Qpd`].
 
 use crate::consts::NUM_PRIORITIES;
+use crate::ipc_serde::__private::Formatter;
+use core::fmt::Debug;
 
 /// Quantum Priority Descriptor (QPD).
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Qpd(u64);
 
 impl Qpd {
@@ -39,5 +41,15 @@ impl Qpd {
 
     pub const fn val(self) -> u64 {
         self.0
+    }
+}
+
+impl Debug for Qpd {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Qpd")
+            .field("quantum", &self.quantum())
+            .field("priority", &self.priority())
+            .field("val", &self.val())
+            .finish()
     }
 }

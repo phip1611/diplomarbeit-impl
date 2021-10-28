@@ -91,6 +91,14 @@ impl DelegateFlags {
     }
 }
 
+impl Default for DelegateFlags {
+    /// Default is useful for "default" IO and mem delegations and all other delegations,
+    /// because it is ignored there silently.
+    fn default() -> Self {
+        Self::new(true, false, false, false, 0)
+    }
+}
+
 /// System call `pd_ctrl_delegate` transfers memory, port I/O and object capabilities
 /// from one protection domain to another. It allows the same functionality as rights
 /// delegation via IPC.
