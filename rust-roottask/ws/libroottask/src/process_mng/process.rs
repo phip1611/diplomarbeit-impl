@@ -182,9 +182,6 @@ impl Process {
         );
         log::trace!("created EC for PID={}", self.pid);
 
-        let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
-        log::trace!("created SC for PID={}", self.pid);
-
         let _cpu_num = 0;
         let base_cap_sel = RootCapSpace::ProcessExcPtBase.val() + (NUM_PROCESSES * NUM_EXC as u64);
         self.init_exc_portals(base_cap_sel);
@@ -193,6 +190,10 @@ impl Process {
         self.init_map_stack();
         self.init_map_elf_load_segments();
         self.init_service_portals();
+
+        // create SC-Object at the very end! Otherwise Hedron might schedule the new PD too early
+        let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
+        log::trace!("created SC for PID={}", self.pid);
     }
 
     /// Creates [`NUM_EXC`] new portals inside the roottask, let them point
