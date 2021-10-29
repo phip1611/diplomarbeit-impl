@@ -1,9 +1,20 @@
 //! Module for [`OrderLoopOptimizerIterator`].
 
+use crate::cap_space::root::RootCapSpace;
+use crate::libhedron::mem::PAGE_SIZE;
 use core::cmp::min;
+use libhedron::capability::{
+    CapSel,
+    CrdMem,
+    MemCapPermissions,
+};
+use libhedron::syscall::pd_ctrl::{
+    pd_ctrl_delegate,
+    DelegateFlags,
+};
 
-/// An iterator that helps to construct (and send via syscall) multiple
-/// [`crate::libhedron::capability::Crd`] objects in a (as optimal as it can be) bulk operation.
+/// An iterator that helps to delegate multiple capabilities via
+/// [`crate::libhedron::capability::Crd`] objects in a as optimal as it can be bulk operation.
 /// Helps you to iterate over the optimal syscall parameters (regarding base and order)
 /// to reduce total syscalls.
 ///
@@ -28,7 +39,7 @@ use core::cmp::min;
 /// For Multiboot-Modules the optimization is not applicable from my observations, because
 /// they are only page-aligned but not more. Therefore a delegate syscall for each page.
 #[derive(Debug)]
-pub struct CrdBulkLoopOrderOptimizer {
+pub struct CrdDelegateOptimizer {
     /// Describes the amount of items/capabilities.
     /// For example amount of pages or port capabilities.
     item_amount: u64,
@@ -37,10 +48,12 @@ pub struct CrdBulkLoopOrderOptimizer {
     start_dest_base: u64,
 }
 
-impl CrdBulkLoopOrderOptimizer {
+impl CrdDelegateOptimizer {
     const MAX_ORDER: u64 = u8::MAX as u64;
 
-    /// Creates a new [`CrdBulkLoopOrderOptimizer`].
+    /// Creates a new [`CrdDelegateOptimizer`]. The base is either a page-num,
+    /// a I/O port number or an index into the capability space.
+    #[must_use]
     pub const fn new(start_src_base: u64, start_dest_base: u64, item_amount: usize) -> Self {
         Self {
             item_amount: item_amount as u64,
@@ -61,9 +74,46 @@ impl CrdBulkLoopOrderOptimizer {
         }
         0
     }
+
+    /// Iterates over all elements of [`Self`] and delegates memory capabilites
+    /// from the src Pd to the dest Pd. If SRC_PD = DEST_PD and SRC:PD == ROOTTASK_PD,
+    /// the Hypervisor-flag in the DelegateFlags gets true.
+    pub fn mmap(self, src_pd: CapSel, dest_pd: CapSel, perm: MemCapPermissions) {
+        let is_roottask = src_pd == RootCapSpace::RootPd.val();
+        let is_roottask_to_roottask_mapping = is_roottask && src_pd == dest_pd;
+
+        if is_roottask_to_roottask_mapping {
+            log::debug!("is roottask to roottask mapping (hypervisorflag true)");
+        }
+
+        self.for_each(|params| {
+            log::trace!(
+                    "mapping page {} ({:?}) of pd {} to page {} ({:?}) of pd {} with order={} (2^order={})",
+                    params.src_base,
+                    (params.src_base as usize * PAGE_SIZE) as *const u64,
+                    src_pd,
+                    params.dest_base,
+                    (params.dest_base as usize * PAGE_SIZE) as *const u64,
+                    dest_pd,
+                    params.order,
+                    params.power
+                );
+
+            // currently in Hedron: needs twice the same permissions (this will be removed soon)
+            let src_crd = CrdMem::new(params.src_base, params.order, perm);
+            let dest_crd = CrdMem::new(params.dest_base, params.order, perm);
+            pd_ctrl_delegate(
+                src_pd,
+                dest_pd,
+                src_crd,
+                dest_crd,
+                DelegateFlags::new(true, false, false, is_roottask_to_roottask_mapping, 0),
+            ).unwrap();
+        });
+    }
 }
 
-impl Iterator for CrdBulkLoopOrderOptimizer {
+impl Iterator for CrdDelegateOptimizer {
     type Item = CrdStepParams;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -103,7 +153,7 @@ impl Iterator for CrdBulkLoopOrderOptimizer {
     }
 }
 
-/// Iterator-item for [`CrdBulkLoopOrderOptimizer`].
+/// Iterator-item for [`CrdDelegateOptimizer`].
 #[derive(Debug, Copy, Clone)]
 pub struct CrdStepParams {
     /// The power of the current iteration. Order for src & dest CRD.
@@ -124,10 +174,10 @@ mod tests {
 
     #[test]
     fn test_order_loop_optimizer_basic() {
-        let mut optimizer = CrdBulkLoopOrderOptimizer::new(0, 0, 0);
+        let mut optimizer = CrdDelegateOptimizer::new(0, 0, 0);
         assert!(optimizer.next().is_none());
 
-        let mut optimizer = CrdBulkLoopOrderOptimizer::new(0, 0, 1);
+        let mut optimizer = CrdDelegateOptimizer::new(0, 0, 1);
         {
             let item = optimizer.next().unwrap();
             assert_eq!(item.order, 0);
@@ -138,7 +188,7 @@ mod tests {
             assert!(optimizer.next().is_none());
         }
 
-        let mut optimizer = CrdBulkLoopOrderOptimizer::new(0, 0, 9);
+        let mut optimizer = CrdDelegateOptimizer::new(0, 0, 9);
         {
             let item = optimizer.next().unwrap();
             assert_eq!(item.order, 3);
@@ -151,7 +201,7 @@ mod tests {
             assert!(optimizer.next().is_none());
         }
 
-        let mut optimizer = CrdBulkLoopOrderOptimizer::new(0, 0, 23);
+        let mut optimizer = CrdDelegateOptimizer::new(0, 0, 23);
         {
             let item = optimizer.next().unwrap();
             assert_eq!(item.order, 4);
@@ -175,8 +225,8 @@ mod tests {
 
     #[test]
     fn test_find_highest_order_for_base_alignment() {
-        let fnc = CrdBulkLoopOrderOptimizer::find_highest_order_for_base_alignment;
-        assert_eq!(fnc(0), CrdBulkLoopOrderOptimizer::MAX_ORDER);
+        let fnc = CrdDelegateOptimizer::find_highest_order_for_base_alignment;
+        assert_eq!(fnc(0), CrdDelegateOptimizer::MAX_ORDER);
         assert_eq!(fnc(1), 0);
         assert_eq!(fnc(2), 1);
         assert_eq!(fnc(3), 0);
@@ -191,7 +241,7 @@ mod tests {
     fn test_order_loop_optimizer_complex() {
         // pretend we want to map 15 pages
         // from src-page 15 to dest-page 0.
-        let optimizer = CrdBulkLoopOrderOptimizer::new(16, 4, 32);
+        let optimizer = CrdDelegateOptimizer::new(16, 4, 32);
         let entries = optimizer.collect::<alloc::vec::Vec<_>>();
         dbg!(entries);
         /*{

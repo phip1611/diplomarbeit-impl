@@ -1,3 +1,4 @@
+use crate::mem::MappedMemory;
 use crate::process_mng::process::Process;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
@@ -73,11 +74,7 @@ impl ProcessManager {
     }
 
     /// Starts a new process.
-    pub fn start_process(
-        &mut self,
-        elf_file: Box<[u8], PageAlignedAlloc>,
-        program_name: String,
-    ) -> ProcessId {
+    pub fn start_process(&mut self, elf_file: MappedMemory, program_name: String) -> ProcessId {
         if !self.init {
             panic!("call init() first!");
         }
