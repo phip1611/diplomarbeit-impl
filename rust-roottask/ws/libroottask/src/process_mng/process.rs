@@ -2,9 +2,7 @@ use crate::mem::{
     MappedMemory,
     MemLocation,
 };
-use crate::process_mng::manager::ProcessManager;
 use crate::roottask_exception;
-use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::rc::{
     Rc,
@@ -17,7 +15,6 @@ use alloc::string::{
 use alloc::vec::Vec;
 use core::cell::{
     Cell,
-    Ref,
     RefCell,
 };
 use core::cmp::Ordering;
@@ -26,7 +23,6 @@ use core::hash::{
     Hash,
     Hasher,
 };
-use elf_rs::Elf::Elf64;
 use elf_rs::{
     Elf,
     ProgramType,
@@ -48,7 +44,7 @@ use libhrstd::libhedron::capability::{
     PTCapPermissions,
 };
 use libhrstd::libhedron::consts::NUM_EXC;
-use libhrstd::libhedron::event_offset::ExceptionEventOffset;
+
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::qpd::Qpd;
 use libhrstd::libhedron::syscall::pd_ctrl::{
@@ -56,10 +52,7 @@ use libhrstd::libhedron::syscall::pd_ctrl::{
     DelegateFlags,
 };
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::{
-    PageAlignedAlloc,
-    PinnedPageAlignedHeapArray,
-};
+use libhrstd::mem::PinnedPageAlignedHeapArray;
 use libhrstd::process::consts::{
     ProcessId,
     NUM_PROCESSES,
@@ -192,7 +185,7 @@ impl Process {
         let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
         log::trace!("created SC for PID={}", self.pid);
 
-        let cpu_num = 0;
+        let _cpu_num = 0;
         let base_cap_sel = RootCapSpace::ProcessExcPtBase.val() + (NUM_PROCESSES * NUM_EXC as u64);
         self.init_exc_portals(base_cap_sel);
 

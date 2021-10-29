@@ -1,20 +1,13 @@
 //! Module for [`roottask_generic_portal_callback`].
 
-use crate::process_mng::manager::{
-    ProcessManager,
-    PROCESS_MNG,
-};
+use crate::process_mng::manager::PROCESS_MNG;
 use crate::process_mng::process::Process;
-use crate::roottask_exception::generic_error_exception_handler;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use libhrstd::kobjects::{
-    PdObject,
     PortalIdentifier,
-    PtCtx,
     PtObject,
 };
-use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::syscall::ipc::reply;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::sync::mutex::SimpleMutex;

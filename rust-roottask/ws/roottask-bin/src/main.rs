@@ -41,6 +41,7 @@ mod services;
 #[macro_use]
 extern crate alloc;
 
+#[allow(unused)]
 #[macro_use]
 extern crate libhrstd;
 
@@ -48,20 +49,10 @@ use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
-use alloc::string::ToString;
-use alloc::vec::Vec;
-use core::pin::Pin;
-use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::syscall::ipc::call;
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::{
-    AlignedAlloc,
-    PageAlignedAlloc,
-};
 use libroottask::process_mng::manager;
-use libroottask::process_mng::manager::PROCESS_MNG;
 use libroottask::roottask_exception;
 use libroottask::rt::userland;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
@@ -69,7 +60,7 @@ use libroottask::static_alloc::GlobalStaticChunkAllocator;
 #[no_mangle]
 fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     let hip = unsafe { (hip_addr as *const HIP).as_ref().unwrap() };
-    let utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
+    let _utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
 
     services::init_writers(hip);
     roottask_logger::init();

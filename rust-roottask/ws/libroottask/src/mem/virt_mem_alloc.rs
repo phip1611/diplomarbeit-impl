@@ -1,9 +1,4 @@
-use core::alloc::{
-    AllocError,
-    Allocator,
-    Layout,
-};
-use libhrstd::libhedron::ipc_serde::__private::ptr::NonNull;
+use core::alloc::Layout;
 use libhrstd::sync::mutex::SimpleMutex;
 
 /// Address bound, from that all virtual memory addresses are guaranteed to be unused,

@@ -3,7 +3,6 @@
 
 use crate::mem::{
     MappedMemory,
-    RootMemMapper,
     ROOT_MEM_MAPPER,
     VIRT_MEM_ALLOC,
 };
@@ -18,12 +17,8 @@ use libhrstd::libhedron::hip::{
     HIP,
 };
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::syscall::pd_ctrl::DelegateFlags;
 use libhrstd::mem::calc_page_count;
-use tar_no_std::{
-    TarArchive,
-    TarArchiveRef,
-};
+use tar_no_std::TarArchiveRef;
 
 /// Describes the files for the userland, that are provided by the MB module.
 /// Each ELF file is guaranteed to be page-aligned.

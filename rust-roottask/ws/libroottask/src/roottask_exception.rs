@@ -3,7 +3,6 @@
 //! as handler, without further interaction with the kernel
 //! (i.e. dedicated syscalls to create new PTs).
 
-use crate::process_mng::manager::ProcessManager;
 use crate::process_mng::process::Process;
 use crate::pt_multiplex::roottask_generic_portal_callback;
 use crate::stack::StaticStack;
@@ -11,39 +10,26 @@ use alloc::rc::{
     Rc,
     Weak,
 };
-use arrayvec::ArrayString;
 use core::convert::TryFrom;
-use core::fmt::Write;
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::PtCtx::ErrorExceptionHandler;
 use libhrstd::kobjects::{
     LocalEcObject,
-    PdObject,
     PtObject,
 };
 use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::consts::NUM_EXC;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
-use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::syscall::create_ec::create_local_ec;
-use libhrstd::libhedron::syscall::create_pt::create_pt;
-use libhrstd::libhedron::syscall::pd_ctrl::pd_ctrl_delegate;
-use libhrstd::libhedron::syscall::pt_ctrl::pt_ctrl;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PageAligned;
 use libhrstd::process::consts::{
     ProcessId,
     ROOTTASK_PROCESS_PID,
 };
-use libhrstd::sync::fakelock::FakeLock;
+
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
-use libhrstd::util::ansi::{
-    AnsiStyle,
-    Color,
-    TextStyle,
-};
 
 /// Used as stack for the exception handler callback function. Must be either mutable
 /// or manually placed in a writeable section in the file. Otherwise we get a page fault.

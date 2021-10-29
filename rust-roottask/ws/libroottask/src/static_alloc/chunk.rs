@@ -39,12 +39,14 @@ pub struct ChunkAllocator<'a, const CHUNK_SIZE: usize> {
 
 impl<'a, const CHUNK_SIZE: usize> ChunkAllocator<'a, CHUNK_SIZE> {
     /// Returns the default const generic value of `CHUNK_SIZE`.
+    #[allow(unused)]
     pub const fn default_chunk_size() -> usize {
         // keep in sync with struct definition!
         DEFAULT_ALLOCATOR_CHUNK_SIZE
     }
 
     /// Returns the used chunk size.
+    #[allow(unused)]
     pub const fn chunk_size(&self) -> usize {
         CHUNK_SIZE
     }

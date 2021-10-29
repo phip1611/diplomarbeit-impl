@@ -4,6 +4,7 @@
 use crate::libhedron::utcb::Utcb;
 use crate::uaddress_space::VIRT_UTCB_ADDR;
 
+#[allow(unused)]
 pub fn load_utcb() -> &'static Utcb {
     unsafe { (VIRT_UTCB_ADDR as *const Utcb).as_ref().unwrap() }
 }
