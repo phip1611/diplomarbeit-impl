@@ -88,16 +88,16 @@ impl CrdDelegateOptimizer {
 
         self.for_each(|params| {
             log::trace!(
-                    "mapping page {} ({:?}) of pd {} to page {} ({:?}) of pd {} with order={} (2^order={})",
-                    params.src_base,
-                    (params.src_base as usize * PAGE_SIZE) as *const u64,
-                    src_pd,
-                    params.dest_base,
-                    (params.dest_base as usize * PAGE_SIZE) as *const u64,
-                    dest_pd,
-                    params.order,
-                    params.power
-                );
+                "map page {} ({:?}) (pd={}) to page {} ({:?}) (pd={}), order={} (2^order={})",
+                params.src_base,
+                (params.src_base as usize * PAGE_SIZE) as *const u64,
+                src_pd,
+                params.dest_base,
+                (params.dest_base as usize * PAGE_SIZE) as *const u64,
+                dest_pd,
+                params.order,
+                params.power
+            );
 
             // currently in Hedron: needs twice the same permissions (this will be removed soon)
             let src_crd = CrdMem::new(params.src_base, params.order, perm);
@@ -108,7 +108,8 @@ impl CrdDelegateOptimizer {
                 src_crd,
                 dest_crd,
                 DelegateFlags::new(true, false, false, is_roottask_to_roottask_mapping, 0),
-            ).unwrap();
+            )
+            .unwrap();
         });
     }
 }
