@@ -1,29 +1,22 @@
+use crate::mem::MappedMemory;
 use crate::process_mng::process::Process;
-use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
 use elf_rs::Elf;
-use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::cap_space::root::RootCapSpace::ExceptionEventBase;
 use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
 };
-use libhrstd::libhedron::consts::NUM_EXC;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::PageAlignedAlloc;
 use libhrstd::process::consts::{
     ProcessId,
     ROOTTASK_PROCESS_PID,
 };
 use libhrstd::sync::mutex::SimpleMutex;
-use libhrstd::uaddress_space::{
-    USER_STACK_SIZE,
-    VIRT_STACK_TOP,
-};
+use libhrstd::uaddress_space::VIRT_STACK_TOP;
 
 /// The global instance for the roottask to manage all processes.
 pub static PROCESS_MNG: SimpleMutex<ProcessManager> = SimpleMutex::new(ProcessManager::new());
@@ -73,11 +66,7 @@ impl ProcessManager {
     }
 
     /// Starts a new process.
-    pub fn start_process(
-        &mut self,
-        elf_file: Box<[u8], PageAlignedAlloc>,
-        program_name: String,
-    ) -> ProcessId {
+    pub fn start_process(&mut self, elf_file: MappedMemory, program_name: String) -> ProcessId {
         if !self.init {
             panic!("call init() first!");
         }
@@ -115,7 +104,7 @@ impl ProcessManager {
         pid
     }
 
-    pub fn terminate_prog(&mut self, id: ProcessId) -> Result<(), ()> {
+    pub fn terminate_prog(&mut self, _id: ProcessId) -> Result<(), ()> {
         todo!()
     }
 
@@ -151,7 +140,7 @@ impl ProcessManager {
         utcb: &mut Utcb,
         do_reply: &mut bool,
     ) {
-        let (exc, process_id) = pt.ctx().unwrap().exc_pid();
+        let (_exc, _process_id) = pt.ctx().unwrap().exc_pid();
         log::debug!("startup exception handler");
 
         let elf = elf_rs::Elf::from_bytes(process.elf_file_bytes()).unwrap();

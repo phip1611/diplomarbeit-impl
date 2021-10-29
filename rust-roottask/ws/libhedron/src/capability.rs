@@ -572,7 +572,8 @@ bitflags::bitflags! {
 }
 
 bitflags::bitflags! {
-    /// Permissions of a capability for a memory page.
+    /// Permissions of a capability for a memory page. Corresponds
+    /// to the flags in the page table.
     pub struct MemCapPermissions: u8 {
         const READ = bit!(0);
         const WRITE = bit!(1);

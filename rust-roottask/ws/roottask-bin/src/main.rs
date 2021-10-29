@@ -41,31 +41,26 @@ mod services;
 #[macro_use]
 extern crate alloc;
 
+#[allow(unused)]
+#[macro_use]
+extern crate libhrstd;
+
 use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
-use alloc::string::ToString;
-use alloc::vec::Vec;
-use core::pin::Pin;
-use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::syscall::ipc::call;
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::{
-    AlignedAlloc,
-    PageAlignedAlloc,
-};
 use libroottask::process_mng::manager;
-use libroottask::process_mng::manager::PROCESS_MNG;
 use libroottask::roottask_exception;
+use libroottask::rt::userland;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 
 #[no_mangle]
 fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     let hip = unsafe { (hip_addr as *const HIP).as_ref().unwrap() };
-    let utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
+    let _utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
 
     services::init_writers(hip);
     roottask_logger::init();
@@ -101,39 +96,20 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
         STACK_TOP_PTR.val(),
     );
     roottask_exception::init(manager::PROCESS_MNG.lock().root());
+    // TODO register startup callback from manager
     // now init services
     services::init_services(manager::PROCESS_MNG.lock().root());
 
-    log::debug!(
-        "process mng: {:#?}",
-        manager::PROCESS_MNG.lock().processes()
-    );
-
+    /* TEST IPC
     let msg = "hallo welt 123 fooa\n";
     utcb.store_data(&msg).unwrap();
     call(RootCapSpace::RoottaskStdoutServicePortal.val()).unwrap();
-    log::info!("done");
+    log::info!("done");*/
 
     log::debug!("Heap Usage: {}%", roottask_heap::usage());
 
-    let rt_tar =
-        unsafe { libroottask::rt::multiboot_rt_tar::find_hedron_userland_tar(hip).unwrap() };
-
-    for entry in rt_tar
-        .entries()
-        // Q&D: only Hello World
-        .skip(1)
-    {
-        log::debug!("found file in tar: {}", entry.filename().as_str());
-        // TODO no vec but own physical mapping abstraction (including read + write + execute!)
-        let mut aligned_elf = Vec::with_capacity_in(entry.size(), PageAlignedAlloc);
-        aligned_elf.extend(entry.data());
-        assert_eq!(aligned_elf.len(), entry.size());
-        PROCESS_MNG.lock().start_process(
-            aligned_elf.into_boxed_slice(),
-            entry.filename().as_str().to_string(),
-        );
-    }
+    let userland = userland::Userland::load(hip);
+    userland.bootstrap();
 
     log::debug!("Heap Usage: {}%", roottask_heap::usage());
 
@@ -154,15 +130,6 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
             x86::io::outb(0x0, 0);
         }
     }*/
-
-    log::info!(
-        "{:#?}",
-        PROCESS_MNG
-            .lock()
-            .lookup_process(1)
-            .unwrap()
-            .delegated_pts()
-    );
 
     log::info!("Rust Roottask started");
 

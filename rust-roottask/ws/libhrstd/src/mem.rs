@@ -20,6 +20,15 @@ use core::ops::{
 use core::ptr::NonNull;
 use libhedron::mem::PAGE_SIZE;
 
+/// Calculates the number of needed pages to cover all bytes.
+pub const fn calc_page_count(size: u64) -> u64 {
+    if size % PAGE_SIZE as u64 == 0 {
+        size / PAGE_SIZE as u64
+    } else {
+        (size / PAGE_SIZE as u64) + 1
+    }
+}
+
 /// Wrapping struct that acts as a smart pointer to align owned data. Can be used to align data
 /// on the stack, the heap (`Box<PageAligned<T>>`), or global static memory.
 /// **BE AWARE** that this doesn't work for situations, like `PageAligned<Vec<...>>`.

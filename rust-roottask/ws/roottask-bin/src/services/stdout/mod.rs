@@ -7,23 +7,18 @@ use core::fmt::{
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::{
     LocalEcObject,
-    PtCtx,
     PtObject,
 };
-use runs_inside_qemu::runs_inside_qemu;
-
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::syscall::create_ec::create_local_ec;
-use libhrstd::libhedron::syscall::create_pt::create_pt;
-use libhrstd::libhedron::syscall::ipc::reply;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PageAligned;
 use libhrstd::sync::mutex::{
     SimpleMutex,
     SimpleMutexGuard,
 };
-use libroottask::process_mng::manager::ProcessManager;
+use runs_inside_qemu::runs_inside_qemu;
+
 use libroottask::process_mng::process::Process;
 use libroottask::pt_multiplex::roottask_generic_portal_callback;
 use libroottask::stack::StaticStack;
@@ -79,8 +74,8 @@ pub fn init_service(roottask: &Process) {
 }
 
 fn stdout_service_handler(
-    pt: &Rc<PtObject>,
-    process: &Process,
+    _pt: &Rc<PtObject>,
+    _process: &Process,
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {

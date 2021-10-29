@@ -35,6 +35,7 @@ extern crate std;
 #[macro_use]
 extern crate alloc;
 
+#[allow(unused)]
 #[macro_use]
 extern crate libhrstd;
 

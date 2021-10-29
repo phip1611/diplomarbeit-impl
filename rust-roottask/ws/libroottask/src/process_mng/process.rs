@@ -1,7 +1,8 @@
-use crate::mem::MemLocation;
-use crate::process_mng::manager::ProcessManager;
+use crate::mem::{
+    MappedMemory,
+    MemLocation,
+};
 use crate::roottask_exception;
-use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::rc::{
     Rc,
@@ -14,7 +15,6 @@ use alloc::string::{
 use alloc::vec::Vec;
 use core::cell::{
     Cell,
-    Ref,
     RefCell,
 };
 use core::cmp::Ordering;
@@ -23,7 +23,6 @@ use core::hash::{
     Hash,
     Hasher,
 };
-use elf_rs::Elf::Elf64;
 use elf_rs::{
     Elf,
     ProgramType,
@@ -45,7 +44,7 @@ use libhrstd::libhedron::capability::{
     PTCapPermissions,
 };
 use libhrstd::libhedron::consts::NUM_EXC;
-use libhrstd::libhedron::event_offset::ExceptionEventOffset;
+
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::qpd::Qpd;
 use libhrstd::libhedron::syscall::pd_ctrl::{
@@ -53,10 +52,7 @@ use libhrstd::libhedron::syscall::pd_ctrl::{
     DelegateFlags,
 };
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::{
-    PageAlignedAlloc,
-    PinnedPageAlignedHeapArray,
-};
+use libhrstd::mem::PinnedPageAlignedHeapArray;
 use libhrstd::process::consts::{
     ProcessId,
     NUM_PROCESSES,
@@ -68,7 +64,7 @@ use libhrstd::uaddress_space::{
     VIRT_STACK_TOP,
     VIRT_UTCB_PAGE_NUM,
 };
-use libhrstd::util::crd_bulk::CrdBulkLoopOrderOptimizer;
+use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProcessState {
@@ -87,9 +83,8 @@ pub struct Process {
     state: Cell<ProcessState>,
     parent: Option<Weak<Self>>,
     pd_obj: RefCell<Option<Rc<PdObject>>>,
-    // todo theoretically this could also use MemLocation, because the Elf for the roottask
-    //  lives in memory too
-    elf_file: Option<Box<[u8], PageAlignedAlloc>>,
+    // todo theoretically I could remove the option, because we can now the memory for the mapped roottask too
+    elf_file: Option<MappedMemory>,
     // stack with size USER_STACK_SIZE for the main global EC
     // todo so far not per thread
     stack: MemLocation<PinnedPageAlignedHeapArray<u8>>,
@@ -134,10 +129,15 @@ impl Process {
     /// Invoke [`Self::init`] next.
     pub fn new(
         pid: u64,
-        elf_file: Box<[u8], PageAlignedAlloc>,
+        elf_file: MappedMemory,
         program_name: String,
         parent: &Rc<Self>,
     ) -> Rc<Self> {
+        assert_eq!(
+            elf_file.perm(),
+            MemCapPermissions::all(),
+            "memory needs RXW permission, because permissions can only be downgraded, not upgraded"
+        );
         Rc::new(Self {
             pid,
             pd_obj: RefCell::new(None),
@@ -185,13 +185,14 @@ impl Process {
         let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
         log::trace!("created SC for PID={}", self.pid);
 
-        let cpu_num = 0;
+        let _cpu_num = 0;
         let base_cap_sel = RootCapSpace::ProcessExcPtBase.val() + (NUM_PROCESSES * NUM_EXC as u64);
         self.init_exc_portals(base_cap_sel);
 
         self.init_map_utcb();
         self.init_map_stack();
         self.init_map_elf_load_segments();
+        self.init_service_portals();
     }
 
     /// Creates [`NUM_EXC`] new portals inside the roottask, let them point
@@ -203,6 +204,7 @@ impl Process {
     /// * `pid`: Process ID of the new process.
     /// * `pd_obj`: PdObject of this process.
     fn init_exc_portals(&self, base_cap_sel_in_root: CapSel) {
+        // TODO use CrdDelegateOptimizer
         for exc_i in 0..NUM_EXC as u64 {
             let roottask_pt_sel = base_cap_sel_in_root + exc_i;
             let pt =
@@ -264,51 +266,28 @@ impl Process {
             VIRT_STACK_TOP
         );
         let src_stack_bottom_page_num = self.stack.page_num();
-        CrdBulkLoopOrderOptimizer::new(
+        CrdDelegateOptimizer::new(
             src_stack_bottom_page_num,
             VIRT_STACK_BOTTOM_PAGE_NUM,
             USER_STACK_SIZE / PAGE_SIZE,
         )
-            .for_each(|iter| {
-                log::debug!(
-                    "mapping page for stack: page {} ({:?}) of pd {} to page {} ({:?}) of pd {} with order={} (2^order={})",
-                    iter.src_base,
-                    (iter.src_base as usize * PAGE_SIZE) as *const u64,
-                    RootCapSpace::RootPd.val(),
-                    iter.dest_base,
-                    (iter.dest_base as usize * PAGE_SIZE) as *const u64,
-                    self.pd_obj().cap_sel(),
-                    iter.order,
-                    iter.power
-                );
-                pd_ctrl_delegate(
-                    self.parent().unwrap().pd_obj().cap_sel(),
-                    self.pd_obj().cap_sel(),
-                    CrdMem::new(
-                        iter.src_base,
-                        iter.order,
-                        MemCapPermissions::READ | MemCapPermissions::WRITE,
-                    ),
-                    CrdMem::new(
-                        iter.dest_base,
-                        iter.order,
-                        MemCapPermissions::READ | MemCapPermissions::WRITE,
-                    ),
-                    DelegateFlags::new(true, false, false, false, 0),
-                )
-                    .unwrap();
-            });
+        .mmap(
+            self.parent().unwrap().pd_obj().cap_sel(),
+            self.pd_obj().cap_sel(),
+            MemCapPermissions::READ | MemCapPermissions::WRITE,
+        );
 
         // TODO last stack page without read or write permissions! => detect page fault
     }
 
     /// Maps all load segments into the new PD.
     fn init_map_elf_load_segments(&self) {
-        let elf = elf_rs::Elf::from_bytes(self.elf_file.as_ref().unwrap()).unwrap();
+        let elf = elf_rs::Elf::from_bytes(self.elf_file_bytes()).unwrap();
         let elf64 = match elf {
             Elf::Elf64(elf) => elf,
             _ => panic!("unexpected elf 32"),
         };
+        // log::debug!("ELF: {:#?}", elf64.header());
         log::debug!("mapping mem for all load segments to new PD");
         elf64.program_header_iter().for_each(|pr_hdr| {
             if pr_hdr.ph.ph_type() != ProgramType::LOAD {
@@ -320,7 +299,7 @@ impl Process {
                 "expects that all segments are page aligned inside the file!!"
             );
             assert_eq!(
-                pr_hdr.ph.vaddr() as usize  % PAGE_SIZE,
+                pr_hdr.ph.vaddr() as usize % PAGE_SIZE,
                 0,
                 "virtual address must be page-aligned!"
             );
@@ -347,43 +326,41 @@ impl Process {
             }
 
             // loop over all pages of the current segment
-            CrdBulkLoopOrderOptimizer::new(
+            CrdDelegateOptimizer::new(
                 load_segment_src_page_num as u64,
                 load_segment_dest_page_num as u64,
                 num_pages as usize,
             )
-                .for_each(|iter| {
-                    log::debug!(
-                    "mapping page for elf segment: page {} ({:?}) of pd {} to page {} ({:?}) of pd {} with order={} (2^order={})",
-                    iter.src_base,
-                    (iter.src_base as usize * PAGE_SIZE) as *const u64,
-                    RootCapSpace::RootPd.val(),
-                    iter.dest_base,
-                    (iter.dest_base as usize * PAGE_SIZE) as *const u64,
-                    self.pd_obj().cap_sel(),
-                    iter.order,
-                    iter.power
-                );
-                    pd_ctrl_delegate(
-                        self.parent().unwrap().pd_obj().cap_sel(),
-                        self.pd_obj().cap_sel(),
-                        CrdMem::new(
-                            iter.src_base,
-                            iter.order,
-                            // todo not all read and write but only as needed
-                            MemCapPermissions::READ | MemCapPermissions::WRITE | MemCapPermissions::EXECUTE,
-                        ),
-                        CrdMem::new(
-                            iter.dest_base,
-                            iter.order,
-                            // todo not all read and write but only as needed
-                            MemCapPermissions::READ | MemCapPermissions::WRITE | MemCapPermissions::EXECUTE,
-                        ),
-                        DelegateFlags::new(true, false, false, false, 0),
-                    )
-                        .unwrap()
-                });
+            .mmap(
+                RootCapSpace::RootPd.val(),
+                self.pd_obj().cap_sel(),
+                // TODO don't make this RWX :)
+                MemCapPermissions::all(),
+            );
         });
+    }
+
+    /// Delegate the service portals of well-known services
+    /// into the new PD. We do this for every process.
+    fn init_service_portals(&self) {
+        // TODO instead of delegating of the original portal maybe a dedicated portal for
+        //  each process?!
+        pd_ctrl_delegate(
+            self.parent().unwrap().pd_obj().cap_sel(),
+            self.pd_obj().cap_sel(),
+            CrdObjPT::new(
+                RootCapSpace::RoottaskStdoutServicePortal.val(),
+                0,
+                PTCapPermissions::CALL,
+            ),
+            CrdObjPT::new(
+                UserAppCapSpace::StdoutServicePT.val(),
+                0,
+                PTCapPermissions::CALL,
+            ),
+            DelegateFlags::default(),
+        )
+        .unwrap();
     }
 
     pub fn pid(&self) -> ProcessId {
@@ -431,9 +408,10 @@ impl Process {
             .clone()
     }
 
-    /// Gets the elf_file that is page-aligned.
+    /// Gets the bytes of the page-aligned ELF file.
     pub fn elf_file_bytes(&self) -> &[u8] {
-        self.elf_file.as_ref().unwrap()
+        let elf = self.elf_file.as_ref().unwrap();
+        elf.mem_as_slice(elf.size())
     }
 }
 

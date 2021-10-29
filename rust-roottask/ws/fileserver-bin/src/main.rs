@@ -23,8 +23,6 @@
 #[macro_use]
 extern crate alloc;
 
-use alloc::vec::Vec;
-
 mod panic;
 
 #[no_mangle]
