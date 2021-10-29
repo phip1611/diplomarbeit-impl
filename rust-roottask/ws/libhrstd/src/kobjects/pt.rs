@@ -3,7 +3,6 @@ use crate::kobjects::{
     PdObject,
 };
 use crate::libhedron::mtd::Mtd;
-use crate::process::consts::ProcessId;
 use crate::util::global_counter::GlobalIncrementingCounter;
 use alloc::rc::{
     Rc,
@@ -40,18 +39,16 @@ pub static PORTAL_IDENTIFIER_COUNTER: GlobalIncrementingCounter = GlobalIncremen
 /// data can still be used.
 #[derive(Copy, Clone, Debug)]
 pub enum PtCtx {
-    /// Portal is responsible for handling error exceptions.
-    /// Because portals from the same PD might by responsible for handling exceptions
-    /// from other processes (because the portal was delegated), we also need the
-    /// process ID, so that we know what exception we want to handle/where it comes from.
-    ErrorExceptionHandler { err: u64, process_id: ProcessId },
+    /// Portal is responsible for handling error exceptions. The payload contains the
+    /// exception offset (Starting by 0). See also NUM_EXC and ExceptionEventOffset.
+    ErrorExceptionHandler(u64),
 }
 
 impl PtCtx {
-    /// Returns the error code and the pid, where the error comes from.
-    pub fn exc_pid(self) -> (u64, ProcessId) {
+    /// Returns the err code.
+    pub fn exc(self) -> u64 {
         match self {
-            PtCtx::ErrorExceptionHandler { err, process_id } => (err, process_id),
+            PtCtx::ErrorExceptionHandler(err) => err,
             // _ => panic!("invalid variant"),
         }
     }

@@ -209,8 +209,7 @@ impl Process {
         // TODO use CrdDelegateOptimizer
         for exc_i in 0..NUM_EXC as u64 {
             let roottask_pt_sel = base_cap_sel_in_root + exc_i;
-            let pt =
-                roottask_exception::create_exc_pt_for_process(exc_i, roottask_pt_sel, self.pid);
+            let pt = roottask_exception::create_exc_pt_for_process(exc_i, roottask_pt_sel);
             pd_ctrl_delegate(
                 self.parent().unwrap().pd_obj().cap_sel(),
                 self.pd_obj().cap_sel(),

@@ -52,13 +52,6 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
         } else {
             pt.local_ec().pd()
         };
-        if let Some(ctx) = pt.ctx() {
-            assert_eq!(
-                calling_pd.pid(),
-                ctx.exc_pid().1,
-                "portal ctx pid doesn't match process"
-            );
-        }
         let calling_process = mng
             .lookup_process(calling_pd.pid())
             .expect("unknown process!");

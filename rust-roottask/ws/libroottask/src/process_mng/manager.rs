@@ -127,12 +127,11 @@ impl ProcessManager {
     /// Prepares the UTCB of the calling portal with the initial machine state to startup
     /// the thread.
     pub fn startup_exception_handler(
-        pt: &Rc<PtObject>,
+        _pt: &Rc<PtObject>,
         process: &Process,
         utcb: &mut Utcb,
         do_reply: &mut bool,
     ) {
-        let (_exc, _process_id) = pt.ctx().unwrap().exc_pid();
         log::debug!("startup exception handler");
 
         let elf = elf_rs::Elf::from_bytes(process.elf_file_bytes()).unwrap();

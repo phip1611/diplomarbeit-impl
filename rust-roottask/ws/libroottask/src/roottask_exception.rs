@@ -31,11 +31,7 @@ use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PageAligned;
-use libhrstd::process::consts::{
-    ProcessId,
-    ROOTTASK_PROCESS_PID,
-};
-
+use libhrstd::process::consts::ROOTTASK_PROCESS_PID;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 
@@ -105,7 +101,7 @@ pub fn init(root_process: &Process) {
         // TODO maybe this should not register the startup exception?!
         //  or the roottask_exception module offers to register custom hooks too.. maybe the nicer way!
         let portal_cap_sel = RootCapSpace::ExceptionEventBase.val() + exc_offset as CapSel;
-        create_exc_pt_for_process(exc_offset as u64, portal_cap_sel, ROOTTASK_PROCESS_PID);
+        create_exc_pt_for_process(exc_offset as u64, portal_cap_sel);
     }
 }
 
@@ -131,11 +127,7 @@ pub fn register_specialized_exc_handler(excp_id: ExceptionEventOffset, fnc: PTCa
 /// # Parameters
 /// * `portal_cap_sel` Capability selector for portal in root PD
 /// * `process_id` Process ID, where this exception portal gets installed/delegated.
-pub fn create_exc_pt_for_process(
-    exc_offset: u64,
-    portal_cap_sel: CapSel,
-    process_id: ProcessId,
-) -> Rc<PtObject> {
+pub fn create_exc_pt_for_process(exc_offset: u64, portal_cap_sel: CapSel) -> Rc<PtObject> {
     let ec = EXCEPTION_LOCAL_EC
         .lock()
         .as_ref()
@@ -147,10 +139,7 @@ pub fn create_exc_pt_for_process(
         &ec,
         Mtd::all(),
         roottask_generic_portal_callback,
-        Some(ErrorExceptionHandler {
-            err: exc_offset,
-            process_id,
-        }),
+        Some(ErrorExceptionHandler(exc_offset)),
     );
     crate::pt_multiplex::add_callback_hook(pt.portal_id(), generic_error_exception_handler);
     pt
@@ -166,11 +155,10 @@ pub fn generic_error_exception_handler(
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
-    let exc_process = pt.ctx().unwrap().exc_pid().1;
     // All exception portals live in the roottask, therefore their parent is the roottask.
     // Therefore we need to get the target PID (the process that triggered an exception) from the context.
-    let is_roottask = exc_process == ROOTTASK_PROCESS_PID;
-    let exc = ExceptionEventOffset::try_from(pt.ctx().unwrap().exc_pid().0).unwrap();
+    let is_roottask = process.pid() == ROOTTASK_PROCESS_PID;
+    let exc = ExceptionEventOffset::try_from(pt.ctx().unwrap().exc()).unwrap();
     if is_roottask {
         log::debug!(
             "caught exception {:?} from roottask via pt={}",
