@@ -1,10 +1,18 @@
 //! General exception-handling for roottask. Registers a portal for each single possible
 //! exception. Other parts of the roottask has the option to register themselves
-//! as handler, without further interaction with the kernel
-//! (i.e. dedicated syscalls to create new PTs).
+//! as handler, without further interaction with the kernel.
+//!
+//! Example:
+//! The code that creates all exception portals registers a specialized [`PTCallHandler`].
+//! The code referenced from there has again the option to look into a data structure
+//! to delegate the call to an even more specialized handler (e.g. startup exception).
+//!
 
 use crate::process_mng::process::Process;
-use crate::pt_multiplex::roottask_generic_portal_callback;
+use crate::pt_multiplex::{
+    roottask_generic_portal_callback,
+    PTCallHandler,
+};
 use crate::stack::StaticStack;
 use alloc::rc::{
     Rc,
@@ -59,6 +67,12 @@ static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
 /// the roottask.
 static EXCEPTION_LOCAL_EC: SimpleMutex<Option<Weak<LocalEcObject>>> = SimpleMutex::new(None);
 
+/// Map that helps to forward certain exceptions to specialized exception handlers, if are available.
+/// The generic PT entry callback sends all exceptions to the callback of this module. This module
+/// itself can further delegate the responsibility for handling the exception.
+static SPECIALIZES_EXCEPTION_HANDLER_MAP: SimpleMutex<[Option<PTCallHandler>; NUM_EXC]> =
+    SimpleMutex::new([None; NUM_EXC]);
+
 /// Initializes a local EC and N portals to cover N exceptions for the roottask.
 pub fn init(root_process: &Process) {
     // adds itself to the root process
@@ -93,6 +107,19 @@ pub fn init(root_process: &Process) {
         let portal_cap_sel = RootCapSpace::ExceptionEventBase.val() + exc_offset as CapSel;
         create_exc_pt_for_process(exc_offset as u64, portal_cap_sel, ROOTTASK_PROCESS_PID);
     }
+}
+
+/// Registers a special exception handler for a specific exception.
+/// See [`SPECIALIZES_EXCEPTION_HANDLER_MAP`].
+pub fn register_specialized_exc_handler(excp_id: ExceptionEventOffset, fnc: PTCallHandler) {
+    let mut map = SPECIALIZES_EXCEPTION_HANDLER_MAP.lock();
+    if map[excp_id.val() as usize].is_some() {
+        panic!(
+            "already registered a special exception handler for exception = {:?}",
+            excp_id
+        );
+    }
+    map[excp_id.val() as usize] = Some(fnc);
 }
 
 /// Creates a new exception portal, that is bound to the local EC defined in this module.
@@ -158,7 +185,15 @@ pub fn generic_error_exception_handler(
             pt.portal_id()
         );
     }
-    log::debug!("{:#?}", utcb.exception_data());
-    *do_reply = false;
-    panic!("can't handle exceptions currently - game over");
+
+    let map = SPECIALIZES_EXCEPTION_HANDLER_MAP.lock();
+    if let Some(handler) = map[exc.val() as usize] {
+        log::debug!("use specialized exception handler");
+        handler(pt, process, utcb, do_reply);
+    } else {
+        log::debug!("use generic (=panic) exception handler");
+        log::debug!("{:#?}", utcb.exception_data());
+        *do_reply = false;
+        panic!("can't handle exceptions currently - game over");
+    }
 }

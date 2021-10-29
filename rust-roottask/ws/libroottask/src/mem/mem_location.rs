@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use core::fmt::Debug;
 use core::mem::size_of;
 use libhrstd::libhedron::mem::PAGE_SIZE;
@@ -19,9 +20,11 @@ pub trait MemLocationOwned {
     }
 }
 
-impl MemLocationOwned for Utcb {
+impl<T: core::alloc::Allocator> MemLocationOwned for Box<Utcb, T> {
     fn page_ptr(&self) -> *const u8 {
-        self.self_ptr().cast()
+        let ptr = Utcb::self_ptr(self);
+        debug_assert_eq!(ptr as usize % PAGE_SIZE, 0, "must be page aligned!");
+        ptr.cast()
     }
 
     fn page_num(&self) -> u64 {
@@ -48,7 +51,7 @@ impl<T: Copy + Debug> MemLocationOwned for PinnedPageAlignedHeapArray<T> {
 /// (roottask).
 #[derive(Debug, PartialEq)]
 pub enum MemLocation<T: MemLocationOwned> {
-    /// The process should allocate and own the data on the heap.
+    /// The data behind T MUST be page-aligned.
     Owned(T),
     /// Address of the external UTCB (for the roottask).
     External { page_num: u64, size_in_pages: u64 },
@@ -110,13 +113,19 @@ mod tests {
     use super::*;
     use libhrstd::libhedron::mem::PAGE_SIZE;
     use libhrstd::libhedron::utcb::Utcb;
-    use libhrstd::mem::PinnedPageAlignedHeapArray;
+    use libhrstd::mem::{
+        PageAlignedAlloc,
+        PinnedPageAlignedHeapArray,
+    };
     use libhrstd::uaddress_space::USER_STACK_SIZE;
 
     #[test]
     fn test_page_aligned_mem_location() {
-        let mem = MemLocation::Owned(Utcb::new());
+        let utcb = Box::new_in(Utcb::new(), PageAlignedAlloc);
+        let utcb_page_num = utcb.page_num();
+        let mem = MemLocation::Owned(utcb);
         assert_eq!(mem.mem_ptr() as usize % PAGE_SIZE, 0);
+        assert_eq!(mem.page_num(), utcb_page_num);
 
         let mem = MemLocation::Owned(PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE));
         assert_eq!(mem.size_in_pages() as usize, USER_STACK_SIZE / PAGE_SIZE);

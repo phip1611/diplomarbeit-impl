@@ -3,6 +3,7 @@ use crate::mem::{
     MemLocation,
 };
 use crate::roottask_exception;
+use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::rc::{
     Rc,
@@ -89,8 +90,8 @@ pub struct Process {
     // todo so far not per thread
     stack: MemLocation<PinnedPageAlignedHeapArray<u8>>,
     // todo so far not per thread
-    // UTCB for the main global EC
-    utcb: MemLocation<Utcb>,
+    // UTCB for the main global EC. UTCB itself has align property already.
+    utcb: MemLocation<Box<Utcb>>,
 }
 
 impl Process {
@@ -143,8 +144,8 @@ impl Process {
             pd_obj: RefCell::new(None),
             elf_file: Some(elf_file),
             name: program_name,
-            // utcb for the main global EC
-            utcb: MemLocation::Owned(Utcb::new()),
+            // utcb for the main global EC; Utcb type itself has already page align guarantee
+            utcb: MemLocation::Owned(Box::new(Utcb::new())),
             stack: MemLocation::Owned(PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE)),
             state: Cell::new(ProcessState::Created),
             parent: Some(Rc::downgrade(parent)),
@@ -230,6 +231,17 @@ impl Process {
     /// Maps the UTCB into the new PD.
     fn init_map_utcb(&self) {
         log::debug!("mapping utcb into new PD");
+        log::trace!(
+            "map page {} ({:?}) (pd={}) to page {} ({:?}) (pd={}), order={} (2^order={})",
+            self.utcb.page_num(),
+            (self.utcb.page_num() as usize * PAGE_SIZE) as *const u64,
+            self.parent().unwrap().pd_obj().cap_sel(),
+            VIRT_UTCB_PAGE_NUM,
+            (VIRT_UTCB_PAGE_NUM as usize * PAGE_SIZE) as *const u64,
+            self.pd_obj().cap_sel(),
+            0,
+            1
+        );
         pd_ctrl_delegate(
             self.parent().unwrap().pd_obj().cap_sel(),
             self.pd_obj().cap_sel(),

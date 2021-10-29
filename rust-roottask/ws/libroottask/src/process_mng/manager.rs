@@ -1,5 +1,6 @@
 use crate::mem::MappedMemory;
 use crate::process_mng::process::Process;
+use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
@@ -81,25 +82,7 @@ impl ProcessManager {
 
         // actually start
         process.init();
-
         log::debug!("process init done!");
-
-        // make sure startup exception is handled properly
-        // TODO really quick & dirty
-        let portals = process.parent().unwrap().portals();
-        let startup_exc_pt = portals
-            .iter()
-            .find(|x| {
-                x.ctx().unwrap().exc_pid().0 == ExceptionEventOffset::HedronGlobalEcStartup.val()
-                    && x.ctx().unwrap().exc_pid().1 == process.pid()
-            })
-            .unwrap();
-        crate::pt_multiplex::add_callback_hook(
-            startup_exc_pt.portal_id(),
-            ProcessManager::startup_exception_handler,
-        );
-
-        log::debug!("startup portal delegated!!");
 
         pid
     }
@@ -130,6 +113,15 @@ impl ProcessManager {
     /// Looks up the process by process ID.
     pub fn lookup_process(&self, pid: ProcessId) -> Option<&Rc<Process>> {
         self.processes.get(&pid)
+    }
+
+    /// Registers [`Self::startup_exception_handler`] as the specialized handler for
+    /// the startup exception in the `roottask_exception` module.
+    pub fn register_startup_exc_callback(&self) {
+        roottask_exception::register_specialized_exc_handler(
+            ExceptionEventOffset::HedronGlobalEcStartup,
+            Self::startup_exception_handler,
+        );
     }
 
     /// Prepares the UTCB of the calling portal with the initial machine state to startup

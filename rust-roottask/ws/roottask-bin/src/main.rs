@@ -96,6 +96,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
         STACK_TOP_PTR.val(),
     );
     roottask_exception::init(manager::PROCESS_MNG.lock().root());
+    manager::PROCESS_MNG.lock().register_startup_exc_callback();
     // TODO register startup callback from manager
     // now init services
     services::init_services(manager::PROCESS_MNG.lock().root());

@@ -18,16 +18,16 @@ use libhrstd::sync::mutex::SimpleMutex;
 /// * `process` The [`Process`] where the call comes from
 /// * `utcb` The [`Utcb`] of the portal
 /// * `do_reply` If a `reply` should be made when the handler finishes, otherwise the code panics.
-pub type CallbackHook =
+pub type PTCallHandler =
     fn(pt: &Rc<PtObject>, process: &Process, utcb: &mut Utcb, do_reply: &mut bool);
 
 /// Map that enables code from the roottask to hook into the generic roottask portal
 /// callback handler.
-static PID_CALLBACK_MAP: SimpleMutex<BTreeMap<PortalIdentifier, CallbackHook>> =
+static PID_CALLBACK_MAP: SimpleMutex<BTreeMap<PortalIdentifier, PTCallHandler>> =
     SimpleMutex::new(BTreeMap::new());
 
 /// Adds an entry into [`PID_CALLBACK_MAP`].
-pub fn add_callback_hook(pid: PortalIdentifier, fnc: CallbackHook) {
+pub fn add_callback_hook(pid: PortalIdentifier, fnc: PTCallHandler) {
     PID_CALLBACK_MAP.lock().insert(pid, fnc);
 }
 

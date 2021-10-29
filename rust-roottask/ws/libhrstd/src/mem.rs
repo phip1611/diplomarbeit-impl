@@ -218,6 +218,10 @@ unsafe impl Allocator for PageAlignedAlloc {
 
 /// Page-aligned array on the heap, that ensures that the heap memory stays the same
 /// throughout the lifetime of this object (pinned). The size is fixed.
+///
+/// Used in favor of `Box::new([0; USER_STACK_SIZE`), because Box copies memory first
+/// to the stack and then to the heap (even in release build). I want to avoid stack
+/// overflows, therefore the dedicated abstraction.
 #[derive(Debug)]
 pub struct PinnedPageAlignedHeapArray<T: Copy + Debug> {
     ptr: *mut T,

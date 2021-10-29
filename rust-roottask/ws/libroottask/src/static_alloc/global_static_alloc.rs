@@ -77,7 +77,6 @@ unsafe impl<'a> GlobalAlloc for GlobalStaticChunkAllocator<'a> {
         // DON'T USE RECURSIVE ALLOCATING HERE
         // LIKE format!().. otherwise infinite loop because of the (dead)lock
 
-        // log::debug!("alloc: {:?}", layout);
         let mut lock = self.inner_allocator.lock();
         let lock = lock.as_mut().expect("allocator is uninitialized");
         let x = lock.alloc(layout);
