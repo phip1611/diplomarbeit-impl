@@ -81,7 +81,7 @@ impl Utcb {
         let ptr = self.self_ptr();
         let page_addr = ptr as usize;
         assert_eq!(page_addr % PAGE_SIZE, 0, "must be page aligned!");
-        page_addr as u64
+        (page_addr / PAGE_SIZE) as u64
     }
 
     /// Number of untyped items, alias arbitrary payload.
