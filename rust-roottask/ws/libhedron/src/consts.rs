@@ -23,5 +23,4 @@ pub const NUM_CAP_SEL: CapSel = 67108864;
 mod tests {
 
     use super::*;
-
 }

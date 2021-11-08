@@ -74,12 +74,8 @@ pub fn stdout_service_handler(
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
-    log::debug!("WAH");
-    log::debug!("WAH");
     let msg = utcb.load_data::<&str>().unwrap();
-    log::debug!("WAH");
     log::info!("STDOUT service called by PID: {}", process.pid());
-    log::debug!("WAH");
     {
         let mut writer = STDOUT_WRITER.lock();
         let res = write!(
@@ -91,7 +87,6 @@ pub fn stdout_service_handler(
         core::mem::drop(writer);
         res.unwrap();
     }
-    log::debug!("WAH");
     *do_reply = true;
 }
 

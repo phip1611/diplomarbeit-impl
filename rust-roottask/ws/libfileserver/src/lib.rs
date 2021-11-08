@@ -17,7 +17,6 @@
 #![deny(rustdoc::all)]
 #![allow(rustdoc::missing_doc_code_examples)]
 #![feature(asm)]
-#![feature(const_panic)]
 #![feature(const_ptr_offset)]
 #![feature(const_fmt_arguments_new)]
 #![feature(const_mut_refs)]

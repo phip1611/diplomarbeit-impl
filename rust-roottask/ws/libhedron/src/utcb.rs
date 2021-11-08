@@ -51,12 +51,7 @@ pub enum UtcbError {
 /// * transfer typed (NOVA-way for capability translation and delegation items
 /// * transfer untyped items (= arbitrary, context-specific data)
 /// # Exception Handling (and Answering)
-/// * See []
-///
-/// An UTCB is never constructed inside the userspace. The one provided by the kernel gets
-/// reused and refilled instead.
-///
-
+/// * See [`UtcbDataException`].
 #[repr(C, align(4096))]
 pub struct Utcb {
     head: UtcbHead,
@@ -89,7 +84,7 @@ impl Utcb {
         self.head.items as u16
     }
 
-    /// Number of untyped items.
+    /// Number of typed items.
     pub fn typed_items_count(&self) -> u16 {
         (self.head.items >> 16) as u16
     }
@@ -134,21 +129,14 @@ impl Utcb {
     }
 
     /// Loads data from the UTCB, that was stored using [`store_data`].
-    /// Returns a new, owned copy.
+    /// Returns a new, owned copy. Doesn't require heap allocations.
     pub fn load_data<'a, T: Deserialize<'a>>(&'a self) -> Result<T, UtcbError> {
         if self.untyped_items_count() == 0 {
             return Err(UtcbError::NoData);
         }
-        /*let size_untyped_item = size_of::<UntypedItem>();
-        let used_bytes = self.untyped_items_count() as usize * size_untyped_item;*/
 
-        /*let payload_bytes = &self.data.bytes()[0..used_bytes];
-        let deserialized = bincode::deserialize(payload_bytes).unwrap();*/
+        // postcard itself already encodes slices with their length properly
 
-        // I ignore untyped items check here, because postcard itself encodes
-        // the length in the array.
-
-        // it is really important, that this works without heap allocations!
         let res = postcard::from_bytes(self.data.bytes())
             .map_err(|err| UtcbError::DeserializeError(err))?;
 
@@ -159,12 +147,13 @@ impl Utcb {
     /// the "untyped item"-fature of the UTCB.
     /// Note that size is limited to [`UTCB_DATA_CAPACITY`].
     /// Ignores/overwrite any typed items in the UTCB.
+    ///
+    /// Doesn't require heap allocations.
     pub fn store_data<T: Serialize>(&mut self, data: &T) -> Result<(), UtcbError> {
         if size_of_val(data) == 0 {
             return Err(UtcbError::NoData);
         }
 
-        // it is really important, that this works without heap allocations!
         let serialized_bytes = postcard::to_slice(data, self.data.bytes_mut())
             .map_err(|_err| UtcbError::PayloadTooLarge)?;
 

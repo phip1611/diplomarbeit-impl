@@ -200,7 +200,6 @@ impl GlobalEcObject {
             obj.utcb_page_num(),
         )
         .unwrap();
-        log::debug!("WAH");
         dbg!(pd_obj.parent().unwrap().cap_sel());
         dbg!(pd_obj.cap_sel());
         dbg!(ec_sel);

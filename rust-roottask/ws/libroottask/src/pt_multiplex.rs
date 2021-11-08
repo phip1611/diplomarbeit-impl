@@ -36,7 +36,7 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
         log::debug!("got lock");
 
         // find what portal triggered the request
-        let pt = mng.lookup_portal(id).expect("there is no a valid portal?!");
+        let pt = mng.lookup_portal(id).expect("there is no valid portal?!");
         // find what PdObject used the portal
         let calling_pd = if let Some(pd) = pt.delegated_to_pd().as_ref() {
             pd.clone()
@@ -68,8 +68,11 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
             pt.local_ec().utcb_mut(),
             &mut do_reply,
         );
+        log::debug!("specialized PT handler done");
         // +++++++++++++++++++++++++++++++++++
     }
+
+    // important that all locks are dropped now!
 
     // not a convenient method in the PtObj itself, because the lock needs to be relased first!
     if do_reply {
