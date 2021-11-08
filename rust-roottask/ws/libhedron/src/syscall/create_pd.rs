@@ -4,6 +4,7 @@ use crate::capability::{
     CapSel,
     CrdNull,
 };
+use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
     generic_syscall,
     SyscallNum,
@@ -42,6 +43,14 @@ pub fn create_pd(
     cap_sel: CapSel,
     parent_pd_sel: CapSel,
 ) -> Result<(), SyscallStatus> {
+    assert!(
+        cap_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        parent_pd_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
     log::trace!(
         "syscall create_pd: pd={:?}, parent_pd={}",
         cap_sel,

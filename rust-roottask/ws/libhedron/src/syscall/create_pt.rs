@@ -1,4 +1,5 @@
 use crate::capability::CapSel;
+use crate::consts::NUM_CAP_SEL;
 use crate::mtd::Mtd;
 use crate::syscall::generic::{
     generic_syscall,
@@ -25,6 +26,18 @@ pub fn create_pt(
     // see [`super::pt_ctrl::pt_ctrl`]
     instruction_pointer: *const u64,
 ) -> Result<(), SyscallStatus> {
+    assert!(
+        new_pt_cap_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        own_pd_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        bound_ec_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
     let mut arg1 = 0;
     arg1 |= SyscallNum::CreatePt.val();
 

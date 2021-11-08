@@ -1,6 +1,7 @@
 //! PT CTRL-syscalls.
 
 use crate::capability::CapSel;
+use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
     generic_syscall,
     SyscallNum,
@@ -18,6 +19,10 @@ use crate::syscall::generic::{
 ///
 /// callback_argument is also called Portal ID in spec and supernova.
 pub fn pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> Result<(), SyscallStatus> {
+    assert!(
+        pt_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
     let mut arg1 = 0;
     arg1 |= SyscallNum::PtCtrl.val() & 0xf;
     arg1 |= pt_sel << 8;

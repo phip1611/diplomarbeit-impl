@@ -1,6 +1,7 @@
 //! create_sc syscall
 
 use crate::capability::CapSel;
+use crate::consts::NUM_CAP_SEL;
 use crate::qpd::Qpd;
 use crate::syscall::generic::{
     generic_syscall,
@@ -15,6 +16,18 @@ pub fn create_sc(
     bound_ec_sel: CapSel,
     scheduling_params: Qpd,
 ) -> Result<(), SyscallStatus> {
+    assert!(
+        cap_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        bound_ec_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        owned_pd_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
     log::trace!(
         "syscall create_sc: sel={}, pd={}, ec={}",
         cap_sel,

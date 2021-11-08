@@ -16,7 +16,8 @@ pub const NUM_EXC: usize = 32;
 /// Number of exceptions for vCPUs.
 pub const NUM_VM_EXC: usize = 256;
 
-/// Maximum of 2^26 = 67108864 capability selectors.
+/// Maximum of 2^26 = 67108864 capability selectors for kernel objects.
+/// Note that this number can be higher for memory capabilities!
 pub const NUM_CAP_SEL: CapSel = 67108864;
 
 #[cfg(test)]

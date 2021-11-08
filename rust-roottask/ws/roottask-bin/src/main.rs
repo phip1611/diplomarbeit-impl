@@ -110,8 +110,6 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     call(RootCapSpace::RoottaskStdoutServicePortal.val()).unwrap();
     log::info!("done");*/
 
-    log::debug!("{:#?}", hip.sel_num(),);
-
     log::debug!(
         "{:#?}",
         hip.mem_desc_iterator().collect::<alloc::vec::Vec<_>>()

@@ -61,9 +61,12 @@ pub fn init_services(root: &Process) {
         LOCAL_EC_STACK_TOP.val(),
         unsafe { UTCB.self_ptr() } as u64,
     );
+    log::trace!(
+        "Created local EC for all service calls (UTCB={:016x})",
+        ec.utcb_addr()
+    );
 
     // TODO rausfinden warum im portal handler the UTCB der falsche ist
-    dbg!("FOOOBAR");
     dbg!(unsafe { UTCB.self_ptr() });
     LOCAL_EC.lock().replace(Rc::downgrade(&ec));
 }

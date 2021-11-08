@@ -1,6 +1,7 @@
 //! CALL and REPLY syscalls for IPC communication.
 
 use crate::capability::CapSel;
+use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
     generic_syscall,
     SyscallNum,
@@ -10,6 +11,10 @@ use crate::syscall::generic::{
 /// Performs a blocking IPC call to the specified portal.
 /// Payload is transferred via the UTCB.
 pub fn call(portal_sel: CapSel) -> Result<(), SyscallStatus> {
+    assert!(
+        portal_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
     let mut arg1 = 0;
     arg1 |= SyscallNum::Call.val();
 

@@ -1,5 +1,10 @@
 use crate::capability::CapSel;
-use crate::consts::NUM_CPUS;
+use crate::consts::{
+    NUM_CAP_SEL,
+    NUM_CPUS,
+    NUM_EXC,
+};
+use crate::mem::PAGE_SIZE;
 use crate::syscall::generic::SyscallNum::CreateEc;
 use crate::syscall::generic::{
     generic_syscall,
@@ -139,7 +144,29 @@ fn create_ec(
     use_apic_access_page: bool,
     use_page_destination: bool,
 ) -> Result<(), SyscallStatus> {
-    log::trace!("syscall create_ec: kind={:?}, sel={}, pd={}, evt_base={}, cpu_num={}, utcb_lapic_page_num={}", kind, dest_cap_sel, parent_pd_sel, event_base_sel, cpu_num, utcb_vlapic_page_num);
+    assert!(
+        dest_cap_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        parent_pd_sel < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        event_base_sel + (NUM_EXC as u64) < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    log::trace!(
+        "syscall create_ec: kind={:?}, sel={}, pd={}, evt_base={}, cpu_num={}, utcb_lapic_page_num={}, utcb_lapic_page_num_addr={:016x}",
+        kind,
+        dest_cap_sel,
+        parent_pd_sel,
+        event_base_sel,
+        cpu_num,
+        utcb_vlapic_page_num,
+        utcb_vlapic_page_num * PAGE_SIZE as u64,
+    );
+
     let mut arg1 = 0;
     arg1 |= CreateEc.val();
     arg1 |= ((kind.val() as u64) << 4) & EcKind::BITMASK;

@@ -4,6 +4,7 @@ use crate::capability::{
     CapSel,
     Crd,
 };
+use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
     generic_syscall,
     PdCtrlSubSyscall,
@@ -118,6 +119,14 @@ pub fn pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     dest_crd: Crd<Perm, Spec, ObjSpec>,
     flags: DelegateFlags,
 ) -> Result<(), SyscallStatus> {
+    assert!(
+        source_pd < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
+    assert!(
+        dest_pd < NUM_CAP_SEL,
+        "maximum cap sel for object capabilities exceeded!"
+    );
     const SYSCALL_BITMASK: u64 = 0xf;
     const SUB_SYSCALL_BITMASK: u64 = 0x30;
     const SUB_SYSCALL_BITSHIFT: u64 = 4;

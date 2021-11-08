@@ -194,7 +194,13 @@ impl Process {
 
         // create SC-Object at the very end! Otherwise Hedron might schedule the new PD too early
         let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
-        log::trace!("created SC for PID={}", self.pid);
+
+        log::trace!(
+            "Init process done: PID={}, name={}, utcb_addr={:?}",
+            self.pid,
+            self.name,
+            self.utcb.mem_ptr()
+        );
     }
 
     /// Creates [`NUM_EXC`] new portals inside the roottask, let them point
