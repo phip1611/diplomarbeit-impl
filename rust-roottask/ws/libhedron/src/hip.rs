@@ -349,6 +349,16 @@ impl Debug for HipMem {
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(u32)]
 pub enum HipMemType {
+    // first 5 values: hidden in NOVA spec; hard to find in Hedron/NOVA Cod
+    // --> Multiboot1/2 Memory Map Entry Tags
+    AvailableMemory = 1,
+    ReservedMemory = 2,
+    AcpiReclaimableMemory = 3,
+    /// NVS: "Non-Volatile (Sleep-) Storage",
+    AcpiNVSMemory = 4,
+    /// Corrupted or otherwise reserved memory
+    BadRam,
+
     Hypervisor = -1_i32 as u32,
     MbModule = -2_i32 as u32,
 }
