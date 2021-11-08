@@ -1,6 +1,6 @@
+use crate::io_port::request_io_port;
 use core::fmt::Write;
 use libhrstd::libhedron::capability::CapSel;
-use libroottask::io_port::request_io_port;
 use x86::io::outb;
 
 /// Logger that uses I/O port 0xe9.

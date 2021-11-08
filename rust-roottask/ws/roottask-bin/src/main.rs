@@ -35,7 +35,6 @@ mod panic;
 mod roottask_heap;
 mod roottask_logger;
 mod roottask_stack;
-mod services;
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -53,9 +52,12 @@ use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::utcb::Utcb;
 use libroottask::process_mng::manager;
-use libroottask::roottask_exception;
 use libroottask::rt::userland;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
+use libroottask::{
+    roottask_exception,
+    services,
+};
 
 #[no_mangle]
 fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
@@ -97,9 +99,10 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     );
     roottask_exception::init(manager::PROCESS_MNG.lock().root());
     manager::PROCESS_MNG.lock().register_startup_exc_callback();
-    // TODO register startup callback from manager
-    // now init services
+
     services::init_services(manager::PROCESS_MNG.lock().root());
+
+    // NOW READY TO START PROCESSES
 
     /* TEST IPC
     let msg = "hallo welt 123 fooa\n";
@@ -107,12 +110,15 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     call(RootCapSpace::RoottaskStdoutServicePortal.val()).unwrap();
     log::info!("done");*/
 
-    log::debug!("Heap Usage: {}%", roottask_heap::usage());
+    log::debug!("{:#?}", hip.sel_num(),);
+
+    log::debug!(
+        "{:#?}",
+        hip.mem_desc_iterator().collect::<alloc::vec::Vec<_>>()
+    );
 
     let userland = userland::Userland::load(hip);
     userland.bootstrap();
-
-    log::debug!("Heap Usage: {}%", roottask_heap::usage());
 
     /* test: floating point + SSE registers work
     let x = 2.0;

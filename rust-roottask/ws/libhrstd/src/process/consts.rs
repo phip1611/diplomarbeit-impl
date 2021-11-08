@@ -10,4 +10,4 @@ pub type ProcessId = u64;
 pub const ROOTTASK_PROCESS_PID: ProcessId = 0;
 
 /// Max number of supported processes.
-pub const NUM_PROCESSES: u64 = 2_u64.pow(32);
+pub const NUM_PROCESSES: u64 = 2_u64.pow(6);

@@ -20,7 +20,7 @@ use alloc::rc::{
 };
 use core::convert::TryFrom;
 use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::kobjects::PtCtx::ErrorExceptionHandler;
+use libhrstd::kobjects::PtCtx::Exception;
 use libhrstd::kobjects::{
     LocalEcObject,
     PtObject,
@@ -139,9 +139,8 @@ pub fn create_exc_pt_for_process(exc_offset: u64, portal_cap_sel: CapSel) -> Rc<
         &ec,
         Mtd::all(),
         roottask_generic_portal_callback,
-        Some(ErrorExceptionHandler(exc_offset)),
+        Exception(exc_offset),
     );
-    crate::pt_multiplex::add_callback_hook(pt.portal_id(), generic_error_exception_handler);
     pt
 }
 
@@ -158,7 +157,7 @@ pub fn generic_error_exception_handler(
     // All exception portals live in the roottask, therefore their parent is the roottask.
     // Therefore we need to get the target PID (the process that triggered an exception) from the context.
     let is_roottask = process.pid() == ROOTTASK_PROCESS_PID;
-    let exc = ExceptionEventOffset::try_from(pt.ctx().unwrap().exc()).unwrap();
+    let exc = ExceptionEventOffset::try_from(pt.ctx().exc()).unwrap();
     if is_roottask {
         log::debug!(
             "caught exception {:?} from roottask via pt={}",

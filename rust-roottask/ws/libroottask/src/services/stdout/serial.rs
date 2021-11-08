@@ -1,5 +1,11 @@
 //! Serial logger.
 
+use crate::hw::serial_port::{
+    init_serial,
+    snd_serial,
+    COM1_IO_PORT,
+};
+use crate::io_port::request_io_ports;
 use core::fmt::{
     Debug,
     Write,
@@ -8,12 +14,6 @@ use libhrstd::libhedron::capability::{
     CapSel,
     CrdPortIO,
 };
-use libroottask::hw::serial_port::{
-    init_serial,
-    snd_serial,
-    COM1_IO_PORT,
-};
-use libroottask::io_port::request_io_ports;
 
 /// Logger that uses I/O port 0x3f8. See `serial_port.rs`.
 ///

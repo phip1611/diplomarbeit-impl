@@ -166,9 +166,9 @@ impl Process {
             self.name
         );
 
-        let pd_cap_in_root = RootCapSpace::ProcessPdBase.val() + self.pid;
-        let ec_cap_in_root = RootCapSpace::ProcessEcBase.val() + self.pid;
-        let sc_cap_in_root = RootCapSpace::ProcessScBase.val() + self.pid;
+        let pd_cap_in_root = RootCapSpace::calc_pd_sel(self.pid);
+        let ec_cap_in_root = RootCapSpace::calc_gl_ec_sel(self.pid);
+        let sc_cap_in_root = RootCapSpace::calc_sc_sel(self.pid);
 
         let stack_top_ptr = unsafe { self.stack.mem_ptr().add(USER_STACK_SIZE).sub(64).add(8) };
 
@@ -183,14 +183,14 @@ impl Process {
         );
         log::trace!("created EC for PID={}", self.pid);
 
-        let _cpu_num = 0;
-        let base_cap_sel = RootCapSpace::ProcessExcPtBase.val() + (NUM_PROCESSES * NUM_EXC as u64);
-        self.init_exc_portals(base_cap_sel);
+        self.init_exc_portals(RootCapSpace::calc_exc_pt_sel_base(self.pid));
 
         self.init_map_utcb();
         self.init_map_stack();
         self.init_map_elf_load_segments();
-        self.init_service_portals();
+
+        // create service pts for the new process
+        crate::services::create_and_delegate_service_pts(self);
 
         // create SC-Object at the very end! Otherwise Hedron might schedule the new PD too early
         let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
@@ -350,29 +350,6 @@ impl Process {
                 MemCapPermissions::all(),
             );
         });
-    }
-
-    /// Delegate the service portals of well-known services
-    /// into the new PD. We do this for every process.
-    fn init_service_portals(&self) {
-        // TODO instead of delegating of the original portal maybe a dedicated portal for
-        //  each process?!
-        pd_ctrl_delegate(
-            self.parent().unwrap().pd_obj().cap_sel(),
-            self.pd_obj().cap_sel(),
-            CrdObjPT::new(
-                RootCapSpace::RoottaskStdoutServicePortal.val(),
-                0,
-                PTCapPermissions::CALL,
-            ),
-            CrdObjPT::new(
-                UserAppCapSpace::StdoutServicePT.val(),
-                0,
-                PTCapPermissions::CALL,
-            ),
-            DelegateFlags::default(),
-        )
-        .unwrap();
     }
 
     pub fn pid(&self) -> ProcessId {

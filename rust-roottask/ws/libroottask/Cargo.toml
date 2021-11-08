@@ -15,8 +15,8 @@ x86 = "0.41"
 bitflags = "1.3"
 enum-iterator = "0.7"
 tar-no-std = { version = "0.1", features = ["alloc"] }
-# xmas-elf = "0.8"
-# elf_rs = "0.1"
-# elf_rs = { path = "/home/pschuster/dev/elf_rs" }
-elf_rs = { git = "https://github.com/phip1611/elf_rs", branch = "program-header-flags" }
 # tar-no-std = { path = "../../../../dev/tar-no_std", features = ["alloc"] }
+runs_inside_qemu = "1.1"
+# runs_inside_qemu = { path = "/home/pschuster/dev/runs-inside-qemu" }
+# elf_rs = "0.1"
+elf_rs = { git = "https://github.com/phip1611/elf_rs", branch = "program-header-flags" }

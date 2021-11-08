@@ -200,12 +200,16 @@ impl GlobalEcObject {
             obj.utcb_page_num(),
         )
         .unwrap();
+        log::debug!("WAH");
+        dbg!(pd_obj.parent().unwrap().cap_sel());
+        dbg!(pd_obj.cap_sel());
+        dbg!(ec_sel);
         pd_ctrl_delegate(
             pd_obj.parent().unwrap().cap_sel(),
             pd_obj.cap_sel(),
             CrdObjEC::new(ec_sel, 0, ECCapPermissions::empty()),
             CrdObjEC::new(UserAppCapSpace::Ec.val(), 0, ECCapPermissions::empty()),
-            DelegateFlags::new(false, false, false, false, 0),
+            DelegateFlags::default(),
         )
         .unwrap();
         obj

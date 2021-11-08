@@ -53,5 +53,6 @@ pub mod mem;
 pub mod process;
 #[cfg(feature = "rt")]
 pub mod rt;
+pub mod service_ids;
 pub mod sync;
 pub mod uaddress_space;

@@ -21,17 +21,8 @@ use libhrstd::sync::mutex::SimpleMutex;
 pub type PTCallHandler =
     fn(pt: &Rc<PtObject>, process: &Process, utcb: &mut Utcb, do_reply: &mut bool);
 
-/// Map that enables code from the roottask to hook into the generic roottask portal
-/// callback handler.
-static PID_CALLBACK_MAP: SimpleMutex<BTreeMap<PortalIdentifier, PTCallHandler>> =
-    SimpleMutex::new(BTreeMap::new());
-
-/// Adds an entry into [`PID_CALLBACK_MAP`].
-pub fn add_callback_hook(pid: PortalIdentifier, fnc: PTCallHandler) {
-    PID_CALLBACK_MAP.lock().insert(pid, fnc);
-}
-
 /// Common entry for all portals of the roottask. Multiplexes all portal calls through this function.
+/// A call can either be a service all or an exception call.
 pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
     log::info!("generic portal callback called with argument: {}", id);
 
@@ -55,20 +46,28 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
         let calling_process = mng
             .lookup_process(calling_pd.pid())
             .expect("unknown process!");
+        // stack_top of the local EC that handles the call. Important for reply() syscall
         stack_top = pt.stack_top();
         // +++++++++++++++++++++++++++++++++++
         // here goes portal-specific handling
-        let map = PID_CALLBACK_MAP.lock();
-        if let Some(hook) = map.get(&id) {
-            hook(
-                &pt,
-                calling_process,
-                pt.local_ec().utcb_mut(),
-                &mut do_reply,
-            )
+
+        let cb: PTCallHandler = if pt.ctx().is_exception_pt() {
+            crate::roottask_exception::generic_error_exception_handler
+        } else if pt.ctx().is_service_pt() {
+            crate::services::handle_service_call
         } else {
-            log::debug!("no specific portal callback handler registered");
-        }
+            panic!("no portal callback handler known for given PT ctx");
+        };
+
+        dbg!(pt.local_ec());
+        dbg!(pt.local_ec().utcb().self_ptr());
+
+        cb(
+            &pt,
+            calling_process,
+            pt.local_ec().utcb_mut(),
+            &mut do_reply,
+        );
         // +++++++++++++++++++++++++++++++++++
     }
 

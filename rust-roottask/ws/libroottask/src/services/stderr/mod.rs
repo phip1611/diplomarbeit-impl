@@ -1,5 +1,17 @@
+use crate::process_mng::process::Process;
+use crate::pt_multiplex::roottask_generic_portal_callback;
+use alloc::rc::Rc;
 use core::fmt::Write;
+use libhrstd::kobjects::{
+    LocalEcObject,
+    PtCtx,
+    PtObject,
+};
+use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::hip::HIP;
+use libhrstd::libhedron::mtd::Mtd;
+use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::service_ids::ServiceId;
 use libhrstd::sync::mutex::{
     SimpleMutex,
     SimpleMutexGuard,
@@ -21,16 +33,35 @@ pub fn writer_mut<'a>() -> SimpleMutexGuard<'a, StderrWriter> {
     STDERR_WRITER.lock()
 }
 
-/// Initializes the service portals for the functionality of this module.
-/// Must be called after [`init_writer`].
-pub fn init_service() {
-    todo!("must implement portals");
+/// Creates a new STDERR service PT, which can be delegated to a new process.
+pub fn create_service_pt(base_cap_sel: CapSel, ec: &Rc<LocalEcObject>) -> Rc<PtObject> {
+    let service = ServiceId::StderrService;
+    // adds itself to the local EC
+    PtObject::create(
+        base_cap_sel + service.val(),
+        &ec,
+        Mtd::empty(),
+        roottask_generic_portal_callback,
+        PtCtx::Service(service),
+    )
+}
+
+/// Handles the functionality of the STDERR Portal.
+pub fn stderr_service_handler(
+    pt: &Rc<PtObject>,
+    process: &Process,
+    utcb: &mut Utcb,
+    do_reply: &mut bool,
+) {
+    // currently STDERR maps to STDOUT
+    super::stdout::stdout_service_handler(pt, process, utcb, do_reply);
 }
 
 /// In our use-case, stderr writes to the same final destination as stderr.
 ///
 /// THERE SHOULD NEVER BE MORE THAN A SINGLE INSTANCE OF THIS.
 /// [`STDERR_WRITER`] is the only instance allowed!
+#[derive(Debug)]
 pub struct StderrWriter {
     init: bool,
 }

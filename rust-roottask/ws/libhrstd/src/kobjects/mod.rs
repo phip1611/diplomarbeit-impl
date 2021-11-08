@@ -22,10 +22,12 @@ mod tests {
         GlobalEcObject,
         LocalEcObject,
         PdObject,
+        PtCtx,
         PtObject,
         ScObject,
     };
     use crate::process::consts::ROOTTASK_PROCESS_PID;
+    use crate::service_ids::ServiceId;
     use libhedron::mtd::Mtd;
 
     #[test]
@@ -71,7 +73,13 @@ mod tests {
         assert_eq!(local_ec_1.pd().cap_sel(), pd_sel);
 
         assert_eq!(local_ec_1.portals().len(), 0);
-        let pt1 = PtObject::new(pt_1_sel, &local_ec_1, Mtd::all(), 0, None);
+        let pt1 = PtObject::new(
+            pt_1_sel,
+            &local_ec_1,
+            Mtd::all(),
+            0,
+            PtCtx::Service(ServiceId::StdoutService),
+        );
         assert_eq!(local_ec_1.portals().len(), 1);
         assert_eq!(pt1.local_ec().pd().cap_sel(), pd_sel);
 
@@ -99,7 +107,13 @@ mod tests {
         let lec0 = LocalEcObject::new(lec_0_sel, &pd0, 0xd000, 0xf000);
         let pd1 = PdObject::new(1, None, pd_1_sel);
 
-        let pt0 = PtObject::new(pt_0_sel, &lec0, Mtd::DEFAULT, 1337, None);
+        let pt0 = PtObject::new(
+            pt_0_sel,
+            &lec0,
+            Mtd::DEFAULT,
+            1337,
+            PtCtx::Service(ServiceId::StdoutService),
+        );
 
         pd1.attach_delegated_pt(pt0.clone());
         pt0.attach_delegated_to_pd(&pd1);

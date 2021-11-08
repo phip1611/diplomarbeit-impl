@@ -1,30 +1,30 @@
+use crate::process_mng::process::Process;
+use crate::pt_multiplex::roottask_generic_portal_callback;
+use crate::services::stdout::debugcon::DebugconWriter;
+use crate::services::stdout::serial::SerialWriter;
+use crate::stack::StaticStack;
 use alloc::rc::Rc;
 use core::fmt::{
     Debug,
     Write,
 };
-
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::{
     LocalEcObject,
+    PtCtx,
     PtObject,
 };
+use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PageAligned;
+use libhrstd::service_ids::ServiceId;
 use libhrstd::sync::mutex::{
     SimpleMutex,
     SimpleMutexGuard,
 };
 use runs_inside_qemu::runs_inside_qemu;
-
-use libroottask::process_mng::process::Process;
-use libroottask::pt_multiplex::roottask_generic_portal_callback;
-use libroottask::stack::StaticStack;
-
-use crate::services::stdout::debugcon::DebugconWriter;
-use crate::services::stdout::serial::SerialWriter;
 
 mod debugcon;
 mod serial;
@@ -54,32 +54,44 @@ pub fn writer_mut<'a>() -> SimpleMutexGuard<'a, StdoutWriter> {
     STDOUT_WRITER.lock()
 }
 
-/// Initializes the service portals for the functionality of this module.
-/// Must be called after [`init_writer`].
-pub fn init_service(roottask: &Process) {
-    let ec = LocalEcObject::create(
-        RootCapSpace::RoottaskStdoutServiceLocalEc.val(),
-        &roottask.pd_obj(),
-        unsafe { STDOUT_SERVICE_STACK.get_stack_top_ptr() } as u64,
-        unsafe { STDOUT_SERVICE_UTCB.page_addr() } as u64,
-    );
-    let pt = PtObject::create(
-        RootCapSpace::RoottaskStdoutServicePortal.val(),
+/// Creates a new STDOUT service PT, which can be delegated to a new process.
+pub fn create_service_pt(base_cap_sel: CapSel, ec: &Rc<LocalEcObject>) -> Rc<PtObject> {
+    let service = ServiceId::StdoutService;
+    // adds itself to the local EC
+    PtObject::create(
+        base_cap_sel + service.val(),
         &ec,
         Mtd::empty(),
         roottask_generic_portal_callback,
-        None,
-    );
-    libroottask::pt_multiplex::add_callback_hook(pt.portal_id(), stdout_service_handler);
+        PtCtx::Service(service),
+    )
 }
 
-fn stdout_service_handler(
+/// Handles the functionality of the STDOUT Portal.
+pub fn stdout_service_handler(
     _pt: &Rc<PtObject>,
-    _process: &Process,
+    process: &Process,
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
-    log::info!("got via IPC: {}", utcb.load_data::<&str>().unwrap());
+    log::debug!("WAH");
+    log::debug!("WAH");
+    let msg = utcb.load_data::<&str>().unwrap();
+    log::debug!("WAH");
+    log::info!("STDOUT service called by PID: {}", process.pid());
+    log::debug!("WAH");
+    {
+        let mut writer = STDOUT_WRITER.lock();
+        let res = write!(
+            &mut writer,
+            "[STDOUT PID={}] {}",
+            process.pid(),
+            utcb.load_data::<&str>().unwrap()
+        );
+        core::mem::drop(writer);
+        res.unwrap();
+    }
+    log::debug!("WAH");
     *do_reply = true;
 }
 

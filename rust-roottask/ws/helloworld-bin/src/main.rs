@@ -29,6 +29,7 @@ mod panic;
 
 #[no_mangle]
 fn start() {
-    stdout_write("hello from rust hello world!");
-    loop {}
+    loop {
+        stdout_write("hello from rust hello world!");
+    }
 }

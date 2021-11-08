@@ -46,5 +46,6 @@ pub mod process_mng;
 pub mod pt_multiplex;
 pub mod roottask_exception;
 pub mod rt;
+pub mod services;
 pub mod stack;
 pub mod static_alloc;

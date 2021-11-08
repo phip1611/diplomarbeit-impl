@@ -3,6 +3,7 @@ use crate::kobjects::{
     PdObject,
 };
 use crate::libhedron::mtd::Mtd;
+use crate::service_ids::ServiceId;
 use crate::util::global_counter::GlobalIncrementingCounter;
 use alloc::rc::{
     Rc,
@@ -33,24 +34,40 @@ pub static PORTAL_IDENTIFIER_COUNTER: GlobalIncrementingCounter = GlobalIncremen
 /// Holds contextual information about a [`PtObject`]. This helps the callback
 /// to better understand, what portal was called and why **if multiple portals are
 /// multiplexed through the same callback entry function**.
-///
-/// It is important, that this data is Clone/Copy. This way it can be copied out
-/// from the [`PtObject`], which enables the dropping of any locks, while the
-/// data can still be used.
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug)]
 pub enum PtCtx {
     /// Portal is responsible for handling error exceptions. The payload contains the
     /// exception offset (Starting by 0). See also NUM_EXC and ExceptionEventOffset.
-    ErrorExceptionHandler(u64),
+    Exception(u64),
+    /// Portal call is a service call.
+    Service(ServiceId),
 }
 
 impl PtCtx {
     /// Returns the err code.
-    pub fn exc(self) -> u64 {
+    pub fn exc(&self) -> u64 {
         match self {
-            PtCtx::ErrorExceptionHandler(err) => err,
-            // _ => panic!("invalid variant"),
+            PtCtx::Exception(err) => *err,
+            _ => panic!("invalid variant"),
         }
+    }
+    /// Returns the service id.
+    pub fn service_id(&self) -> ServiceId {
+        match self {
+            PtCtx::Service(id) => *id,
+            _ => panic!("invalid variant"),
+        }
+    }
+
+    pub fn is_exception_pt(&self) -> bool {
+        match self {
+            PtCtx::Exception(_) => true,
+            PtCtx::Service(_) => false,
+        }
+    }
+
+    pub fn is_service_pt(&self) -> bool {
+        !self.is_exception_pt()
     }
 }
 
@@ -66,7 +83,7 @@ pub struct PtObject {
     local_ec: Weak<LocalEcObject>,
     portal_id: PortalIdentifier,
     mtd: Mtd,
-    ctx: Option<PtCtx>,
+    ctx: PtCtx,
     delegated_to_pd: RefCell<Option<Weak<PdObject>>>,
 }
 
@@ -77,8 +94,9 @@ impl PtObject {
         local_ec: &Rc<LocalEcObject>,
         mtd: Mtd,
         portal_entry_fn: PtEntryFn,
-        ctx: Option<PtCtx>,
+        ctx: PtCtx,
     ) -> Rc<Self> {
+        log::trace!("created PT with sel={}", pt_sel);
         create_pt(
             pt_sel,
             Self::pd_sel(local_ec),
@@ -102,7 +120,7 @@ impl PtObject {
         local_ec: &Rc<LocalEcObject>,
         mtd: Mtd,
         portal_id: PortalIdentifier,
-        ctx: Option<PtCtx>,
+        ctx: PtCtx,
     ) -> Rc<Self> {
         let obj = Rc::new(Self {
             cap_sel: pt_sel,
@@ -148,8 +166,8 @@ impl PtObject {
 
     /// Returns an owned copy, which means possible locks around `&self` can be dropped
     /// while this is still in use.
-    pub fn ctx(&self) -> Option<PtCtx> {
-        self.ctx.clone()
+    pub fn ctx(&self) -> &PtCtx {
+        &self.ctx
     }
 
     /// Store the PD object where the PT was delegated to inside the PT.

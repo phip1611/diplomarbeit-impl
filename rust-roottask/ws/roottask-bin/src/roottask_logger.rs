@@ -98,7 +98,7 @@ impl GenericLogger {
         );
 
         if res.is_err() {
-            let msg_too_long = "<LOG MSG TOO LONG; TRUNCATED>";
+            let msg_too_long = "<LOG MSG TOO LONG; TRUNCATED>\n";
             unsafe { buf.set_len(buf.len() - msg_too_long.len()) };
             let _ = buf.write_str(msg_too_long);
         }

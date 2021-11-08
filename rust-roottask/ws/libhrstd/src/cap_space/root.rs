@@ -5,17 +5,25 @@ use crate::libhedron::consts::{
     NUM_CPUS,
     NUM_EXC,
 };
-use crate::process::consts::NUM_PROCESSES;
+use crate::process::consts::{
+    ProcessId,
+    NUM_PROCESSES,
+};
+use crate::service_ids::ServiceId;
 use enum_iterator::IntoEnumIterator;
 
 const PROCESS_PD_BASE: u64 = 100;
-const PROCESS_PD_END: u64 = PROCESS_PD_BASE + NUM_PROCESSES;
+const PROCESS_PD_END: u64 = RootCapSpace::calc_pd_sel(NUM_PROCESSES) - 1;
 const PROCESS_EC_BASE: u64 = PROCESS_PD_END + 1;
-const PROCESS_EC_END: u64 = PROCESS_EC_BASE + (NUM_PROCESSES * NUM_CPUS as u64);
+const PROCESS_EC_END: u64 = RootCapSpace::calc_gl_ec_sel(NUM_PROCESSES) - 1;
 const PROCESS_SC_BASE: u64 = PROCESS_EC_END + 1;
-const PROCESS_SC_END: u64 = PROCESS_SC_BASE + NUM_PROCESSES;
+const PROCESS_SC_END: u64 = RootCapSpace::calc_sc_sel(NUM_PROCESSES) - 1;
 const PROCESS_EXC_PT_BASE: u64 = PROCESS_SC_END + 1;
-const PROCESS_EXC_PT_END: u64 = PROCESS_EXC_PT_BASE + (NUM_PROCESSES * NUM_EXC as u64);
+const PROCESS_EXC_PT_END: u64 =
+    RootCapSpace::calc_exc_pt_sel_base(NUM_PROCESSES) + NUM_EXC as u64 - 1;
+const PROCESS_SERVICE_PT_BASE: u64 = PROCESS_EXC_PT_END + 1;
+const PROCESS_SERVICE_PT_END: u64 =
+    RootCapSpace::calc_service_pt_sel_base(NUM_PROCESSES as u64) + ServiceId::count() - 1;
 
 /// Describes the capability space of the roottask. Party determinined by Hedron,
 /// the rest is a choice by me. Some of the capabilities stand also inside the HIP.
@@ -42,10 +50,8 @@ pub enum RootCapSpace {
     /// Exception-portals shall be attached to this local EC.
     RootExceptionLocalEc = 35,
 
-    /// The CapSel for the local EC for the STDOUT service portal.
-    RoottaskStdoutServiceLocalEc = 36,
-    /// CapSel for the portal for the STDOUT service,
-    RoottaskStdoutServicePortal = 37,
+    /// The CapSel for the local EC that handles all services.
+    RootServiceLocalEc = 36,
 
     /// Base CapSel for the PD of a process. This + PID => capability index offset
     ProcessPdBase = PROCESS_PD_BASE,
@@ -62,10 +68,15 @@ pub enum RootCapSpace {
     /// Last inclusive index relative to [`ProcessScBase`].
     ProcessScEnd = PROCESS_SC_END,
 
-    /// Base CapSel for the exception portals of a process. This + PID + NUM-EXC => cap index offset
+    /// Base CapSel for the exception portals of a process. This + PID * CPU_NUM * NUM-EXC => cap index offset
     ProcessExcPtBase = PROCESS_EXC_PT_BASE,
     /// Last inclusive index relative to [`ProcessExcPtBase`].
     ProcessExcPtEnd = PROCESS_EXC_PT_END,
+
+    /// Base CapSel for the service portals of a process. This + PID * SERVICE_ID => cap index
+    ServicePtBase = PROCESS_SERVICE_PT_BASE,
+    /// Last inclusive index relative to [`ProcessServicePtBase`].
+    ServicePtEnd = PROCESS_SERVICE_PT_END,
     _Max,
 }
 
@@ -73,6 +84,31 @@ impl RootCapSpace {
     /// Returns the numeric value.
     pub const fn val(self) -> CapSel {
         self as _
+    }
+
+    /// Calcs the cap sel in the roottask for the PD for a given process.
+    pub const fn calc_pd_sel(pid: ProcessId) -> CapSel {
+        PROCESS_PD_BASE + pid
+    }
+
+    /// Calcs the cap sel in the roottask for the global EC for a given process.
+    pub const fn calc_gl_ec_sel(pid: ProcessId) -> CapSel {
+        PROCESS_EC_BASE + pid
+    }
+
+    /// Calcs the cap sel in the roottask for the SC for a given process.
+    pub const fn calc_sc_sel(pid: ProcessId) -> CapSel {
+        PROCESS_SC_BASE + pid
+    }
+
+    /// Calcs the cap sel base in the roottask for the exception PT for a given process.
+    pub const fn calc_exc_pt_sel_base(pid: ProcessId) -> CapSel {
+        PROCESS_EXC_PT_BASE + (pid * NUM_EXC as u64) + pid
+    }
+
+    /// Calcs the cap sel base in the roottask for the service PT for a given process.
+    pub const fn calc_service_pt_sel_base(pid: ProcessId) -> CapSel {
+        PROCESS_SERVICE_PT_BASE + (pid * ServiceId::count()) + pid
     }
 }
 
