@@ -16,16 +16,12 @@ pub const NUM_EXC: usize = 32;
 /// Number of exceptions for vCPUs.
 pub const NUM_VM_EXC: usize = 256;
 
-/// Maximum 2^52 = 4503599627370496.
-pub const NUM_CAP_SEL: CapSel = 0x0010_0000_0000_0000_u64;
+/// Maximum of 2^26 = 67108864 capability selectors.
+pub const NUM_CAP_SEL: CapSel = 67108864;
 
 #[cfg(test)]
 mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_num_cap_sel() {
-        assert_eq!(NUM_CAP_SEL, 4503599627370496);
-    }
 }
