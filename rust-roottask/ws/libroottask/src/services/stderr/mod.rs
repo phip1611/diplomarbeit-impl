@@ -48,13 +48,22 @@ pub fn create_service_pt(base_cap_sel: CapSel, ec: &Rc<LocalEcObject>) -> Rc<PtO
 
 /// Handles the functionality of the STDERR Portal.
 pub fn stderr_service_handler(
-    pt: &Rc<PtObject>,
+    _pt: &Rc<PtObject>,
     process: &Process,
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
     // currently STDERR maps to STDOUT
-    super::stdout::stdout_service_handler(pt, process, utcb, do_reply);
+    let msg = utcb.load_data::<&str>().unwrap();
+    {
+        let mut writer = STDERR_WRITER.lock();
+        let res = write!(&mut writer, "[STDERR PID={}] {}\n", process.pid(), msg,);
+        // drop before unwrap, because otherwise deadlock happens on panic
+        // (panic needs lock to STDOUT_WRITER)
+        core::mem::drop(writer);
+        res.unwrap();
+    }
+    *do_reply = true;
 }
 
 /// In our use-case, stderr writes to the same final destination as stderr.

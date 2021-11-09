@@ -63,7 +63,6 @@ pub fn stdout_service_handler(
     do_reply: &mut bool,
 ) {
     let msg = utcb.load_data::<&str>().unwrap();
-    log::info!("STDOUT service called by PID: {}", process.pid());
     {
         let mut writer = STDOUT_WRITER.lock();
         let res = write!(&mut writer, "[STDOUT PID={}] {}\n", process.pid(), msg,);

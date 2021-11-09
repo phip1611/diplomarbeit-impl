@@ -23,13 +23,15 @@
 #[macro_use]
 extern crate alloc;
 
+use libhrstd::rt::services::stderr::stderr_write;
 use libhrstd::rt::services::stdout::stdout_write;
 
 mod panic;
 
 #[no_mangle]
 fn start() {
-    loop {
-        stdout_write("hello from rust hello world!");
-    }
+    let msg = "Hallo Welt Lorem Ipsum Dolor sit Damet.";
+    stdout_write(msg);
+    stderr_write(msg);
+    loop {}
 }
