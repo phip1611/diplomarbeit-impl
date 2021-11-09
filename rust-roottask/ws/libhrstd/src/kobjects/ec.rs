@@ -178,6 +178,7 @@ pub struct GlobalEcObject {
     ec_sel: CapSel,
     // the top of the stack ptr for this global EC
     stack_top_ptr: u64,
+    /// UTCB-addr in the address space of the targed PD.
     utcb_addr: u64,
 }
 
@@ -200,9 +201,6 @@ impl GlobalEcObject {
             obj.utcb_page_num(),
         )
         .unwrap();
-        dbg!(pd_obj.parent().unwrap().cap_sel());
-        dbg!(pd_obj.cap_sel());
-        dbg!(ec_sel);
         pd_ctrl_delegate(
             pd_obj.parent().unwrap().cap_sel(),
             pd_obj.cap_sel(),

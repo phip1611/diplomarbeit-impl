@@ -402,7 +402,6 @@ bitflags::bitflags! {
 /// stored at the end of the [`HIP`].
 #[derive(Debug)]
 pub struct HipMemDescIterator<'a> {
-    hip: &'a HIP,
     mem_desc_count: usize,
     iteration_counter: usize,
     slice: &'a [HipMem],
@@ -414,7 +413,6 @@ impl<'a> HipMemDescIterator<'a> {
         let count = hip.mem_desc_count();
         let slice = unsafe { core::slice::from_raw_parts(hip._mem_desc_arr.as_ptr(), count) };
         Self {
-            hip,
             mem_desc_count: count,
             iteration_counter: 0,
             slice,
@@ -432,12 +430,6 @@ impl<'a> Iterator for HipMemDescIterator<'a> {
         let elem = &self.slice[self.iteration_counter];
         self.iteration_counter += 1;
         Some(elem)
-    }
-
-    /// Reduces memory allocations; pollutes my log less :D
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        const EXPECTED_ELEMENTS: usize = 15;
-        (EXPECTED_ELEMENTS - self.iteration_counter, None)
     }
 }
 

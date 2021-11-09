@@ -63,6 +63,7 @@ use libhrstd::uaddress_space::{
     USER_STACK_SIZE,
     VIRT_STACK_BOTTOM_PAGE_NUM,
     VIRT_STACK_TOP,
+    VIRT_UTCB_ADDR,
     VIRT_UTCB_PAGE_NUM,
 };
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
@@ -178,8 +179,10 @@ impl Process {
         let ec = GlobalEcObject::create(
             ec_cap_in_root,
             &pd,
-            self.utcb.mem_ptr() as u64,
-            stack_top_ptr as u64,
+            // self.utcb.mem_ptr() as u64,
+            VIRT_UTCB_ADDR,
+            // set in Startup-Exception anyway
+            0,
         );
         log::trace!("created EC for PID={}", self.pid);
 
@@ -242,7 +245,7 @@ impl Process {
             (self.utcb.page_num() as usize * PAGE_SIZE) as *const u64,
             self.parent().unwrap().pd_obj().cap_sel(),
             VIRT_UTCB_PAGE_NUM,
-            (VIRT_UTCB_PAGE_NUM as usize * PAGE_SIZE) as *const u64,
+            VIRT_UTCB_ADDR,
             self.pd_obj().cap_sel(),
             0,
             1

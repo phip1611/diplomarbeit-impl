@@ -8,6 +8,7 @@ use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
 };
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::syscall::ipc::reply;
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::sync::mutex::SimpleMutex;
@@ -62,12 +63,31 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
         dbg!(pt.local_ec());
         dbg!(pt.local_ec().utcb().self_ptr());
 
+        /*if pt.ctx().is_service_pt() {
+            let utcb_ptr = calling_process
+                .pd_obj()
+                .global_ec()
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .utcb_page_num()
+                * PAGE_SIZE as u64;
+            let utcb_ptr = utcb_ptr as *mut Utcb;
+            cb(
+                &pt,
+                calling_process,
+                unsafe { utcb_ptr.as_mut().unwrap() },
+                &mut do_reply,
+            );
+        } else {*/
         cb(
             &pt,
             calling_process,
             pt.local_ec().utcb_mut(),
             &mut do_reply,
         );
+        //}
+
         log::debug!("specialized PT handler done");
         // +++++++++++++++++++++++++++++++++++
     }

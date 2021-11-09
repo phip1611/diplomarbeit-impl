@@ -108,8 +108,6 @@ pub fn create_and_delegate_service_pts(process: &Process) {
 
     // local EC for all service calls
     let ec = LOCAL_EC.lock().as_ref().unwrap().upgrade().unwrap();
-    dbg!("FOOOBAR");
-    dbg!(ec.utcb().self_ptr());
 
     let stdout_pt = stdout::create_service_pt(cap_base_sel, &ec);
     log::trace!("created stdout pt");
