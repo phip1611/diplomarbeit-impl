@@ -17,7 +17,7 @@ use libhrstd::process::consts::{
     ROOTTASK_PROCESS_PID,
 };
 use libhrstd::sync::mutex::SimpleMutex;
-use libhrstd::uaddress_space::VIRT_STACK_TOP;
+use libhrstd::uaddress_space::USER_STACK_TOP;
 
 /// The global instance for the roottask to manage all processes.
 pub static PROCESS_MNG: SimpleMutex<ProcessManager> = SimpleMutex::new(ProcessManager::new());
@@ -143,7 +143,7 @@ impl ProcessManager {
         let utcb = utcb.exception_data_mut();
         utcb.mtd = Mtd::RIP_LEN | Mtd::RSP;
         // todo future work: figure out what global EC triggered this (multithreading, multiple stacks)
-        utcb.rsp = VIRT_STACK_TOP;
+        utcb.rsp = USER_STACK_TOP;
         utcb.rip = elf.header().entry_point();
         *do_reply = true;
     }

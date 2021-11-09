@@ -1,10 +1,7 @@
 //! See [`CapabilitySpace`].
 
 use crate::libhedron::capability::CapSel;
-use crate::libhedron::consts::{
-    NUM_CPUS,
-    NUM_EXC,
-};
+use crate::libhedron::consts::NUM_EXC;
 use crate::process::consts::{
     ProcessId,
     NUM_PROCESSES,

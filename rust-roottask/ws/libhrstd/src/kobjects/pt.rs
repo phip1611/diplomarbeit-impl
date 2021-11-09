@@ -155,12 +155,12 @@ impl PtObject {
 
     /// Returns the top of the stack address from the corresponding local EC.
     pub fn stack_top(&self) -> u64 {
-        self.local_ec.upgrade().unwrap().stack_top_ptr()
+        self.local_ec().stack_top_ptr()
     }
 
     /// Returns a mutable reference to the corresponding Utcb.
     pub fn utcb_mut(&self) -> &mut Utcb {
-        let utcb_addr = self.local_ec.upgrade().unwrap().utcb_page_num() * PAGE_SIZE as u64;
+        let utcb_addr = self.local_ec().utcb_page_num() * PAGE_SIZE as u64;
         unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() }
     }
 

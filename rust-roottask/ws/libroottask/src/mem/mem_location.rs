@@ -112,21 +112,11 @@ impl<T: MemLocationOwned> MemLocation<T> {
 mod tests {
     use super::*;
     use libhrstd::libhedron::mem::PAGE_SIZE;
-    use libhrstd::libhedron::utcb::Utcb;
-    use libhrstd::mem::{
-        PageAlignedAlloc,
-        PinnedPageAlignedHeapArray,
-    };
+    use libhrstd::mem::PinnedPageAlignedHeapArray;
     use libhrstd::uaddress_space::USER_STACK_SIZE;
 
     #[test]
     fn test_page_aligned_mem_location() {
-        let utcb = Box::new_in(Utcb::new(), PageAlignedAlloc);
-        let utcb_page_num = utcb.page_num();
-        let mem = MemLocation::Owned(utcb);
-        assert_eq!(mem.mem_ptr() as usize % PAGE_SIZE, 0);
-        assert_eq!(mem.page_num(), utcb_page_num);
-
         let mem = MemLocation::Owned(PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE));
         assert_eq!(mem.size_in_pages() as usize, USER_STACK_SIZE / PAGE_SIZE);
         assert!(mem.page_num() > 0);

@@ -3,7 +3,6 @@ use crate::mem::{
     MemLocation,
 };
 use crate::roottask_exception;
-use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::rc::{
     Rc,
@@ -29,7 +28,6 @@ use elf_rs::{
     ProgramType,
 };
 use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::cap_space::user::UserAppCapSpace;
 use libhrstd::kobjects::{
     GlobalEcObject,
     PdObject,
@@ -39,7 +37,6 @@ use libhrstd::kobjects::{
 };
 use libhrstd::libhedron::capability::{
     CapSel,
-    CrdMem,
     CrdObjPT,
     MemCapPermissions,
     PTCapPermissions,
@@ -52,19 +49,16 @@ use libhrstd::libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
 };
-use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::mem::PinnedPageAlignedHeapArray;
 use libhrstd::process::consts::{
     ProcessId,
-    NUM_PROCESSES,
     ROOTTASK_PROCESS_PID,
 };
 use libhrstd::uaddress_space::{
+    USER_STACK_BOTTOM_PAGE_NUM,
     USER_STACK_SIZE,
-    VIRT_STACK_BOTTOM_PAGE_NUM,
-    VIRT_STACK_TOP,
-    VIRT_UTCB_ADDR,
-    VIRT_UTCB_PAGE_NUM,
+    USER_STACK_TOP,
+    USER_UTCB_ADDR,
 };
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -90,9 +84,6 @@ pub struct Process {
     // stack with size USER_STACK_SIZE for the main global EC
     // todo so far not per thread
     stack: MemLocation<PinnedPageAlignedHeapArray<u8>>,
-    // todo so far not per thread
-    // UTCB for the main global EC. UTCB itself has align property already.
-    utcb: MemLocation<Box<Utcb>>,
 }
 
 impl Process {
@@ -119,7 +110,6 @@ impl Process {
             elf_file: None,
             name: "roottask".to_string(),
             stack: MemLocation::new_external(stack_btm_addr / PAGE_SIZE as u64, stack_size),
-            utcb: MemLocation::new_external(utcb_addr / PAGE_SIZE as u64, PAGE_SIZE as u64),
             state: Cell::new(ProcessState::Created),
             parent: None,
         })
@@ -145,8 +135,6 @@ impl Process {
             pd_obj: RefCell::new(None),
             elf_file: Some(elf_file),
             name: program_name,
-            // utcb for the main global EC; Utcb type itself has already page align guarantee
-            utcb: MemLocation::Owned(Box::new(Utcb::new())),
             stack: MemLocation::Owned(PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE)),
             state: Cell::new(ProcessState::Created),
             parent: Some(Rc::downgrade(parent)),
@@ -171,16 +159,13 @@ impl Process {
         let ec_cap_in_root = RootCapSpace::calc_gl_ec_sel(self.pid);
         let sc_cap_in_root = RootCapSpace::calc_sc_sel(self.pid);
 
-        let stack_top_ptr = unsafe { self.stack.mem_ptr().add(USER_STACK_SIZE).sub(64).add(8) };
-
         let pd = PdObject::create(self.pid, &self.parent().unwrap().pd_obj(), pd_cap_in_root);
         self.pd_obj.borrow_mut().replace(pd.clone());
 
         let ec = GlobalEcObject::create(
             ec_cap_in_root,
             &pd,
-            // self.utcb.mem_ptr() as u64,
-            VIRT_UTCB_ADDR,
+            USER_UTCB_ADDR,
             // set in Startup-Exception anyway
             0,
         );
@@ -188,7 +173,7 @@ impl Process {
 
         self.init_exc_portals(RootCapSpace::calc_exc_pt_sel_base(self.pid));
 
-        self.init_map_utcb();
+        // self.init_map_utcb();
         self.init_map_stack();
         self.init_map_elf_load_segments();
 
@@ -202,7 +187,7 @@ impl Process {
             "Init process done: PID={}, name={}, utcb_addr={:?}",
             self.pid,
             self.name,
-            self.utcb.mem_ptr()
+            USER_UTCB_ADDR
         );
     }
 
@@ -236,40 +221,6 @@ impl Process {
         log::trace!("created and mapped exception portals into new PD");
     }
 
-    /// Maps the UTCB into the new PD.
-    fn init_map_utcb(&self) {
-        log::debug!("mapping utcb into new PD");
-        log::trace!(
-            "map page {} ({:?}) (pd={}) to page {} ({:?}) (pd={}), order={} (2^order={})",
-            self.utcb.page_num(),
-            (self.utcb.page_num() as usize * PAGE_SIZE) as *const u64,
-            self.parent().unwrap().pd_obj().cap_sel(),
-            VIRT_UTCB_PAGE_NUM,
-            VIRT_UTCB_ADDR,
-            self.pd_obj().cap_sel(),
-            0,
-            1
-        );
-        pd_ctrl_delegate(
-            self.parent().unwrap().pd_obj().cap_sel(),
-            self.pd_obj().cap_sel(),
-            CrdMem::new(
-                self.utcb.page_num(),
-                // map exactly 1 single page
-                0,
-                MemCapPermissions::READ | MemCapPermissions::WRITE,
-            ),
-            CrdMem::new(
-                VIRT_UTCB_PAGE_NUM,
-                // map exactly 1 single page
-                0,
-                MemCapPermissions::READ | MemCapPermissions::WRITE,
-            ),
-            DelegateFlags::new(true, false, false, false, 0),
-        )
-        .unwrap();
-    }
-
     /// Maps the stack into the new PD.
     fn init_map_stack(&self) {
         assert_eq!(
@@ -284,12 +235,12 @@ impl Process {
         );
         log::debug!(
             "mapping stack (virt stack top=0x{:016x}) into new PD",
-            VIRT_STACK_TOP
+            USER_STACK_TOP
         );
         let src_stack_bottom_page_num = self.stack.page_num();
         CrdDelegateOptimizer::new(
             src_stack_bottom_page_num,
-            VIRT_STACK_BOTTOM_PAGE_NUM,
+            USER_STACK_BOTTOM_PAGE_NUM,
             USER_STACK_SIZE / PAGE_SIZE,
         )
         .mmap(

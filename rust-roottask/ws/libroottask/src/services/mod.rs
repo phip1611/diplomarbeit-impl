@@ -1,14 +1,14 @@
 //! All services the roottask provides via portals.
 
+use crate::mem::VIRT_MEM_ALLOC;
 use crate::process_mng::process::Process;
 use crate::stack::StaticStack;
-use alloc::collections::BTreeSet;
 use alloc::rc::{
     Rc,
     Weak,
 };
+use core::alloc::Layout;
 use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::cap_space::root::RootCapSpace::RootPd;
 use libhrstd::cap_space::user::UserAppCapSpace;
 use libhrstd::kobjects::{
     LocalEcObject,
@@ -19,12 +19,12 @@ use libhrstd::libhedron::capability::{
     PTCapPermissions,
 };
 use libhrstd::libhedron::hip::HIP;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
     DelegateFlags,
 };
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::PageAligned;
 use libhrstd::service_ids::ServiceId;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
@@ -38,9 +38,6 @@ static mut LOCAL_EC_STACK: StaticStack<16> = StaticStack::new();
 pub static LOCAL_EC_STACK_TOP: StaticGlobalPtr<u8> =
     StaticGlobalPtr::new(unsafe { LOCAL_EC_STACK.get_stack_top_ptr() });
 
-/// Page-aligned UTCB for the service handler portal.
-static mut UTCB: Utcb = Utcb::new();
-
 /// Holds a weak reference to the local EC object used for handling service calls the roottask.
 static LOCAL_EC: SimpleMutex<Option<Weak<LocalEcObject>>> = SimpleMutex::new(None);
 
@@ -51,23 +48,25 @@ pub fn init_writers(hip: &HIP) {
     stderr::init_writer(hip);
 }
 
-/// Inits the local EC used for the portals. Now [`create_and_delegate_service_pts`] can be called.
+/// Inits the local EC used by the service portals. Now [`create_and_delegate_service_pts`] can be called.
 pub fn init_services(root: &Process) {
+    let utcb_addr = VIRT_MEM_ALLOC
+        .lock()
+        .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
+
     unsafe { LOCAL_EC_STACK.activate_guard_page(RootCapSpace::RootPd.val()) };
     // adds itself to the root process
     let ec = LocalEcObject::create(
         RootCapSpace::RootServiceLocalEc.val(),
         &root.pd_obj(),
         LOCAL_EC_STACK_TOP.val(),
-        unsafe { UTCB.self_ptr() } as u64,
+        utcb_addr,
     );
     log::trace!(
         "Created local EC for all service calls (UTCB={:016x})",
         ec.utcb_addr()
     );
 
-    // TODO rausfinden warum im portal handler the UTCB der falsche ist
-    dbg!(unsafe { UTCB.self_ptr() });
     LOCAL_EC.lock().replace(Rc::downgrade(&ec));
 }
 

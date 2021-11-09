@@ -2,13 +2,11 @@ use crate::process_mng::process::Process;
 use crate::pt_multiplex::roottask_generic_portal_callback;
 use crate::services::stdout::debugcon::DebugconWriter;
 use crate::services::stdout::serial::SerialWriter;
-use crate::stack::StaticStack;
 use alloc::rc::Rc;
 use core::fmt::{
     Debug,
     Write,
 };
-use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::{
     LocalEcObject,
     PtCtx,
@@ -18,7 +16,6 @@ use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::PageAligned;
 use libhrstd::service_ids::ServiceId;
 use libhrstd::sync::mutex::{
     SimpleMutex,
@@ -32,21 +29,12 @@ mod serial;
 /// Global instance of the writer. Protects/synchronizes writers.
 static STDOUT_WRITER: SimpleMutex<StdoutWriter> = SimpleMutex::new(StdoutWriter::new());
 
-static mut STDOUT_SERVICE_STACK: StaticStack<4> = StaticStack::new();
-
-/// UTCB for the exception handler portal.
-static mut STDOUT_SERVICE_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
-
 /// Initializes the stdout writer struct. Afterwards [`writer`] can be called.
 pub fn init_writer(hip: &HIP) {
     let mut writer = STDOUT_WRITER.lock();
     writer.init(hip);
     // logger not initialized yet
     // log::debug!("stdout available");
-}
-
-fn utcb() -> &'static Utcb {
-    unsafe { &STDOUT_SERVICE_UTCB }
 }
 
 /// Returns a mutable reference to [`StdoutWriter`].
@@ -78,12 +66,9 @@ pub fn stdout_service_handler(
     log::info!("STDOUT service called by PID: {}", process.pid());
     {
         let mut writer = STDOUT_WRITER.lock();
-        let res = write!(
-            &mut writer,
-            "[STDOUT PID={}] {}",
-            process.pid(),
-            utcb.load_data::<&str>().unwrap()
-        );
+        let res = write!(&mut writer, "[STDOUT PID={}] {}\n", process.pid(), msg,);
+        // drop before unwrap, because otherwise deadlock happens on panic
+        // (panic needs lock to STDOUT_WRITER)
         core::mem::drop(writer);
         res.unwrap();
     }

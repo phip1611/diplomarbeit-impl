@@ -6,8 +6,8 @@
 //! The code that creates all exception portals registers a specialized [`PTCallHandler`].
 //! The code referenced from there has again the option to look into a data structure
 //! to delegate the call to an even more specialized handler (e.g. startup exception).
-//!
 
+use crate::mem::VIRT_MEM_ALLOC;
 use crate::process_mng::process::Process;
 use crate::pt_multiplex::{
     roottask_generic_portal_callback,
@@ -18,6 +18,7 @@ use alloc::rc::{
     Rc,
     Weak,
 };
+use core::alloc::Layout;
 use core::convert::TryFrom;
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::PtCtx::Exception;
@@ -28,9 +29,9 @@ use libhrstd::kobjects::{
 use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::consts::NUM_EXC;
 use libhrstd::libhedron::event_offset::ExceptionEventOffset;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::Utcb;
-use libhrstd::mem::PageAligned;
 use libhrstd::process::consts::ROOTTASK_PROCESS_PID;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
@@ -56,9 +57,6 @@ static mut CALLBACK_STACK: StaticStack<16> = StaticStack::new();
 pub static LOCAL_EXC_EC_STACK_TOP: StaticGlobalPtr<u8> =
     StaticGlobalPtr::new(unsafe { CALLBACK_STACK.get_stack_top_ptr() });
 
-/// UTCB for the exception handler portal.
-static mut EXCEPTION_UTCB: PageAligned<Utcb> = PageAligned::new(Utcb::new());
-
 /// Holds a weak reference to the local EC object used for handling exceptions inside
 /// the roottask.
 static EXCEPTION_LOCAL_EC: SimpleMutex<Option<Weak<LocalEcObject>>> = SimpleMutex::new(None);
@@ -71,12 +69,17 @@ static SPECIALIZES_EXCEPTION_HANDLER_MAP: SimpleMutex<[Option<PTCallHandler>; NU
 
 /// Initializes a local EC and N portals to cover N exceptions for the roottask.
 pub fn init(root_process: &Process) {
+    // make sure we reserve enough from virtual address space for the UTCB
+    let utcb_addr = VIRT_MEM_ALLOC
+        .lock()
+        .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
+
     // adds itself to the root process
     let exception_local_ec = LocalEcObject::create(
         RootCapSpace::RootExceptionLocalEc.val(),
         &root_process.pd_obj(),
         LOCAL_EXC_EC_STACK_TOP.val(),
-        unsafe { EXCEPTION_UTCB.self_ptr() } as u64,
+        utcb_addr,
     );
     EXCEPTION_LOCAL_EC
         .lock()

@@ -47,6 +47,10 @@ pub enum UtcbError {
 /// IPC and Exception handling. An UTCB is page-aligned and one page in size.
 /// Consists of [`UtcbHead`] and [`UtcbData`].
 ///
+/// **The UTCB is always allocated from Kernel heap, when an EC is created.**
+/// Hence, it is not the responsibility of the Roottask or so to allocate
+/// physical memory for it and delegate the mem caps to the PD of the EC.
+///
 /// # IPC
 /// * transfer typed (NOVA-way for capability translation and delegation items
 /// * transfer untyped items (= arbitrary, context-specific data)
@@ -59,6 +63,8 @@ pub struct Utcb {
 }
 
 impl Utcb {
+    /// A UTCB is never constructed by userland but always allocated from Kernel heap.
+    #[cfg(test)]
     pub const fn new() -> Self {
         Self {
             head: UtcbHead::new(),
