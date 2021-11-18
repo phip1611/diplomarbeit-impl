@@ -29,6 +29,7 @@ use libhrstd::service_ids::ServiceId;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 
+pub mod allocate;
 pub mod stderr;
 pub mod stdout;
 
@@ -86,14 +87,14 @@ pub fn handle_service_call(
     let cb = match pt.ctx().service_id() {
         ServiceId::StdoutService => stdout::stdout_service_handler,
         ServiceId::StderrService => stderr::stderr_service_handler,
+        ServiceId::AllocateService => allocate::allocate_service_handler,
         _ => panic!("service not supported yet"),
     };
-    log::debug!("trying to get lock");
     cb(pt, process, utcb, do_reply);
 }
 
 /// Creates the service PTs for a process inside the roottask. Install the PTs in the
-/// target PD.
+/// target PD at well-known locations.
 ///
 /// Call [`init_services`] once first.
 pub fn create_and_delegate_service_pts(process: &Process) {
@@ -108,39 +109,63 @@ pub fn create_and_delegate_service_pts(process: &Process) {
     // local EC for all service calls
     let ec = LOCAL_EC.lock().as_ref().unwrap().upgrade().unwrap();
 
-    let stdout_pt = stdout::create_service_pt(cap_base_sel, &ec);
-    log::trace!("created stdout pt");
-    pd_ctrl_delegate(
-        RootCapSpace::RootPd.val(),
-        process.pd_obj().cap_sel(),
-        CrdObjPT::new(stdout_pt.cap_sel(), 0, PTCapPermissions::CALL),
-        CrdObjPT::new(
-            UserAppCapSpace::StdoutServicePT.val(),
-            0,
-            PTCapPermissions::CALL,
-        ),
-        DelegateFlags::default(),
-    )
-    .unwrap();
-    stdout_pt.attach_delegated_to_pd(&process.pd_obj());
-    process.pd_obj().attach_delegated_pt(stdout_pt);
-    log::trace!("delegated stdout pt");
+    {
+        let stdout_pt = stdout::create_service_pt(cap_base_sel, &ec);
+        log::trace!("created stdout service pt");
+        pd_ctrl_delegate(
+            RootCapSpace::RootPd.val(),
+            process.pd_obj().cap_sel(),
+            CrdObjPT::new(stdout_pt.cap_sel(), 0, PTCapPermissions::CALL),
+            CrdObjPT::new(
+                UserAppCapSpace::StdoutServicePT.val(),
+                0,
+                PTCapPermissions::CALL,
+            ),
+            DelegateFlags::default(),
+        )
+        .unwrap();
+        stdout_pt.attach_delegated_to_pd(&process.pd_obj());
+        process.pd_obj().attach_delegated_pt(stdout_pt);
+        log::trace!("delegated stdout service pt");
+    }
 
-    let stderr_pt = stderr::create_service_pt(cap_base_sel, &ec);
-    log::trace!("created stderr pt");
-    pd_ctrl_delegate(
-        RootCapSpace::RootPd.val(),
-        process.pd_obj().cap_sel(),
-        CrdObjPT::new(stderr_pt.cap_sel(), 0, PTCapPermissions::CALL),
-        CrdObjPT::new(
-            UserAppCapSpace::StderrServicePT.val(),
-            0,
-            PTCapPermissions::CALL,
-        ),
-        DelegateFlags::default(),
-    )
-    .unwrap();
-    log::trace!("delegated stderr pt");
-    stderr_pt.attach_delegated_to_pd(&process.pd_obj());
-    process.pd_obj().attach_delegated_pt(stderr_pt);
+    {
+        let stderr_pt = stderr::create_service_pt(cap_base_sel, &ec);
+        log::trace!("created stderr service pt");
+        pd_ctrl_delegate(
+            RootCapSpace::RootPd.val(),
+            process.pd_obj().cap_sel(),
+            CrdObjPT::new(stderr_pt.cap_sel(), 0, PTCapPermissions::CALL),
+            CrdObjPT::new(
+                UserAppCapSpace::StderrServicePT.val(),
+                0,
+                PTCapPermissions::CALL,
+            ),
+            DelegateFlags::default(),
+        )
+        .unwrap();
+        log::trace!("delegated stderr service pt");
+        stderr_pt.attach_delegated_to_pd(&process.pd_obj());
+        process.pd_obj().attach_delegated_pt(stderr_pt);
+    }
+
+    {
+        let alloc_pt = allocate::create_service_pt(cap_base_sel, &ec);
+        log::trace!("created alloc service pt");
+        pd_ctrl_delegate(
+            RootCapSpace::RootPd.val(),
+            process.pd_obj().cap_sel(),
+            CrdObjPT::new(alloc_pt.cap_sel(), 0, PTCapPermissions::CALL),
+            CrdObjPT::new(
+                UserAppCapSpace::AllocatorServicePT.val(),
+                0,
+                PTCapPermissions::CALL,
+            ),
+            DelegateFlags::default(),
+        )
+        .unwrap();
+        log::trace!("delegated alloc service pt");
+        alloc_pt.attach_delegated_to_pd(&process.pd_obj());
+        process.pd_obj().attach_delegated_pt(alloc_pt);
+    }
 }

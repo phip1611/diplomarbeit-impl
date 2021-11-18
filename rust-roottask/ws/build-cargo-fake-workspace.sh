@@ -46,7 +46,7 @@ function fn_build_rust_bin() {
     (
         cd "$1" || exit
         cargo build
-        cargo build --release
+        # cargo build --release
         cargo fmt # automatically format everything
         # cargo fmt -- --check
         # cargo clippy

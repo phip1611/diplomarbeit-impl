@@ -25,13 +25,25 @@ extern crate alloc;
 
 use libhrstd::rt::services::stderr::stderr_write;
 use libhrstd::rt::services::stdout::stdout_write;
+use libhrstd::rt::user_logger::UserRustLogger;
 
 mod panic;
 
 #[no_mangle]
 fn start() {
+    UserRustLogger::init();
     let msg = "Hallo Welt Lorem Ipsum Dolor sit Damet.";
     stdout_write(msg);
     stderr_write(msg);
+    log::info!("log info msg");
+    log::debug!("log debug msg");
+    log::warn!("log warn msg");
+    log::error!("log error msg");
+    log::trace!("log trace msg");
+
+    let mut nums = vec![1, 2, 3, 4, 5];
+    nums.push(7);
+    log::info!("nums: {:#?}", nums);
+
     loop {}
 }

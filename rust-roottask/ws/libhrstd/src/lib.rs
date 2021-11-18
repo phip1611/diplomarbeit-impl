@@ -29,6 +29,7 @@
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(alloc_error_handler)]
 #![feature(const_btree_new)]
+#![feature(panic_info_message)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -50,7 +51,6 @@ pub mod cstr;
 pub mod kobjects;
 pub mod mem;
 pub mod process;
-#[cfg(feature = "rt")]
 pub mod rt;
 pub mod service_ids;
 pub mod sync;

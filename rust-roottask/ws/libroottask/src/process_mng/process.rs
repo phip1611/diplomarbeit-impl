@@ -23,6 +23,10 @@ use core::hash::{
     Hash,
     Hasher,
 };
+use core::sync::atomic::{
+    AtomicU64,
+    AtomicUsize,
+};
 use elf_rs::{
     Elf,
     ProgramType,
@@ -55,6 +59,7 @@ use libhrstd::process::consts::{
     ROOTTASK_PROCESS_PID,
 };
 use libhrstd::uaddress_space::{
+    USER_HEAP_BEGIN,
     USER_STACK_BOTTOM_PAGE_NUM,
     USER_STACK_SIZE,
     USER_STACK_TOP,
@@ -79,11 +84,14 @@ pub struct Process {
     state: Cell<ProcessState>,
     parent: Option<Weak<Self>>,
     pd_obj: RefCell<Option<Rc<PdObject>>>,
-    // todo theoretically I could remove the option, because we can now the memory for the mapped roottask too
+    // todo theoretically I could remove the option, because I have the memory for the mapped
+    //  roottask too from the hip
     elf_file: Option<MappedMemory>,
     // stack with size USER_STACK_SIZE for the main global EC
     // todo so far not per thread
     stack: MemLocation<PinnedPageAlignedHeapArray<u8>>,
+    // Describes where the heap pointer is. This belongs to a Q&D approach of "fire and forget" allocations.
+    heap_ptr: AtomicU64,
 }
 
 impl Process {
@@ -112,6 +120,7 @@ impl Process {
             stack: MemLocation::new_external(stack_btm_addr / PAGE_SIZE as u64, stack_size),
             state: Cell::new(ProcessState::Created),
             parent: None,
+            heap_ptr: AtomicU64::new(0),
         })
     }
 
@@ -138,6 +147,7 @@ impl Process {
             stack: MemLocation::Owned(PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE)),
             state: Cell::new(ProcessState::Created),
             parent: Some(Rc::downgrade(parent)),
+            heap_ptr: AtomicU64::new(USER_HEAP_BEGIN as u64),
         })
     }
 
@@ -361,6 +371,10 @@ impl Process {
     pub fn elf_file_bytes(&self) -> &[u8] {
         let elf = self.elf_file.as_ref().unwrap();
         elf.mem_as_slice(elf.size())
+    }
+
+    pub fn heap_ptr(&self) -> &AtomicU64 {
+        &self.heap_ptr
     }
 }
 

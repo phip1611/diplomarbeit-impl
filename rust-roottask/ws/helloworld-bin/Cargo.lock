@@ -153,6 +153,7 @@ name = "helloworld-bin"
 version = "0.1.0"
 dependencies = [
  "libhrstd",
+ "log",
 ]
 
 [[package]]
@@ -177,10 +178,12 @@ dependencies = [
 name = "libhrstd"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "enum-iterator",
  "libhedron",
  "libm",
  "log",
+ "serde",
 ]
 
 [[package]]

@@ -8,13 +8,16 @@ publish = false # prevent accidentaly publishing
 
 [features]
 default = ["rt"]
-# Runtime for native Hedron apps, except the roottask.
+# Runtime for native Hedron apps, except the roottask. Some features that the roottask can not see to either
+# enable successfull compilation or to prevent programming mistakes.
 rt = []
 
 [dependencies]
 libhedron = { path = "../libhedron" }
-log = { version = "0.4.14", default-features = false }
+log = { version = "0.4", default-features = false }
 # convenient methods, such as round() or sin(); not part of the core-lib of rust
 libm = "0.2"
 enum-iterator = "0.7"
+arrayvec = { version = "0.7", default-features = false }
 
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] } # utcb data serialization

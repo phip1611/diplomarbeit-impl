@@ -22,16 +22,16 @@ pub type PTCallHandler =
 /// Common entry for all portals of the roottask. Multiplexes all portal calls through this function.
 /// A call can either be a service all or an exception call.
 pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
-    log::info!("generic portal callback called with argument: {}", id);
+    // log::trace!("generic portal callback called with argument: {}", id);
 
     let stack_top;
     let mut do_reply = false;
 
     // drop lock before reply()!
     {
-        log::debug!("trying to get lock for PROCESS_MNG");
+        // log::debug!("trying to get lock for PROCESS_MNG");
         let mng = PROCESS_MNG.lock();
-        log::debug!("got lock");
+        // log::debug!("got lock");
 
         // find what portal triggered the request
         let pt = mng.lookup_portal(id).expect("there is no valid portal?!");
@@ -64,7 +64,7 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
             &mut do_reply,
         );
 
-        log::debug!("specialized PT handler done");
+        // log::debug!("specialized PT handler done");
         // +++++++++++++++++++++++++++++++++++
     }
 
@@ -72,7 +72,7 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
 
     // not a convenient method in the PtObj itself, because the lock needs to be relased first!
     if do_reply {
-        log::debug!("reply now!");
+        // log::debug!("reply now!");
         reply(stack_top);
     } else {
         // furthermore, the stack of the local EC would be corrupted afterwards

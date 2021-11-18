@@ -8,3 +8,8 @@ publish = false # prevent accidentaly publishing
 
 [dependencies]
 libhrstd = { path = "../libhrstd" }
+log = { version = "0.4", default-features = false }
+
+[profile.dev]
+# Significantly reduces redicously high stack usage by the binary.
+opt-level = 1
