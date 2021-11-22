@@ -30,6 +30,7 @@ use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 
 pub mod allocate;
+pub mod fs;
 pub mod stderr;
 pub mod stdout;
 
@@ -88,6 +89,7 @@ pub fn handle_service_call(
         ServiceId::StdoutService => stdout::stdout_service_handler,
         ServiceId::StderrService => stderr::stderr_service_handler,
         ServiceId::AllocateService => allocate::allocate_service_handler,
+        ServiceId::FileSystemService => fs::fs_service_handler,
         _ => panic!("service not supported yet"),
     };
     cb(pt, process, utcb, do_reply);
@@ -165,6 +167,26 @@ pub fn create_and_delegate_service_pts(process: &Process) {
         )
         .unwrap();
         log::trace!("delegated alloc service pt");
+        alloc_pt.attach_delegated_to_pd(&process.pd_obj());
+        process.pd_obj().attach_delegated_pt(alloc_pt);
+    }
+
+    {
+        let alloc_pt = fs::create_service_pt(cap_base_sel, &ec);
+        log::trace!("created fs service pt");
+        pd_ctrl_delegate(
+            RootCapSpace::RootPd.val(),
+            process.pd_obj().cap_sel(),
+            CrdObjPT::new(alloc_pt.cap_sel(), 0, PTCapPermissions::CALL),
+            CrdObjPT::new(
+                UserAppCapSpace::FsServicePT.val(),
+                0,
+                PTCapPermissions::CALL,
+            ),
+            DelegateFlags::default(),
+        )
+        .unwrap();
+        log::trace!("delegated fs service pt");
         alloc_pt.attach_delegated_to_pd(&process.pd_obj());
         process.pd_obj().attach_delegated_pt(alloc_pt);
     }

@@ -23,6 +23,26 @@
 #[macro_use]
 extern crate alloc;
 
+use alloc::string::String;
+use alloc::vec::Vec;
+use libhrstd::mem::UserPtrOrEmbedded;
+use libhrstd::rt::services::fs::fs_lseek::{
+    fs_lseek,
+    FsLseekRequest,
+};
+use libhrstd::rt::services::fs::fs_open::{
+    fs_open,
+    FsOpenFlags,
+    FsOpenRequest,
+};
+use libhrstd::rt::services::fs::fs_read::{
+    fs_read,
+    FsReadRequest,
+};
+use libhrstd::rt::services::fs::fs_write::{
+    fs_write,
+    FsWriteRequest,
+};
 use libhrstd::rt::services::stderr::stderr_write;
 use libhrstd::rt::services::stdout::stdout_write;
 use libhrstd::rt::user_logger::UserRustLogger;
@@ -45,5 +65,42 @@ fn start() {
     nums.push(7);
     log::info!("nums: {:#?}", nums);
 
+    fs_test();
+
     loop {}
+}
+
+fn fs_test() {
+    let fd = fs_open(FsOpenRequest::new(
+        String::from("/foo/bar"),
+        FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+        0o777,
+    ));
+    /*let bytes_written = */
+    fs_write(FsWriteRequest::new(
+        fd,
+        UserPtrOrEmbedded::new_slice(b"Hallo Welt!"),
+        b"Hallo Welt!".len(),
+    ));
+    fs_lseek(FsLseekRequest::new(fd, "Hallo ".len() as u64));
+    let mut read_buf = Vec::with_capacity(100);
+    /*let read_bytes = */
+    fs_read(FsReadRequest::new(
+        fd,
+        read_buf.as_mut_ptr() as usize,
+        read_buf.capacity(),
+    ));
+    let read = String::from_utf8(read_buf).unwrap();
+    assert_eq!(read, "Welt!");
+
+    fs_lseek(FsLseekRequest::new(fd, 0));
+    let mut read_buf = Vec::with_capacity(100);
+    /*let read = */
+    fs_read(FsReadRequest::new(
+        fd,
+        read_buf.as_mut_ptr() as usize,
+        read.capacity(),
+    ));
+    let read = String::from_utf8(read_buf).unwrap();
+    assert_eq!(read, "Hallo Welt!")
 }

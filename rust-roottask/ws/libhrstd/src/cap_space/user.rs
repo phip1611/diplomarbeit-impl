@@ -28,6 +28,8 @@ pub enum UserAppCapSpace {
     StdoutServicePT = 36,
     /// CapSel for the stderr service portal.
     StderrServicePT = 37,
+    /// Service PT that multiplexes all file operations through a single portal.
+    FsServicePT,
 }
 
 impl UserAppCapSpace {

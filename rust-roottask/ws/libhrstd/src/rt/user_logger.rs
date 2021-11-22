@@ -1,12 +1,5 @@
 use crate::rt::services::stdout::stdout_write;
-use crate::util::ansi::{
-    AnsiStyle,
-    Color,
-    TextStyle,
-};
-use alloc::string::String;
 use core::fmt::Write;
-use core::panic::PanicInfo;
 use libhedron::mem::PAGE_SIZE;
 use log::{
     LevelFilter,

@@ -44,8 +44,8 @@ pub mod qpd;
 pub mod syscall;
 pub mod utcb;
 
-// /// Re-export the `postcard`-version required for serialization of arbitrary UTCB data.
-// pub use postcard as ipc_postcard;
+/// Re-export the `postcard`-version required for serialization of arbitrary UTCB data.
+pub use postcard as ipc_postcard;
 /// Re-export the `no_std` serde-version required for serialization of arbitrary UTCB data.
 pub use serde as ipc_serde;
 

@@ -9,3 +9,4 @@ publish = false # prevent accidentaly publishing
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+libhrstd = { path = "../libhrstd", default-features = false } # for mutex; libhedron is transitive dep

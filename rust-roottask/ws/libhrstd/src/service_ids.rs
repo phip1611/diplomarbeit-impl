@@ -7,6 +7,7 @@ pub enum ServiceId {
     StdoutService,
     StderrService,
     AllocateService,
+    FileSystemService,
     _Count,
 }
 

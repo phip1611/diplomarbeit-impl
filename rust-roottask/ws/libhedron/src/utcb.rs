@@ -551,4 +551,19 @@ mod tests {
         let copy = utcb.load_data::<&str>().unwrap();
         assert_eq!(copy, msg);
     }
+
+    #[test]
+    fn test_store_max_data_amount() {
+        let mut utcb = Utcb::new();
+        // "postcard" needs two bytes to store the length of the slice
+        let data = vec![0_u8; UTCB_DATA_CAPACITY - 2];
+        assert!(utcb.store_data(&data).is_ok());
+        assert_eq!(
+            utcb.load_data::<&[u8]>().unwrap().len(),
+            UTCB_DATA_CAPACITY - 2
+        );
+
+        let data = vec![0_u8; UTCB_DATA_CAPACITY - 1];
+        assert!(utcb.store_data(&data).is_err());
+    }
 }

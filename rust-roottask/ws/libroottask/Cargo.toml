@@ -8,6 +8,7 @@ publish = false # prevent accidentaly publishing
 
 [dependencies]
 libhrstd = { path = "../libhrstd", default-features = false } # for mutex; libhedron is transitive dep
+libfileserver = { path = "../libfileserver" } # currently, the file service lives inside the roottask
 
 log = { version = "0.4", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
