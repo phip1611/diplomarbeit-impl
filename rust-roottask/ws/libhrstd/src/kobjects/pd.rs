@@ -60,14 +60,26 @@ pub struct PdObject {
 impl PdObject {
     /// Like [`Self::new`] but executes a `create_pd` syscall first.
     /// Furthermore, it delegates the capability to the new PD into the new PD.
-    pub fn create(pid: ProcessId, parent: &Rc<Self>, cap_sel: CapSel) -> Rc<Self> {
+    ///
+    /// # Parameters
+    /// * `pid` [`ProcessId`] that this PD belongs to
+    /// * `parent` Parent PD
+    /// * `cap_sel` Capability selector in the Cap Space of the owning PD
+    /// * `foreign_syscall_base` Of some, this PD will be a foreign PD (syscalls handled as exceptions)
+    ///                          with the given foreign syscall base.
+    pub fn create(
+        pid: ProcessId,
+        parent: &Rc<Self>,
+        cap_sel: CapSel,
+        foreign_syscall_base: Option<CapSel>,
+    ) -> Rc<Self> {
         log::trace!(
             "Creating PD: pid={}, cap_sel={}, parent_pd_sel={}",
             pid,
             cap_sel,
             parent.cap_sel,
         );
-        create_pd(false, cap_sel, parent.cap_sel).unwrap();
+        create_pd(false, cap_sel, parent.cap_sel, foreign_syscall_base).unwrap();
         log::trace!(
             "Delegating new PD from PD={} to PD={} at index {}",
             parent.cap_sel,

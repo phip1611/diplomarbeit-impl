@@ -38,3 +38,21 @@ impl UserAppCapSpace {
         self as _
     }
 }
+
+/// Capability space of foreign user applications. Binaries with different OS ABIs.
+///
+/// The variant value corresponds to the [`crate::libhrstd::libhedron::capability::CapSel`]
+/// that refers to the given capability.
+#[repr(u64)]
+#[derive(Copy, Clone, Debug)]
+pub enum ForeignUserAppCapSpace {
+    SyscallBasePt = 0,
+    // PTs for Linux Syscall Number or for Syscall Number of Operating System X
+}
+
+impl ForeignUserAppCapSpace {
+    /// Returns the numeric value.
+    pub fn val(self) -> CapSel {
+        self as _
+    }
+}

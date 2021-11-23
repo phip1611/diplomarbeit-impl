@@ -92,6 +92,9 @@ pub struct Process {
     stack: MemLocation<PinnedPageAlignedHeapArray<u8>>,
     // Describes where the heap pointer is. This belongs to a Q&D approach of "fire and forget" allocations.
     heap_ptr: AtomicU64,
+
+    /// Property for the PD object.
+    foreign_syscall_base: Option<CapSel>,
 }
 
 impl Process {
@@ -121,6 +124,7 @@ impl Process {
             state: Cell::new(ProcessState::Created),
             parent: None,
             heap_ptr: AtomicU64::new(0),
+            foreign_syscall_base: None,
         })
     }
 
@@ -133,6 +137,7 @@ impl Process {
         elf_file: MappedMemory,
         program_name: String,
         parent: &Rc<Self>,
+        foreign_syscall_base: Option<CapSel>,
     ) -> Rc<Self> {
         assert_eq!(
             elf_file.perm(),
@@ -148,6 +153,7 @@ impl Process {
             state: Cell::new(ProcessState::Created),
             parent: Some(Rc::downgrade(parent)),
             heap_ptr: AtomicU64::new(USER_HEAP_BEGIN as u64),
+            foreign_syscall_base,
         })
     }
 
@@ -169,7 +175,12 @@ impl Process {
         let ec_cap_in_root = RootCapSpace::calc_gl_ec_sel(self.pid);
         let sc_cap_in_root = RootCapSpace::calc_sc_sel(self.pid);
 
-        let pd = PdObject::create(self.pid, &self.parent().unwrap().pd_obj(), pd_cap_in_root);
+        let pd = PdObject::create(
+            self.pid,
+            &self.parent().unwrap().pd_obj(),
+            pd_cap_in_root,
+            self.foreign_syscall_base.clone(),
+        );
         self.pd_obj.borrow_mut().replace(pd.clone());
 
         let ec = GlobalEcObject::create(

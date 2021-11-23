@@ -5,6 +5,7 @@ use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
 use elf_rs::Elf;
+use libhrstd::cap_space::user::ForeignUserAppCapSpace;
 use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
@@ -67,7 +68,12 @@ impl ProcessManager {
     }
 
     /// Starts a new process.
-    pub fn start_process(&mut self, elf_file: MappedMemory, program_name: String) -> ProcessId {
+    pub fn start_process(
+        &mut self,
+        elf_file: MappedMemory,
+        program_name: String,
+        is_foreign_os_abi: bool,
+    ) -> ProcessId {
         if !self.init {
             panic!("call init() first!");
         }
@@ -76,8 +82,20 @@ impl ProcessManager {
         let pid = self.pid_counter;
         self.pid_counter += 1;
 
+        let foreign_syscall_base = if is_foreign_os_abi {
+            Some(ForeignUserAppCapSpace::SyscallBasePt.val())
+        } else {
+            None
+        };
+
         // the process starts itself. the Mng just keeps track of it.
-        let process = Process::new(pid, elf_file, program_name, self.root());
+        let process = Process::new(
+            pid,
+            elf_file,
+            program_name,
+            self.root(),
+            foreign_syscall_base,
+        );
         let _ = self.processes.insert(pid, process.clone());
 
         // actually start
