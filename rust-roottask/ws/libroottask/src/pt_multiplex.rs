@@ -53,6 +53,8 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
             crate::roottask_exception::generic_error_exception_handler
         } else if pt.ctx().is_service_pt() {
             crate::services::handle_service_call
+        } else if pt.ctx().is_foreign_syscall_pt() {
+            crate::services::foreign_syscall::handle_foreign_syscall
         } else {
             panic!("no portal callback handler known for given PT ctx");
         };

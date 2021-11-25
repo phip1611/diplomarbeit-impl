@@ -41,33 +41,37 @@ pub enum PtCtx {
     Exception(u64),
     /// Portal call is a service call.
     Service(ServiceId),
+    /// Portal is responsible for handling a foreign system call. Per foreign PD,
+    /// there is one PT per CPU. The syscall number gets determinted by the UTCB.
+    ForeignSyscall,
 }
 
 impl PtCtx {
     /// Returns the err code.
     pub fn exc(&self) -> u64 {
         match self {
-            PtCtx::Exception(err) => *err,
+            Self::Exception(err) => *err,
             _ => panic!("invalid variant"),
         }
     }
     /// Returns the service id.
     pub fn service_id(&self) -> ServiceId {
         match self {
-            PtCtx::Service(id) => *id,
+            Self::Service(id) => *id,
             _ => panic!("invalid variant"),
         }
     }
 
     pub fn is_exception_pt(&self) -> bool {
-        match self {
-            PtCtx::Exception(_) => true,
-            PtCtx::Service(_) => false,
-        }
+        matches!(self, Self::Exception(_))
     }
 
     pub fn is_service_pt(&self) -> bool {
-        !self.is_exception_pt()
+        matches!(self, Self::Service(_))
+    }
+
+    pub fn is_foreign_syscall_pt(&self) -> bool {
+        matches!(self, Self::ForeignSyscall)
     }
 }
 
@@ -96,7 +100,7 @@ impl PtObject {
         portal_entry_fn: PtEntryFn,
         ctx: PtCtx,
     ) -> Rc<Self> {
-        log::trace!("created PT with sel={}", pt_sel);
+        // log::trace!("created PT with sel={}", pt_sel);
         create_pt(
             pt_sel,
             Self::pd_sel(local_ec),

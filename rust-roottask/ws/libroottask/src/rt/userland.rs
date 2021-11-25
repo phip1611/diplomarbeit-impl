@@ -7,6 +7,7 @@ use crate::mem::{
     VIRT_MEM_ALLOC,
 };
 use crate::process_mng::manager::PROCESS_MNG;
+use crate::process_mng::syscall_abi::SyscallAbi;
 use alloc::string::String;
 use core::alloc::Layout;
 use libhrstd::cstr::CStr;
@@ -135,12 +136,12 @@ impl Userland {
         /*PROCESS_MNG.lock().start_process(
             self.hello_world_elf.clone(),
             String::from("Hedron-native Hello World"),
-            false,
+            SyscallAbi::Native,
         );*/
         PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
             String::from("Linux Hello World (C + musl/GCC)"),
-            true,
+            SyscallAbi::Linux,
         );
     }
 }

@@ -46,13 +46,28 @@ impl UserAppCapSpace {
 #[repr(u64)]
 #[derive(Copy, Clone, Debug)]
 pub enum ForeignUserAppCapSpace {
-    SyscallBasePt = 0,
-    // PTs for Linux Syscall Number or for Syscall Number of Operating System X
+    /// Used as event offset for exceptions.
+    ExceptionEventBase = 0,
+    /// Last inclusive index of exception events.
+    ExceptionEnd = (NUM_EXC - 1) as u64,
+    /// Begin value. This plus CPU_NUM equals the actual PT selector.
+    SyscallBasePt = 50,
 }
 
 impl ForeignUserAppCapSpace {
     /// Returns the numeric value.
     pub fn val(self) -> CapSel {
         self as _
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_syscall_base_ot() {
+        dbg!(ForeignUserAppCapSpace::SyscallBasePt.val());
     }
 }

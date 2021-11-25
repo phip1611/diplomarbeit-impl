@@ -65,8 +65,8 @@ impl PdObject {
     /// * `pid` [`ProcessId`] that this PD belongs to
     /// * `parent` Parent PD
     /// * `cap_sel` Capability selector in the Cap Space of the owning PD
-    /// * `foreign_syscall_base` Of some, this PD will be a foreign PD (syscalls handled as exceptions)
-    ///                          with the given foreign syscall base.
+    /// * `foreign_syscall_base` Each CPU has a dedicated PT that handles syscalls. Base + CPU
+    ///                          equals the capability selector of the PT.
     pub fn create(
         pid: ProcessId,
         parent: &Rc<Self>,
@@ -74,10 +74,11 @@ impl PdObject {
         foreign_syscall_base: Option<CapSel>,
     ) -> Rc<Self> {
         log::trace!(
-            "Creating PD: pid={}, cap_sel={}, parent_pd_sel={}",
+            "Creating PD: pid={}, cap_sel={}, parent_pd_sel={}, foreign_syscall_base={:?}",
             pid,
             cap_sel,
             parent.cap_sel,
+            foreign_syscall_base,
         );
         create_pd(false, cap_sel, parent.cap_sel, foreign_syscall_base).unwrap();
         log::trace!(

@@ -30,6 +30,7 @@ use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 
 pub mod allocate;
+pub mod foreign_syscall;
 pub mod fs;
 pub mod stderr;
 pub mod stdout;

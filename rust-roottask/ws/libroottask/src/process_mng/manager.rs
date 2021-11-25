@@ -1,5 +1,6 @@
 use crate::mem::MappedMemory;
 use crate::process_mng::process::Process;
+use crate::process_mng::syscall_abi::SyscallAbi;
 use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
@@ -72,7 +73,7 @@ impl ProcessManager {
         &mut self,
         elf_file: MappedMemory,
         program_name: String,
-        is_foreign_os_abi: bool,
+        syscall_abi: SyscallAbi,
     ) -> ProcessId {
         if !self.init {
             panic!("call init() first!");
@@ -82,20 +83,8 @@ impl ProcessManager {
         let pid = self.pid_counter;
         self.pid_counter += 1;
 
-        let foreign_syscall_base = if is_foreign_os_abi {
-            Some(ForeignUserAppCapSpace::SyscallBasePt.val())
-        } else {
-            None
-        };
-
         // the process starts itself. the Mng just keeps track of it.
-        let process = Process::new(
-            pid,
-            elf_file,
-            program_name,
-            self.root(),
-            foreign_syscall_base,
-        );
+        let process = Process::new(pid, elf_file, program_name, self.root(), syscall_abi);
         let _ = self.processes.insert(pid, process.clone());
 
         // actually start
