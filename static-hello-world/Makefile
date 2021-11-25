@@ -1,19 +1,25 @@
 
-all: c go rust zig
+all: c go rust zig 
 
 .PHONY: c go rust zig clean
 
-c:
-	cd C && $(MAKE)
+builddir:
+	rm -rf ./build
+	mkdir -p ./build
 
-go:
+c: | builddir
+	cd C && $(MAKE)
+	cp C/static_hello_world_musl ./build/linux_c_hello_world_musl.elf
+
+go: | builddir
 	cd Go && $(MAKE)
 
-rust:
+rust: | builddir
 	cd Rust && $(MAKE)
 
-zig:
+zig: | builddir
 	cd Zig && $(MAKE)
+	cp Zig/hello_world ./build/linux_zig_hello_world.elf
 
 clean:
 	cd C && $(MAKE) clean
