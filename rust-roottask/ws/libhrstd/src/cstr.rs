@@ -23,14 +23,13 @@ pub enum CStrError {
 /// This is what like `str` is to `String`.
 #[derive(Debug)]
 pub struct CStr<'a> {
-    data: &'a [u8],
     str: &'a str,
     len: u32,
 }
 
 impl<'a> CStr<'a> {
     pub fn data(&self) -> &'a [u8] {
-        self.data
+        self.str.as_bytes()
     }
 
     /// Returns the length of the string without terminating NULL-byte.
@@ -63,7 +62,6 @@ impl<'a> TryFrom<*const u8> for CStr<'a> {
         };
         let str = core::str::from_utf8(data).map_err(|e| CStrError::Utf8(e))?;
         Ok(Self {
-            data,
             str,
             len: len as u32,
         })
@@ -84,7 +82,7 @@ impl<'a> TryFrom<&'a [u8]> for CStr<'a> {
         let len = null_byte_index as u32;
         let str =
             core::str::from_utf8(&data[0..null_byte_index]).map_err(|e| CStrError::Utf8(e))?;
-        Ok(Self { data, str, len })
+        Ok(Self { str, len })
     }
 }
 
