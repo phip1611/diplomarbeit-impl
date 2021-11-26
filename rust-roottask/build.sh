@@ -26,8 +26,12 @@ function fn_build_ws() {
 function fn_cp_binaries_to_build_dir() {
     rm -rf "./build"
 
+
+    # there might be no release files or debug files (this errors after a "clean" otherwise sometimes)
+    set +e
     SEARCH_DEBUG_FILES=$(find . -maxdepth 6 -type f ! -path . | grep "x86_64-unknown-hedron/debug")
     SEARCH_RELEASE_FILES=$(find . -maxdepth 6 -type f ! -path . | grep "x86_64-unknown-hedron/release")
+    set -e
 
     mkdir -p "./build"
 
