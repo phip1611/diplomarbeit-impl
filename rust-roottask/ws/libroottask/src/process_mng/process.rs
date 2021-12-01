@@ -32,7 +32,9 @@ use core::sync::atomic::{
 };
 use elf_rs::{
     Elf,
+    ElfFile,
     ProgramType,
+    SectionHeaderFlags,
 };
 use libc_auxv::{
     AuxVar,
@@ -305,19 +307,16 @@ impl Process {
     /// Maps all load segments into the new PD.
     fn init_map_elf_load_segments(&self) {
         let elf = elf_rs::Elf::from_bytes(self.elf_file_bytes()).unwrap();
-        let elf64 = match elf {
-            Elf::Elf64(elf) => elf,
-            _ => panic!("unexpected elf 32"),
-        };
+
         // log::debug!("ELF: {:#?}", elf64.header());
         log::debug!("mapping mem for all load segments to new PD");
-        elf64
+        elf
             .program_header_iter()
-            .filter(|pr_hrd| pr_hrd.ph.ph_type() == ProgramType::LOAD)
+            .filter(|pr_hrd| pr_hrd.ph_type() == ProgramType::LOAD)
             .for_each(|pr_hdr| {
                 log::trace!("next segment");
                 assert_eq!(
-                    pr_hdr.ph.align() as usize,
+                    pr_hdr.align() as usize,
                     PAGE_SIZE,
                     "expects that all segments are page aligned inside the file!!"
                 );
@@ -328,18 +327,18 @@ impl Process {
                 // with R+W. I experienced this for example with default gcc binaries for Linux.
 
                 // TODO really Q&D
-                if pr_hdr.ph.memsz() == pr_hdr.ph.filesz() {
-                    assert_eq!(pr_hdr.ph.offset() % PAGE_SIZE as u64, 0);
+                if pr_hdr.memsz() == pr_hdr.filesz() {
+                    assert_eq!(pr_hdr.offset() % PAGE_SIZE as u64, 0);
                     // mem in roottask: pointer/page into address space of the roottask
-                    let load_segment_src_page_num = pr_hdr.segment().as_ptr() as usize / PAGE_SIZE;
+                    let load_segment_src_page_num = pr_hdr.content().as_ptr() as usize / PAGE_SIZE;
                     // virt mem in dest PD / address space
-                    let load_segment_dest_page_num = pr_hdr.ph.vaddr() as usize / PAGE_SIZE;
+                    let load_segment_dest_page_num = pr_hdr.vaddr() as usize / PAGE_SIZE;
 
                     // number of pages to map
-                    let mut num_pages = if pr_hdr.ph.filesz() as usize % PAGE_SIZE == 0 {
-                        pr_hdr.ph.filesz() as usize / PAGE_SIZE
+                    let mut num_pages = if pr_hdr.filesz() as usize % PAGE_SIZE == 0 {
+                        pr_hdr.filesz() as usize / PAGE_SIZE
                     } else {
-                        (pr_hdr.ph.filesz() as usize / PAGE_SIZE) + 1
+                        (pr_hdr.filesz() as usize / PAGE_SIZE) + 1
                     };
 
                     CrdDelegateOptimizer::new(
@@ -351,21 +350,21 @@ impl Process {
                         RootCapSpace::RootPd.val(),
                         self.pd_obj().cap_sel(),
                         // works because Hedron and ELF use the same bits for RWX
-                        MemCapPermissions::from(pr_hdr.ph.flags().bits() as u8),
+                        MemCapPermissions::from_elf_segment_permissions(pr_hdr.flags().bits() as u8),
                     );
                 } else {
                     // memsize != file size
                     // I can't map the ELF load segment directly
 
                     // offset of load segment in first page (segment might not start at page aligned address)
-                    let first_page_offset = pr_hdr.ph.offset() & 0xfff;
+                    let first_page_offset = pr_hdr.offset() & 0xfff;
                     // the total number we need in bytes (we always need to start at a page)
-                    let size = first_page_offset + pr_hdr.ph.memsz();
+                    let total_size = first_page_offset + pr_hdr.memsz();
                     // how many pages we need
-                    let page_count = if size as usize % PAGE_SIZE == 0 {
-                        size as usize / PAGE_SIZE
+                    let page_count = if total_size as usize % PAGE_SIZE == 0 {
+                        total_size as usize / PAGE_SIZE
                     } else {
-                        (size as usize / PAGE_SIZE) + 1
+                        (total_size as usize / PAGE_SIZE) + 1
                     };
 
                     // TODO this will never be freed.. Q&D
@@ -379,16 +378,16 @@ impl Process {
                     // copy everything from the ELF file to the new memory
                     unsafe {
                         core::ptr::copy_nonoverlapping(
-                            pr_hdr.segment().as_ptr(),
-                            heap_ptr,
-                            size as usize,
+                            pr_hdr.content().as_ptr(),
+                            heap_ptr.add(first_page_offset as usize),
+                            pr_hdr.filesz() as usize,
                         );
                     }
 
                     // mem in roottask: pointer/page into address space of the roottask
                     let load_segment_src_page_num = heap_ptr as usize / PAGE_SIZE;
                     // virt mem in dest PD / address space
-                    let load_segment_dest_page_num = pr_hdr.ph.vaddr() as usize / PAGE_SIZE;
+                    let load_segment_dest_page_num = pr_hdr.vaddr() as usize / PAGE_SIZE;
 
                     CrdDelegateOptimizer::new(
                         load_segment_src_page_num as u64,
@@ -399,7 +398,7 @@ impl Process {
                         RootCapSpace::RootPd.val(),
                         self.pd_obj().cap_sel(),
                         // works because Hedron and ELF use the same bits for RWX
-                        MemCapPermissions::from(pr_hdr.ph.flags().bits() as u8),
+                        MemCapPermissions::from_elf_segment_permissions(pr_hdr.flags().bits() as u8),
                     );
                 }
             });
@@ -412,11 +411,7 @@ impl Process {
     pub fn init_stack_libc_aux_vector(&self) -> usize {
         let elf_bytes = self.elf_file_bytes();
         let elf = elf_rs::Elf::from_bytes(elf_bytes).unwrap();
-        let elf = match elf {
-            Elf::Elf64(elf) => elf,
-            Elf::Elf32(_) => panic!("unsupported elf32"),
-        };
-        let pr_hdr_off = elf.header().program_header_offset();
+        let pr_hdr_off = elf.elf_header().program_header_offset();
         dbg!(pr_hdr_off);
 
         // page aligned
@@ -451,11 +446,11 @@ impl Process {
             ))
             .add_aux_v(AuxVar::Value(
                 AuxVarType::AtPhnum,
-                elf.header().program_header_entry_num() as u64,
+                elf.elf_header().program_header_entry_num() as u64,
             ))
             .add_aux_v(AuxVar::Value(
                 AuxVarType::AtPhent,
-                elf.header().program_header_entry_size() as u64,
+                elf.elf_header().program_header_entry_size() as u64,
             ))
             .add_aux_v(AuxVar::Value(AuxVarType::AtPagesz, PAGE_SIZE as u64));
 

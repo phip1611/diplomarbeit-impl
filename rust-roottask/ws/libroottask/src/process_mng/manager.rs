@@ -5,7 +5,10 @@ use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
-use elf_rs::Elf;
+use elf_rs::{
+    Elf,
+    ElfFile,
+};
 use libhrstd::cap_space::user::ForeignUserAppCapSpace;
 use libhrstd::kobjects::{
     PortalIdentifier,
@@ -142,15 +145,11 @@ impl ProcessManager {
         log::debug!("startup exception handler");
 
         let elf = elf_rs::Elf::from_bytes(process.elf_file_bytes()).unwrap();
-        let elf = match elf {
-            Elf::Elf64(elf) => elf,
-            Elf::Elf32(_) => panic!("only supports ELF64"),
-        };
 
         let utcb = utcb.exception_data_mut();
         utcb.mtd = Mtd::RIP_LEN | Mtd::RSP;
         // todo future work: figure out what global EC triggered this (multithreading, multiple stacks)
-        utcb.rip = elf.header().entry_point();
+        utcb.rip = elf.entry_point();
 
         if matches!(process.syscall_abi(), SyscallAbi::Linux) {
             utcb.rsp = process.init_stack_libc_aux_vector() as u64;
