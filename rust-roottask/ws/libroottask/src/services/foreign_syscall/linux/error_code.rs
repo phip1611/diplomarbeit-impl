@@ -1,6 +1,7 @@
 /// <https://elixir.bootlin.com/linux/latest/source/include/uapi/asm-generic/errno-base.h#L5>
 #[derive(Debug)]
 #[repr(u64)]
+#[allow(unused)]
 pub enum LinuxErrorCode {
     /// Operation not permitted
     EPERM = 1,

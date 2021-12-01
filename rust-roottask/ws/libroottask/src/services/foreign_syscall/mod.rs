@@ -37,9 +37,11 @@ pub fn handle_foreign_syscall(
         SyscallAbi::Linux => {
             let syscall = GenericLinuxSyscall::try_from(utcb.exception_data()).unwrap();
             log::debug!(
-                "Got {:?} syscall at RIP=0x{:x}",
+                "Got {:?} syscall at RIP=0x{:x}, RCX=0x{:x}",
                 syscall,
-                utcb.exception_data().rip
+                // Intel SDM: SYSCALL: next address stored in rcx
+                utcb.exception_data().rcx - 2,
+                utcb.exception_data().rcx,
             );
             syscall.handle(utcb.exception_data_mut());
         }

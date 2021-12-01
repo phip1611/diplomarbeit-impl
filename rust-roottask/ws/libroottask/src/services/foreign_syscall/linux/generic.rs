@@ -1,12 +1,21 @@
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
+use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
+use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
+use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum::MMap;
 use crate::services::foreign_syscall::linux::LinuxSyscallImpl;
 use alloc::boxed::Box;
+use core::alloc::Layout;
+use core::fmt::Debug;
+use libhrstd::libhedron::capability::MemCapPermissions;
+use libhrstd::libhedron::ipc_serde::__private::Formatter;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Generic Syscall. Bindings from registers
 /// to argument number. See <https://github.com/torvalds/linux/blob/35776f10513c0d523c5dd2f1b415f642497779e2/arch/x86/entry/entry_64.S>
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct GenericLinuxSyscall {
     rax: LinuxSyscallNum,
     rdi_arg0: u64,
@@ -41,13 +50,31 @@ impl GenericLinuxSyscall {
     }
 
     pub fn handle(&self, utcb_exc: &mut UtcbDataException) {
+        /*let mapping_dest = VIRT_MEM_ALLOC
+            .lock()
+            .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
+        CrdDelegateOptimizer::new(
+            utcb_exc.rip / PAGE_SIZE as u64,
+            mapping_dest / PAGE_SIZE as u64,
+            1,
+        )
+        .mmap(101, 32, MemCapPermissions::all());
+        let ptr = mapping_dest as *const u8;
+        let bytes = unsafe { core::slice::from_raw_parts(ptr, PAGE_SIZE) };
+
+        let rip_offset = utcb_exc.rip & 0xfff;
+        let first_16_bytes = &bytes[rip_offset as usize..16 + rip_offset as usize];
+        for byte in first_16_bytes {
+            log::debug!("{:x}", *byte);
+        }*/
+
         let syscall_impl: Box<dyn LinuxSyscallImpl> = match self.rax {
             LinuxSyscallNum::Read => todo!(),
             LinuxSyscallNum::Write => todo!(),
             LinuxSyscallNum::Open => todo!(),
             LinuxSyscallNum::Close => todo!(),
             LinuxSyscallNum::Poll => todo!(),
-            LinuxSyscallNum::MMap => todo!(),
+            LinuxSyscallNum::MMap => Box::new(MMapSyscall::from(self)),
             LinuxSyscallNum::MProtect => todo!(),
             LinuxSyscallNum::MUnmap => todo!(),
             LinuxSyscallNum::Brk => todo!(),
@@ -58,11 +85,11 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::Clone => todo!(),
             LinuxSyscallNum::Fcntl => todo!(),
             LinuxSyscallNum::SigAltStack => todo!(),
-            LinuxSyscallNum::ArchPrctl => Box::new(ArchPrctlSyscall::try_from(self).unwrap()),
+            LinuxSyscallNum::ArchPrctl => Box::new(ArchPrctlSyscall::from(self)),
             LinuxSyscallNum::Gettid => todo!(),
             LinuxSyscallNum::Futex => todo!(),
             LinuxSyscallNum::SchedGetAffinity => todo!(),
-            LinuxSyscallNum::SetTidAddress => todo!(),
+            LinuxSyscallNum::SetTidAddress => Box::new(SetTidAddressSyscall::from(self)),
             LinuxSyscallNum::ExitGroup => todo!(),
             LinuxSyscallNum::ReadLinkAt => todo!(),
             LinuxSyscallNum::PrLimit64 => todo!(),
@@ -72,10 +99,25 @@ impl GenericLinuxSyscall {
 
         // syscall implementations may not change these values
 
-        // see x86 spec:
+        // see x86 spec: rcx will contain original user RIP
+        // utcb_exc.rip = utcb_exc.rcx;
         utcb_exc.rip = utcb_exc.rcx;
-        // hedron saves user sp in r11
+        // hedron saves original user SP in r11
         utcb_exc.rsp = utcb_exc.r11;
+    }
+}
+
+impl Debug for GenericLinuxSyscall {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("GenericLinuxSyscall")
+            .field("rax", &self.rax)
+            .field("rdi_arg0", &(self.rdi_arg0 as *const u8))
+            .field("rsi_arg1", &(self.rsi_arg1 as *const u8))
+            .field("rdx_arg2", &(self.rdx_arg2 as *const u8))
+            .field("r10_arg3", &(self.r10_arg3 as *const u8))
+            .field("r8_arg4", &(self.r8_arg4 as *const u8))
+            .field("r9_arg5", &(self.r9_arg5 as *const u8))
+            .finish()
     }
 }
 
