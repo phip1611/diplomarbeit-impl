@@ -1,3 +1,7 @@
+use crate::mem::{
+    VirtMemAllocator,
+    VIRT_MEM_ALLOC,
+};
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
 use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;

@@ -34,6 +34,12 @@ use elf_rs::{
     Elf,
     ProgramType,
 };
+use libc_auxv::{
+    AuxVar,
+    AuxVarType,
+    InitialLinuxLibcStackLayout,
+    InitialLinuxLibcStackLayoutBuilder,
+};
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::cap_space::user::{
     ForeignUserAppCapSpace,
@@ -65,10 +71,13 @@ use libhrstd::process::consts::{
     ROOTTASK_PROCESS_PID,
 };
 use libhrstd::uaddress_space::{
+    USER_ELF_ADDR,
     USER_HEAP_BEGIN,
+    USER_STACK_BOTTOM_ADDR,
     USER_STACK_BOTTOM_PAGE_NUM,
     USER_STACK_SIZE,
     USER_STACK_TOP,
+    USER_STACK_VERY_TOP,
     USER_UTCB_ADDR,
 };
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
@@ -95,7 +104,7 @@ pub struct Process {
     elf_file: Option<MappedMemory>,
     // stack with size USER_STACK_SIZE for the main global EC
     // todo so far not per thread
-    stack: MemLocation<PinnedPageAlignedHeapArray<u8>>,
+    stack: RefCell<MemLocation<PinnedPageAlignedHeapArray<u8>>>,
     // Describes where the heap pointer is. This belongs to a Q&D approach of "fire and forget" allocations.
     heap_ptr: AtomicU64,
 
@@ -125,7 +134,10 @@ impl Process {
             pd_obj: RefCell::new(Some(root_pd_obj)),
             elf_file: None,
             name: "roottask".to_string(),
-            stack: MemLocation::new_external(stack_btm_addr / PAGE_SIZE as u64, stack_size),
+            stack: RefCell::new(MemLocation::new_external(
+                stack_btm_addr / PAGE_SIZE as u64,
+                stack_size,
+            )),
             state: Cell::new(ProcessState::Created),
             parent: None,
             heap_ptr: AtomicU64::new(0),
@@ -154,7 +166,10 @@ impl Process {
             pd_obj: RefCell::new(None),
             elf_file: Some(elf_file),
             name: program_name,
-            stack: MemLocation::Owned(PinnedPageAlignedHeapArray::new(0_u8, USER_STACK_SIZE)),
+            stack: RefCell::new(MemLocation::Owned(PinnedPageAlignedHeapArray::new(
+                0_u8,
+                USER_STACK_SIZE,
+            ))),
             state: Cell::new(ProcessState::Created),
             parent: Some(Rc::downgrade(parent)),
             heap_ptr: AtomicU64::new(USER_HEAP_BEGIN as u64),
@@ -264,7 +279,7 @@ impl Process {
             "STACK-Size must be a multiple of PAGE_SIZE."
         );
         assert_eq!(
-            self.stack.size_in_pages() as usize,
+            self.stack.borrow().size_in_pages() as usize,
             USER_STACK_SIZE / PAGE_SIZE,
             "stack has wrong size?!"
         );
@@ -272,7 +287,7 @@ impl Process {
             "mapping stack (virt stack top=0x{:016x}) into new PD",
             USER_STACK_TOP
         );
-        let src_stack_bottom_page_num = self.stack.page_num();
+        let src_stack_bottom_page_num = self.stack.borrow().page_num();
         CrdDelegateOptimizer::new(
             src_stack_bottom_page_num,
             USER_STACK_BOTTOM_PAGE_NUM,
@@ -339,14 +354,21 @@ impl Process {
                         MemCapPermissions::from(pr_hdr.ph.flags().bits() as u8),
                     );
                 } else {
+                    // memsize != file size
+                    // I can't map the ELF load segment directly
+
+                    // offset of load segment in first page (segment might not start at page aligned address)
                     let first_page_offset = pr_hdr.ph.offset() & 0xfff;
+                    // the total number we need in bytes (we always need to start at a page)
                     let size = first_page_offset + pr_hdr.ph.memsz();
+                    // how many pages we need
                     let page_count = if size as usize % PAGE_SIZE == 0 {
                         size as usize / PAGE_SIZE
                     } else {
                         (size as usize / PAGE_SIZE) + 1
                     };
-                    // TODO this will never be fried.. Q&D
+
+                    // TODO this will never be freed.. Q&D
                     let heap_ptr = unsafe {
                         alloc::alloc::alloc_zeroed(
                             Layout::from_size_align(page_count as usize * PAGE_SIZE, PAGE_SIZE)
@@ -381,6 +403,94 @@ impl Process {
                     );
                 }
             });
+    }
+
+    /// Libc-Programs expect a certain data structure on the stack, when the program starts
+    /// running ("_start" symbol). The layout is described here: https://lwn.net/Articles/631631/
+    ///
+    /// Returns the new, actual stack pointer.
+    pub fn init_stack_libc_aux_vector(&self) -> usize {
+        let elf_bytes = self.elf_file_bytes();
+        let elf = elf_rs::Elf::from_bytes(elf_bytes).unwrap();
+        let elf = match elf {
+            Elf::Elf64(elf) => elf,
+            Elf::Elf32(_) => panic!("unsupported elf32"),
+        };
+        let pr_hdr_off = elf.header().program_header_offset();
+        dbg!(pr_hdr_off);
+
+        // page aligned
+        let elf_bytes_addr = elf_bytes.as_ptr() as u64;
+
+        // map program header
+        CrdDelegateOptimizer::new(
+            elf_bytes_addr / PAGE_SIZE as u64,
+            USER_ELF_ADDR / PAGE_SIZE as u64,
+            1,
+        )
+        .mmap(
+            self.parent().unwrap().pd_obj().cap_sel(),
+            self.pd_obj().cap_sel(),
+            MemCapPermissions::READ,
+        );
+
+        let stack_layout = InitialLinuxLibcStackLayoutBuilder::new()
+            .add_arg_v(b"./executable\0")
+            .add_arg_v(b"first\0")
+            .add_arg_v(b"second\0")
+            .add_env_v(b"FOO=BAR\0")
+            .add_aux_v(AuxVar::ReferencedData(
+                AuxVarType::AtExecFn,
+                b"./executable\0",
+            ))
+            .add_aux_v(AuxVar::ReferencedData(AuxVarType::AtPlatform, b"x86_&4\0"))
+            // libc (at least musl) expects all of this values to be present
+            .add_aux_v(AuxVar::Value(
+                AuxVarType::AtPhdr,
+                USER_ELF_ADDR + pr_hdr_off,
+            ))
+            .add_aux_v(AuxVar::Value(
+                AuxVarType::AtPhnum,
+                elf.header().program_header_entry_num() as u64,
+            ))
+            .add_aux_v(AuxVar::Value(
+                AuxVarType::AtPhent,
+                elf.header().program_header_entry_size() as u64,
+            ))
+            .add_aux_v(AuxVar::Value(AuxVarType::AtPagesz, PAGE_SIZE as u64));
+
+        let mut stack = self.stack.borrow_mut();
+        // whole memory that is stack for user; in roottask address space
+        let r_mem_stack = stack.as_slice_mut();
+
+        // "r_addr": roottask address
+        // "u_addr": user address
+
+        let r_addr_stack_btm_inc = r_mem_stack.as_ptr() as usize;
+        let r_addr_stack_top_excl = r_addr_stack_btm_inc + USER_STACK_SIZE;
+
+        // - 1: to inclusive addr; - 8 because later we might need to add + 8 for correct alignment
+        let mut r_addr_crt0_layout_btm = r_addr_stack_top_excl - 1 - stack_layout.total_size() - 8;
+        if r_addr_crt0_layout_btm % 64 != 0 {
+            r_addr_crt0_layout_btm -= r_addr_crt0_layout_btm % 64;
+        }
+        // stack must be 64-byte aligned + 8 byte offset => first arg will be correctly aligned
+        r_addr_crt0_layout_btm += 8;
+
+        // offset from bottom of stack to begin of crt0 data
+        let r_offset_crt0_layout = r_addr_crt0_layout_btm - r_addr_stack_btm_inc;
+
+        // RSP of user
+        let u_addr_crt0_btm = USER_STACK_BOTTOM_ADDR + r_offset_crt0_layout as u64;
+
+        let r_mem_crt0 = &mut r_mem_stack[r_offset_crt0_layout..];
+
+        // write crt0 data
+        unsafe {
+            stack_layout.serialize_into_buf(r_mem_crt0, u_addr_crt0_btm);
+        }
+
+        u_addr_crt0_btm as usize
     }
 
     pub fn pid(&self) -> ProcessId {

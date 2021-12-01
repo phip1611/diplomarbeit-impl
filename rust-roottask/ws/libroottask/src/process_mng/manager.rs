@@ -150,8 +150,14 @@ impl ProcessManager {
         let utcb = utcb.exception_data_mut();
         utcb.mtd = Mtd::RIP_LEN | Mtd::RSP;
         // todo future work: figure out what global EC triggered this (multithreading, multiple stacks)
-        utcb.rsp = USER_STACK_TOP;
         utcb.rip = elf.header().entry_point();
+
+        if matches!(process.syscall_abi(), SyscallAbi::Linux) {
+            utcb.rsp = process.init_stack_libc_aux_vector() as u64;
+        } else {
+            utcb.rsp = USER_STACK_TOP;
+        }
+
         *do_reply = true;
     }
 }

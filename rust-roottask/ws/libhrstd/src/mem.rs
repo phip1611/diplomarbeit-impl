@@ -259,7 +259,7 @@ impl<T: Copy + Debug> PinnedPageAlignedHeapArray<T> {
         unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
     }
 
-    pub fn as_slice_mut(&mut self) -> &[T] {
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) }
     }
 

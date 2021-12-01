@@ -170,6 +170,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "libc-auxv"
+version = "0.1.0"
+dependencies = [
+ "enum-iterator",
+]
+
+[[package]]
 name = "libfileserver"
 version = "0.1.0"
 dependencies = [
@@ -215,6 +222,7 @@ dependencies = [
  "bitflags",
  "elf_rs",
  "enum-iterator",
+ "libc-auxv",
  "libfileserver",
  "libhrstd",
  "log",
