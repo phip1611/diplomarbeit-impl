@@ -1,9 +1,11 @@
 mod arch_prctl;
 mod error_code;
 mod generic;
+mod ioctl;
 mod mmap;
 mod set_tid_address;
 mod syscall_num;
+mod write_v;
 
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;

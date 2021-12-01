@@ -3,10 +3,12 @@ use crate::mem::{
     VIRT_MEM_ALLOC,
 };
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
+use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
 use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
 use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum::MMap;
+use crate::services::foreign_syscall::linux::write_v::WriteVSyscall;
 use crate::services::foreign_syscall::linux::LinuxSyscallImpl;
 use alloc::boxed::Box;
 use core::alloc::Layout;
@@ -84,8 +86,8 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::Brk => todo!(),
             LinuxSyscallNum::RtSigaction => todo!(),
             LinuxSyscallNum::RtSigprocmask => todo!(),
-            LinuxSyscallNum::Ioctl => todo!(),
-            LinuxSyscallNum::WriteV => todo!(),
+            LinuxSyscallNum::Ioctl => Box::new(IoctlSyscall::from(self)),
+            LinuxSyscallNum::WriteV => Box::new(WriteVSyscall::from(self)),
             LinuxSyscallNum::Clone => todo!(),
             LinuxSyscallNum::Fcntl => todo!(),
             LinuxSyscallNum::SigAltStack => todo!(),
