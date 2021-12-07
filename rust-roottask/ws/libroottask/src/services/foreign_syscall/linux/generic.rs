@@ -3,9 +3,14 @@ use crate::mem::{
     VIRT_MEM_ALLOC,
 };
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
+use crate::services::foreign_syscall::linux::brk::BrkSyscall;
 use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
 use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
+use crate::services::foreign_syscall::linux::poll::PollSyscall;
+use crate::services::foreign_syscall::linux::rtsigaction::RtSigactionSyscall;
+use crate::services::foreign_syscall::linux::rtsigprocmask::RtSigProcMaskSyscall;
 use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;
+use crate::services::foreign_syscall::linux::signalstack::SignalStackSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum::MMap;
 use crate::services::foreign_syscall::linux::write_v::WriteVSyscall;
@@ -79,18 +84,18 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::Write => todo!(),
             LinuxSyscallNum::Open => todo!(),
             LinuxSyscallNum::Close => todo!(),
-            LinuxSyscallNum::Poll => todo!(),
+            LinuxSyscallNum::Poll => Box::new(PollSyscall::from(self)),
             LinuxSyscallNum::MMap => Box::new(MMapSyscall::from(self)),
             LinuxSyscallNum::MProtect => todo!(),
             LinuxSyscallNum::MUnmap => todo!(),
-            LinuxSyscallNum::Brk => todo!(),
-            LinuxSyscallNum::RtSigaction => todo!(),
-            LinuxSyscallNum::RtSigprocmask => todo!(),
+            LinuxSyscallNum::Brk => Box::new(BrkSyscall::from(self)),
+            LinuxSyscallNum::RtSigaction => Box::new(RtSigactionSyscall::from(self)),
+            LinuxSyscallNum::RtSigprocmask => Box::new(RtSigProcMaskSyscall::from(self)),
             LinuxSyscallNum::Ioctl => Box::new(IoctlSyscall::from(self)),
             LinuxSyscallNum::WriteV => Box::new(WriteVSyscall::from(self)),
             LinuxSyscallNum::Clone => todo!(),
             LinuxSyscallNum::Fcntl => todo!(),
-            LinuxSyscallNum::SigAltStack => todo!(),
+            LinuxSyscallNum::SigAltStack => Box::new(SignalStackSyscall::from(self)),
             LinuxSyscallNum::ArchPrctl => Box::new(ArchPrctlSyscall::from(self)),
             LinuxSyscallNum::Gettid => todo!(),
             LinuxSyscallNum::Futex => todo!(),

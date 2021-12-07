@@ -1,9 +1,14 @@
 mod arch_prctl;
+mod brk;
 mod error_code;
 mod generic;
 mod ioctl;
 mod mmap;
+mod poll;
+mod rtsigaction;
+mod rtsigprocmask;
 mod set_tid_address;
+mod signalstack;
 mod syscall_num;
 mod write_v;
 

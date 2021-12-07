@@ -30,7 +30,7 @@ pub struct Userland {
     /// statically compiled Hello World for Linux (C + musl/gcc)
     linux_c_hello_world_elf: MappedMemory,
     // /// statically compiled Hello World for Linux (Rust + musl/LLVM)
-    // linux_rust_hello_world_elf: MappedMemory,
+    linux_rust_hello_world_elf: MappedMemory,
     // /// statically compiled Hello World for Linux (Zig)
     // linux_zig_hello_world_elf: MappedMemory,
 }
@@ -61,6 +61,11 @@ impl Userland {
             linux_c_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_c_hello_world_musl",
+            )
+            .unwrap(),
+            linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hello_world_musl",
             )
             .unwrap(),
             /*linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
@@ -138,9 +143,14 @@ impl Userland {
             String::from("Hedron-native Hello World"),
             SyscallAbi::Native,
         );*/
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
             String::from("Linux Hello World (C + musl/GCC)"),
+            SyscallAbi::Linux,
+        );*/
+        PROCESS_MNG.lock().start_process(
+            self.linux_rust_hello_world_elf.clone(),
+            String::from("Linux Hello World (Rust + musl)"),
             SyscallAbi::Linux,
         );
     }
