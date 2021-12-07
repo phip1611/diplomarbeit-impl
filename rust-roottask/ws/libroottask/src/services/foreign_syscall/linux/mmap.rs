@@ -38,8 +38,6 @@ impl From<&GenericLinuxSyscall> for MMapSyscall {
 
 impl LinuxSyscallImpl for MMapSyscall {
     fn handle(&self, utcb_exc: &mut UtcbDataException) -> LinuxSyscallResult {
-        dbg!(utcb_exc);
-
         // two most popular combinations
         let mut ptr = None;
         if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {

@@ -36,12 +36,6 @@ use elf_rs::{
     ProgramType,
     SectionHeaderFlags,
 };
-use libc_auxv::{
-    AuxVar,
-    AuxVarType,
-    InitialLinuxLibcStackLayout,
-    InitialLinuxLibcStackLayoutBuilder,
-};
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::cap_space::user::{
     ForeignUserAppCapSpace,
@@ -83,6 +77,10 @@ use libhrstd::uaddress_space::{
     USER_UTCB_ADDR,
 };
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
+use linux_libc_auxv::{
+    AuxVar,
+    InitialLinuxLibcStackLayoutBuilder,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProcessState {
@@ -430,29 +428,21 @@ impl Process {
         );
 
         let stack_layout = InitialLinuxLibcStackLayoutBuilder::new()
-            .add_arg_v(b"./executable\0")
-            .add_arg_v(b"first\0")
-            .add_arg_v(b"second\0")
-            .add_env_v(b"FOO=BAR\0")
-            .add_aux_v(AuxVar::ReferencedData(
-                AuxVarType::AtExecFn,
-                b"./executable\0",
-            ))
-            .add_aux_v(AuxVar::ReferencedData(AuxVarType::AtPlatform, b"x86_&4\0"))
+            .add_arg_v("./executable")
+            .add_arg_v("first")
+            .add_arg_v("second")
+            .add_env_v("FOO=BAR")
+            .add_aux_v(AuxVar::ExecFn("./executable"))
+            .add_aux_v(AuxVar::Platform("x86_64"))
             // libc (at least musl) expects all of this values to be present
-            .add_aux_v(AuxVar::Value(
-                AuxVarType::AtPhdr,
-                USER_ELF_ADDR + pr_hdr_off,
+            .add_aux_v(AuxVar::Phdr((USER_ELF_ADDR + pr_hdr_off) as *const u8))
+            .add_aux_v(AuxVar::Phnum(
+                elf.elf_header().program_header_entry_num() as usize
             ))
-            .add_aux_v(AuxVar::Value(
-                AuxVarType::AtPhnum,
-                elf.elf_header().program_header_entry_num() as u64,
+            .add_aux_v(AuxVar::Phent(
+                elf.elf_header().program_header_entry_size() as usize
             ))
-            .add_aux_v(AuxVar::Value(
-                AuxVarType::AtPhent,
-                elf.elf_header().program_header_entry_size() as u64,
-            ))
-            .add_aux_v(AuxVar::Value(AuxVarType::AtPagesz, PAGE_SIZE as u64));
+            .add_aux_v(AuxVar::Pagesz(PAGE_SIZE));
 
         let mut stack = self.stack.borrow_mut();
         // whole memory that is stack for user; in roottask address space
