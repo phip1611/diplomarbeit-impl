@@ -1,4 +1,5 @@
 use crate::PAGE_SIZE;
+use core::arch::asm;
 use core::panic::PanicInfo;
 use core::sync::atomic::{
     compiler_fence,

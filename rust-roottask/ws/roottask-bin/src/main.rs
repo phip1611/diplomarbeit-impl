@@ -1,9 +1,5 @@
-#![no_std]
+﻿#![no_std]
 #![no_main]
-// allow inline assembly
-#![feature(asm)]
-// allow global assembly
-#![feature(global_asm)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(allocator_api)]
@@ -27,6 +23,8 @@
 )]
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
+
+use core::arch::global_asm;
 
 // any global definitions required to be in assembly
 global_asm!(include_str!("assembly.S"));

@@ -7,6 +7,7 @@ use crate::syscall::generic::{
     SyscallNum,
     SyscallStatus,
 };
+use core::arch::asm;
 
 /// Performs a blocking IPC call to the specified portal.
 /// Payload is transferred via the UTCB.
