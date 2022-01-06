@@ -10,13 +10,18 @@ builddir:
 c: | builddir
 	cd C && $(MAKE)
 	cp C/static_hello_world_musl ./build/linux_c_hello_world_musl.elf
-	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world ./build/linux_rust_hello_world_musl.elf
+	strip ./build/linux_c_hello_world_musl.elf
 
 go: | builddir
 	cd Go && $(MAKE)
 
 rust: | builddir
 	cd Rust && $(MAKE)
+	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world ./build/linux_rust_hello_world_musl.elf
+	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world_hybrid ./build/linux_rust_hello_world_hybrid_musl.elf
+
+	strip ./build/linux_rust_hello_world_musl.elf
+	strip ./build/linux_rust_hello_world_hybrid_musl.elf
 
 zig: | builddir
 	cd Zig && $(MAKE)

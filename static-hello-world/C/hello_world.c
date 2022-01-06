@@ -137,7 +137,7 @@ int main(int argc, char *argv[], char * envp[]) {
         printf("  %p: %s(%ld) => %lx\n", aux, aux_var_type_to_str(aux->key), aux->key, aux->val);
     }
     printf("  %p: %s(%ld) => %lx\n", aux, aux_var_type_to_str(AtNull), (uint64_t) AtNull, (uint64_t) 0);
-    
+
     /*for (int i = 1; i < AtSysinfoEhdr; i++) {
         printf("  %s(%ld) => %ld\n", aux_var_type_to_str(i), i, getauxval(i));
     }*/
