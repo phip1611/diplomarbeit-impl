@@ -102,6 +102,16 @@ impl Utcb {
         &self.data.untyped_items()[0..self.untyped_items_count() as usize]
     }
 
+    /// Returns the "thread local storage"-field from the UTCB head.
+    pub fn head_tls(&self) -> u64 {
+        self.head.tls
+    }
+
+    /// Sets the "thread local storage"-field from the UTCB head.
+    pub fn set_head_tls(&mut self, val: u64) {
+        self.head.tls = val;
+    }
+
     /// Sets the number of untyped items.
     fn set_number_untyped_items(&mut self, count: u16) -> Result<(), UtcbError> {
         if count as usize > UNTYPED_ITEM_CAPACITY {
