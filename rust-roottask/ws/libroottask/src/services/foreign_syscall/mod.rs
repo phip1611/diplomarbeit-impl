@@ -33,20 +33,42 @@ pub fn handle_foreign_syscall(
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
+    // Make sure that we don't accidentally overwrite stuff!
+    // For example that we don't overwrite fs_base when we don't want to do it at all!
+    utcb.exception_data_mut().mtd = Mtd::RIP_LEN | Mtd::RSP;
+
+    // ### GENERIC PART: same for all foreign syscalls ###
+    // see x86 spec: rcx will contain original user RIP
+    // utcb_exc.rip = utcb_exc.rcx;
+    let next_rip = utcb.exception_data().rcx;
+    // hedron saves original user SP in r11
+    let original_rsp = utcb.exception_data().r11;
+    // ####################################################
+
     match process.syscall_abi() {
+        // syscall implementations may not change these values
         SyscallAbi::Linux => {
             let syscall = GenericLinuxSyscall::try_from(utcb.exception_data()).unwrap();
-            log::debug!(
+            /*log::trace!(
                 "Got {:?} syscall at RIP=0x{:x}, RCX=0x{:x}",
                 syscall,
                 // Intel SDM: SYSCALL: next address stored in rcx
                 utcb.exception_data().rcx - 2,
                 utcb.exception_data().rcx,
-            );
-            syscall.handle(utcb.exception_data_mut());
+            );*/
+            log::trace!("linux syscall: {:?}", syscall.syscall_num());
+            syscall.handle(utcb.exception_data_mut(), process);
         }
         _ => panic!("not implemented syscall ABI {:?}", process.syscall_abi()),
     }
+
+    // ### GENERIC PART: same for all foreign syscalls ###
+    utcb.exception_data_mut().rip = next_rip;
+    utcb.exception_data_mut().rsp = original_rsp;
+    // ####################################################
+
+    log::debug!("outgoing MTD: {:?}", utcb.exception_data().mtd);
+
     *do_reply = true;
 }
 

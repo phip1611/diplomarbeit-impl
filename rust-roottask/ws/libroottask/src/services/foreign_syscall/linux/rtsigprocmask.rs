@@ -1,3 +1,4 @@
+use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -17,7 +18,7 @@ impl From<&GenericLinuxSyscall> for RtSigProcMaskSyscall {
 }
 
 impl LinuxSyscallImpl for RtSigProcMaskSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException) -> LinuxSyscallResult {
+    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
         // do nothing; it's okay for simple Linux programs
 
         LinuxSyscallResult::new_success(0)

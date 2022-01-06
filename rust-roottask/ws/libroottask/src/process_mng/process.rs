@@ -106,6 +106,7 @@ pub struct Process {
     // todo so far not per thread
     stack: RefCell<MemLocation<PinnedPageAlignedHeapArray<u8>>>,
     // Describes where the heap pointer is. This belongs to a Q&D approach of "fire and forget" allocations.
+    // Similar to the "program break" in UNIX/Linux.
     heap_ptr: AtomicU64,
 
     syscall_abi: SyscallAbi,
@@ -432,6 +433,8 @@ impl Process {
             .add_arg_v("first")
             .add_arg_v("second")
             .add_env_v("FOO=BAR")
+            // application can use this to check if it runs under hedron
+            .add_env_v("LINUX_UNDER_HEDRON=true")
             .add_aux_v(AuxVar::ExecFn("./executable"))
             .add_aux_v(AuxVar::Platform("x86_64"))
             // libc (at least musl) expects all of this values to be present

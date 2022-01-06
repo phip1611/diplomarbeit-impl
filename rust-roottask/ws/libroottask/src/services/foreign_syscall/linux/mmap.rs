@@ -1,3 +1,4 @@
+use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
@@ -8,6 +9,7 @@ use core::alloc::Layout;
 use enum_iterator::IntoEnumIterator;
 use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -24,7 +26,6 @@ pub struct MMapSyscall {
 
 impl From<&GenericLinuxSyscall> for MMapSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
-        log::debug!("{:x}", syscall.arg3());
         Self {
             addr: syscall.arg0() as _,
             len: syscall.arg1(),
@@ -37,18 +38,18 @@ impl From<&GenericLinuxSyscall> for MMapSyscall {
 }
 
 impl LinuxSyscallImpl for MMapSyscall {
-    fn handle(&self, utcb_exc: &mut UtcbDataException) -> LinuxSyscallResult {
+    fn handle(&self, utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
         // two most popular combinations
         let mut ptr = None;
         if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {
             let layout = Layout::from_size_align(self.len as usize, PAGE_SIZE).unwrap();
-            ptr.replace(unsafe { alloc::alloc::alloc(layout) } as u64);
+            ptr.replace(unsafe { alloc::alloc::alloc_zeroed(layout) } as u64);
         } else if self.flags.contains(MMapFlags::ANONYMOUS)
             && self.flags.contains(MMapFlags::SHARED)
         {
             // TODO what to do different?
             let layout = Layout::from_size_align(self.len as usize, PAGE_SIZE).unwrap();
-            ptr.replace(unsafe { alloc::alloc::alloc(layout) } as u64);
+            ptr.replace(unsafe { alloc::alloc::alloc_zeroed(layout) } as u64);
         } else {
             todo!("unimplemented for flag combination: {:?}", self.flags);
         }
@@ -58,7 +59,7 @@ impl LinuxSyscallImpl for MMapSyscall {
         let src_page_num = ptr.unwrap() as usize / PAGE_SIZE;
         // TODO look into process object to see where the heap
         //  ptr is and don't map to static location
-        let dest_page_num = 0x12345678;
+        let dest_page_num = 0x1234567;
 
         let page_num = if self.len as usize % PAGE_SIZE == 0 {
             self.len as usize / PAGE_SIZE
@@ -73,7 +74,8 @@ impl LinuxSyscallImpl for MMapSyscall {
             MemCapPermissions::READ | MemCapPermissions::WRITE,
         );
 
-        ptr.map(|x| 0x12345678000)
+        // ptr: roottask mem address
+        ptr.map(|x| 0x1234567000)
             .map(LinuxSyscallResult::new_success)
             .unwrap_or(LinuxSyscallResult::new_error(LinuxErrorCode::ENOMEM))
     }

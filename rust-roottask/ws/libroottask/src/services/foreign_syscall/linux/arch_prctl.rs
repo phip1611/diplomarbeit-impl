@@ -1,9 +1,11 @@
+use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
 use enum_iterator::IntoEnumIterator;
+use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::UtcbDataException;
 
 /// * <https://man7.org/linux/man-pages/man2/arch_prctl.2.html>
@@ -30,8 +32,10 @@ impl From<&GenericLinuxSyscall> for ArchPrctlSyscall {
 }
 
 impl LinuxSyscallImpl for ArchPrctlSyscall {
-    fn handle(&self, utcb_exc: &mut UtcbDataException) -> LinuxSyscallResult {
-        /*match self.subfunction {
+    fn handle(&self, utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+        utcb_exc.mtd |= Mtd::FS_GS;
+
+        match self.subfunction {
             ArchPrctlSubfunction::ArchSetGs => utcb_exc.gs.base = self.addr as _,
             ArchPrctlSubfunction::ArchSetFs => utcb_exc.fs.base = self.addr as _,
             ArchPrctlSubfunction::ArchGetFs => {
@@ -55,7 +59,7 @@ impl LinuxSyscallImpl for ArchPrctlSyscall {
             ArchPrctlSubfunction::ArchMapVdso64 => {
                 todo!()
             }
-        }*/
+        }
 
         LinuxSyscallResult::new_success(0)
     }

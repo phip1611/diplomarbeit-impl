@@ -1,4 +1,5 @@
 use crate::mem::VIRT_MEM_ALLOC;
+use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -31,7 +32,7 @@ impl From<&GenericLinuxSyscall> for WriteVSyscall {
 }
 
 impl LinuxSyscallImpl for WriteVSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException) -> LinuxSyscallResult {
+    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
         let mut bytes_written = 0;
 
         // first: map the iovec itself

@@ -88,7 +88,7 @@ pub fn init(root_process: &Process) {
         CALLBACK_STACK.activate_guard_page(RootCapSpace::RootPd.val());
     }
 
-    log::info!("created local ec for exception handling; guard page is active");
+    log::debug!("created local ec for exception handling; guard page is active");
     log::trace!(
         "local exception handler ec stack top  (incl): {:016x?}",
         unsafe { CALLBACK_STACK.get_stack_top_ptr() as u64 }
@@ -184,6 +184,6 @@ pub fn generic_error_exception_handler(
         log::debug!("use generic (=panic) exception handler");
         log::debug!("{:#?}", utcb.exception_data());
         *do_reply = false;
-        panic!("can't handle exceptions currently - game over");
+        panic!("can't handle exception {:?} currently - game over", exc);
     }
 }

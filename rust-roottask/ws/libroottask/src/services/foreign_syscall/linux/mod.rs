@@ -10,8 +10,10 @@ mod rtsigprocmask;
 mod set_tid_address;
 mod signalstack;
 mod syscall_num;
+mod write;
 mod write_v;
 
+use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use alloc::boxed::Box;
@@ -39,5 +41,5 @@ impl LinuxSyscallResult {
 
 pub trait LinuxSyscallImpl: Debug {
     /// Must make sure, that the handler sets the correct return code in the correct register.
-    fn handle(&self, utcb_exc: &mut UtcbDataException) -> LinuxSyscallResult;
+    fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult;
 }

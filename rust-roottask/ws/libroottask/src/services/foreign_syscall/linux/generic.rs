@@ -2,6 +2,7 @@ use crate::mem::{
     VirtMemAllocator,
     VIRT_MEM_ALLOC,
 };
+use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::brk::BrkSyscall;
 use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
@@ -13,6 +14,7 @@ use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSysca
 use crate::services::foreign_syscall::linux::signalstack::SignalStackSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum::MMap;
+use crate::services::foreign_syscall::linux::write::WriteSyscall;
 use crate::services::foreign_syscall::linux::write_v::WriteVSyscall;
 use crate::services::foreign_syscall::linux::LinuxSyscallImpl;
 use alloc::boxed::Box;
@@ -21,6 +23,7 @@ use core::fmt::Debug;
 use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::ipc_serde::__private::Formatter;
 use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -60,7 +63,10 @@ impl GenericLinuxSyscall {
         self.r9_arg5
     }
 
-    pub fn handle(&self, utcb_exc: &mut UtcbDataException) {
+    pub fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) {
+        // all Linux syscalls put their result in RAX => save general purpose registers
+        utcb_exc.mtd |= Mtd::GPR_ACDB;
+
         /*let mapping_dest = VIRT_MEM_ALLOC
             .lock()
             .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
@@ -81,7 +87,7 @@ impl GenericLinuxSyscall {
 
         let syscall_impl: Box<dyn LinuxSyscallImpl> = match self.rax {
             LinuxSyscallNum::Read => todo!(),
-            LinuxSyscallNum::Write => todo!(),
+            LinuxSyscallNum::Write => Box::new(WriteSyscall::from(self)),
             LinuxSyscallNum::Open => todo!(),
             LinuxSyscallNum::Close => todo!(),
             LinuxSyscallNum::Poll => Box::new(PollSyscall::from(self)),
@@ -106,15 +112,7 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::PrLimit64 => todo!(),
         };
         log::debug!("Linux syscall: {:?}", syscall_impl);
-        utcb_exc.rax = syscall_impl.handle(utcb_exc).val();
-
-        // syscall implementations may not change these values
-
-        // see x86 spec: rcx will contain original user RIP
-        // utcb_exc.rip = utcb_exc.rcx;
-        utcb_exc.rip = utcb_exc.rcx;
-        // hedron saves original user SP in r11
-        utcb_exc.rsp = utcb_exc.r11;
+        utcb_exc.rax = syscall_impl.handle(utcb_exc, process).val();
     }
 }
 
