@@ -147,6 +147,7 @@ impl Log for GenericLogger {
 /// Initializes the Rust logger for the root task. Forwards to the default STDERR location.
 pub fn init() {
     log::set_max_level(LevelFilter::max());
+    // log::set_max_level(LevelFilter::Info);
     log::set_logger(&LOGGER).expect("call this only once!");
 
     // Q&D: execute this once, so catch the logging-messages, which gives us nice

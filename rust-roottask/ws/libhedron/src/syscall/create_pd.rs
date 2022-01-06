@@ -37,11 +37,13 @@ use crate::syscall::generic::{
 /// - `has_passthrough_access` see description above
 /// - `dest_cap_sel` Free capability selector in callers capability space
 /// - `parent_pd_sel` The capability selector of the parent protection domain (e.g. root task)
-///
+/// - `foreign_syscall_base` Of some, this PD will be a foreign PD (syscalls handled as exceptions)
+///                          with the given foreign syscall base.
 pub fn create_pd(
     passthrough_access: bool,
     cap_sel: CapSel,
     parent_pd_sel: CapSel,
+    foreign_syscall_base: Option<CapSel>,
 ) -> Result<(), SyscallStatus> {
     assert!(
         cap_sel < NUM_CAP_SEL,
@@ -67,8 +69,9 @@ pub fn create_pd(
     // Object ones, memory ones, ..?
     // Since we have a dedicated pd_ctrl#delegate syscall, it is recommended to use that instead
     let arg3 = CrdNull::default().val();
+    let arg4 = foreign_syscall_base.map(|x| (x << 1) | 1).unwrap_or(0);
     unsafe {
-        generic_syscall(arg1, arg2, arg3, 0, 0)
+        generic_syscall(arg1, arg2, arg3, arg4, 0)
             .map(|_x| ())
             .map_err(|e| e.0)
     }

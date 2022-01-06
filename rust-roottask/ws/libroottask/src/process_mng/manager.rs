@@ -1,10 +1,15 @@
 use crate::mem::MappedMemory;
 use crate::process_mng::process::Process;
+use crate::process_mng::syscall_abi::SyscallAbi;
 use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
-use elf_rs::Elf;
+use elf_rs::{
+    Elf,
+    ElfFile,
+};
+use libhrstd::cap_space::user::ForeignUserAppCapSpace;
 use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
@@ -67,7 +72,12 @@ impl ProcessManager {
     }
 
     /// Starts a new process.
-    pub fn start_process(&mut self, elf_file: MappedMemory, program_name: String) -> ProcessId {
+    pub fn start_process(
+        &mut self,
+        elf_file: MappedMemory,
+        program_name: String,
+        syscall_abi: SyscallAbi,
+    ) -> ProcessId {
         if !self.init {
             panic!("call init() first!");
         }
@@ -77,7 +87,7 @@ impl ProcessManager {
         self.pid_counter += 1;
 
         // the process starts itself. the Mng just keeps track of it.
-        let process = Process::new(pid, elf_file, program_name, self.root());
+        let process = Process::new(pid, elf_file, program_name, self.root(), syscall_abi);
         let _ = self.processes.insert(pid, process.clone());
 
         // actually start
@@ -135,16 +145,18 @@ impl ProcessManager {
         log::debug!("startup exception handler");
 
         let elf = elf_rs::Elf::from_bytes(process.elf_file_bytes()).unwrap();
-        let elf = match elf {
-            Elf::Elf64(elf) => elf,
-            Elf::Elf32(_) => panic!("only supports ELF64"),
-        };
 
         let utcb = utcb.exception_data_mut();
         utcb.mtd = Mtd::RIP_LEN | Mtd::RSP;
         // todo future work: figure out what global EC triggered this (multithreading, multiple stacks)
-        utcb.rsp = USER_STACK_TOP;
-        utcb.rip = elf.header().entry_point();
+        utcb.rip = elf.entry_point();
+
+        if matches!(process.syscall_abi(), SyscallAbi::Linux) {
+            utcb.rsp = process.init_stack_libc_aux_vector() as u64;
+        } else {
+            utcb.rsp = USER_STACK_TOP;
+        }
+
         *do_reply = true;
     }
 }

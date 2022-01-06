@@ -581,6 +581,23 @@ bitflags::bitflags! {
     }
 }
 
+impl MemCapPermissions {
+    /// Constructor from ELF segment permissions. There, READ is bit 2 and EXECUTE bit 0.
+    pub fn from_elf_segment_permissions(bits: u8) -> Self {
+        let mut perm = MemCapPermissions::empty();
+        if bits & 0b001 == 0b001 {
+            perm |= Self::EXECUTE
+        }
+        if bits & 0b010 == 0b010 {
+            perm |= Self::WRITE
+        }
+        if bits & 0b100 == 0b100 {
+            perm |= Self::READ
+        }
+        perm
+    }
+}
+
 bitflags::bitflags! {
     /// Permissions of a capability for a x86 I/O port.
     pub struct PortIOCapPermissions: u8 {

@@ -2,6 +2,7 @@
 //!
 //! Covers the low-level part. Just the raw system calls with nice typings.
 
+use core::arch::asm;
 use enum_iterator::IntoEnumIterator;
 
 /// Does a NOVA/Hedron syscall with 5 arguments.

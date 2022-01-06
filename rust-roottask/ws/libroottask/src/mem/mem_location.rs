@@ -108,6 +108,23 @@ impl<T: MemLocationOwned> MemLocation<T> {
     }
 }
 
+impl MemLocation<PinnedPageAlignedHeapArray<u8>> {
+    pub fn as_slice_mut(&mut self) -> &mut [u8] {
+        match self {
+            MemLocation::Owned(val) => val.as_slice_mut(),
+            MemLocation::External {
+                page_num,
+                size_in_pages,
+            } => unsafe {
+                core::slice::from_raw_parts_mut(
+                    (*page_num * PAGE_SIZE as u64) as *mut u8,
+                    (*size_in_pages) as usize,
+                )
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

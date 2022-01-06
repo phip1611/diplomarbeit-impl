@@ -104,8 +104,9 @@ dependencies = [
 
 [[package]]
 name = "elf_rs"
-version = "0.1.3"
-source = "git+https://github.com/phip1611/elf_rs?branch=program-header-flags#3da109fd023793813927e230accc2b1039723ebc"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1822fbb5193550bcbd7833ac15365da49917ad7ae396a07cb71443b38e398602"
 dependencies = [
  "bitflags",
  "num-traits",
@@ -217,10 +218,21 @@ dependencies = [
  "enum-iterator",
  "libfileserver",
  "libhrstd",
+ "linux-libc-auxv",
  "log",
  "runs_inside_qemu",
  "tar-no-std",
  "x86",
+]
+
+[[package]]
+name = "linux-libc-auxv"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e08751bcbe8ce714429e73bc632fcd6f60e1657db28f869f7eea739761a78ebb"
+dependencies = [
+ "bitflags",
+ "enum-iterator",
 ]
 
 [[package]]

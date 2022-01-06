@@ -56,7 +56,7 @@ pub fn allocate_service_handler(
     let layout = utcb.load_data::<AllocRequest>().unwrap();
     // ensure that we only map even pages; Q&D
     let layout = Layout::from_size_align(layout.size(), max(PAGE_SIZE, layout.align())).unwrap();
-    let ptr: NonNull<[u8]> = alloc::alloc::Global.allocate(layout).unwrap();
+    let ptr: NonNull<[u8]> = alloc::alloc::Global.allocate_zeroed(layout).unwrap();
     // allocate in Roottask (i.e. physical memory) and delegete mem capability to new process
     utcb.store_data(&process.heap_ptr().load(Ordering::SeqCst))
         .unwrap();

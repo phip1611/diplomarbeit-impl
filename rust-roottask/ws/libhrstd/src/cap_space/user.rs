@@ -38,3 +38,36 @@ impl UserAppCapSpace {
         self as _
     }
 }
+
+/// Capability space of foreign user applications. Binaries with different OS ABIs.
+///
+/// The variant value corresponds to the [`crate::libhrstd::libhedron::capability::CapSel`]
+/// that refers to the given capability.
+#[repr(u64)]
+#[derive(Copy, Clone, Debug)]
+pub enum ForeignUserAppCapSpace {
+    /// Used as event offset for exceptions.
+    ExceptionEventBase = 0,
+    /// Last inclusive index of exception events.
+    ExceptionEnd = (NUM_EXC - 1) as u64,
+    /// Begin value. This plus CPU_NUM equals the actual PT selector.
+    SyscallBasePt = 50,
+}
+
+impl ForeignUserAppCapSpace {
+    /// Returns the numeric value.
+    pub fn val(self) -> CapSel {
+        self as _
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_syscall_base_ot() {
+        dbg!(ForeignUserAppCapSpace::SyscallBasePt.val());
+    }
+}

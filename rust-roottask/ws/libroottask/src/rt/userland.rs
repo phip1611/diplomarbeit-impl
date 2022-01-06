@@ -7,6 +7,7 @@ use crate::mem::{
     VIRT_MEM_ALLOC,
 };
 use crate::process_mng::manager::PROCESS_MNG;
+use crate::process_mng::syscall_abi::SyscallAbi;
 use alloc::string::String;
 use core::alloc::Layout;
 use libhrstd::cstr::CStr;
@@ -26,6 +27,14 @@ use tar_no_std::TarArchiveRef;
 pub struct Userland {
     hello_world_elf: MappedMemory,
     fs_service_elf: MappedMemory,
+    /// statically compiled Hello World for Linux (C + musl/gcc)
+    linux_c_hello_world_elf: MappedMemory,
+    // /// statically compiled Hello World for Linux (Rust + musl/LLVM)
+    linux_rust_hello_world_elf: MappedMemory,
+    // /// statically compiled Hello World for Linux (Rust + musl/LLVM) + hybrid part (native Hedron syscalls)
+    linux_rust_hello_world_hybrid_elf: MappedMemory,
+    // /// statically compiled Hello World for Linux (Zig)
+    // linux_zig_hello_world_elf: MappedMemory,
 }
 
 impl Userland {
@@ -51,6 +60,26 @@ impl Userland {
                 .unwrap(),
             fs_service_elf: Self::map_tar_entry_to_page_aligned_dest(&tar_file, "fileserver-bin")
                 .unwrap(),
+            linux_c_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_c_hello_world_musl",
+            )
+            .unwrap(),
+            linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hello_world_musl",
+            )
+            .unwrap(),
+            linux_rust_hello_world_hybrid_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hello_world_hybrid_musl",
+            )
+            .unwrap(),
+            /*linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux-rust-hello-world-bin",
+            )
+            .unwrap(),*/
         }
     }
 
@@ -116,10 +145,26 @@ impl Userland {
 
     /// Bootstraps the userland. Starts processes in the process manager.
     pub fn bootstrap(&self) {
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.hello_world_elf.clone(),
             String::from("Hedron-native Hello World"),
+            SyscallAbi::Native,
+        );*/
+        /*PROCESS_MNG.lock().start_process(
+            self.linux_c_hello_world_elf.clone(),
+            String::from("Linux Hello World (C + musl/GCC)"),
+            SyscallAbi::Linux,
+        );*/
+        PROCESS_MNG.lock().start_process(
+            self.linux_rust_hello_world_elf.clone(),
+            String::from("Linux Hello World (Rust + musl)"),
+            SyscallAbi::Linux,
         );
+        /*PROCESS_MNG.lock().start_process(
+            self.linux_rust_hello_world_hybrid_elf.clone(),
+            String::from("Linux Hello World Hybrid (Rust + musl)"),
+            SyscallAbi::Linux,
+        );*/
     }
 }
 

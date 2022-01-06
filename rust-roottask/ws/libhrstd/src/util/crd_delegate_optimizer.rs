@@ -6,7 +6,9 @@ use core::cmp::min;
 use libhedron::capability::{
     CapSel,
     CrdMem,
+    CrdObjPT,
     MemCapPermissions,
+    PTCapPermissions,
 };
 use libhedron::syscall::pd_ctrl::{
     pd_ctrl_delegate,
@@ -88,7 +90,7 @@ impl CrdDelegateOptimizer {
 
         self.for_each(|params| {
             log::trace!(
-                "map page {} ({:?}) (pd={}) to page {} ({:?}) (pd={}), order={} (2^order={})",
+                "map page {} ({:?}) (pd={}) to page {} ({:?}) (pd={}), order={} (2^order={}, perm={:?})",
                 params.src_base,
                 (params.src_base as usize * PAGE_SIZE) as *const u64,
                 src_pd,
@@ -96,7 +98,8 @@ impl CrdDelegateOptimizer {
                 (params.dest_base as usize * PAGE_SIZE) as *const u64,
                 dest_pd,
                 params.order,
-                params.power
+                params.power,
+                perm,
             );
 
             // currently in Hedron: needs twice the same permissions (this will be removed soon)
@@ -110,6 +113,28 @@ impl CrdDelegateOptimizer {
                 DelegateFlags::new(true, false, false, is_roottask_to_roottask_mapping, 0),
             )
             .unwrap();
+        });
+    }
+
+    /// Map PTs to other PTs.
+    pub fn pts(self, src_pd: CapSel, dest_pd: CapSel) {
+        self.for_each(|params| {
+            log::trace!(
+                "map PT sel {} (pd={}) to PT sel {} (pd={}), order={} (2^order={})",
+                params.src_base,
+                src_pd,
+                params.dest_base,
+                dest_pd,
+                params.order,
+                params.power
+            );
+
+            let perm = PTCapPermissions::CALL;
+
+            // currently in Hedron: needs twice the same permissions (this will be removed soon)
+            let src_crd = CrdObjPT::new(params.src_base, params.order, perm);
+            let dest_crd = CrdObjPT::new(params.dest_base, params.order, perm);
+            pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, DelegateFlags::default()).unwrap();
         });
     }
 }

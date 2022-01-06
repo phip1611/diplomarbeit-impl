@@ -19,5 +19,6 @@ tar-no-std = { version = "0.1", features = ["alloc"] }
 # tar-no-std = { path = "../../../../dev/tar-no_std", features = ["alloc"] }
 runs_inside_qemu = "1.1"
 # runs_inside_qemu = { path = "/home/pschuster/dev/runs-inside-qemu" }
-# elf_rs = "0.1"
-elf_rs = { git = "https://github.com/phip1611/elf_rs", branch = "program-header-flags" }
+elf_rs = "0.2"
+# linux-libc-auxv = { path = "../../../../dev/libc-auxv" }
+linux-libc-auxv = "0.2"
