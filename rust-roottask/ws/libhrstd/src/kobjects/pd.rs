@@ -90,8 +90,16 @@ impl PdObject {
         pd_ctrl_delegate(
             parent.cap_sel,
             cap_sel,
-            CrdObjPD::new(cap_sel, 0, PDCapPermissions::CREATE_EC),
-            CrdObjPD::new(UserAppCapSpace::Pd.val(), 0, PDCapPermissions::CREATE_EC),
+            CrdObjPD::new(
+                cap_sel,
+                0,
+                PDCapPermissions::CREATE_EC | PDCapPermissions::CREATE_PD,
+            ),
+            CrdObjPD::new(
+                UserAppCapSpace::Pd.val(),
+                0,
+                PDCapPermissions::CREATE_EC | PDCapPermissions::CREATE_PD,
+            ),
             DelegateFlags::new(false, false, false, false, 0),
         )
         .unwrap();
@@ -112,9 +120,9 @@ impl PdObject {
     }
 
     /// Like [`Self::new`] but with well-known default parameters.
-    /// Can be called in user processes to get a correct [`PdObject`]
-    /// without invoking any syscalls.
-    pub fn new_in_user_cap_space(pid: CapSel) -> Rc<Self> {
+    /// Can be called in user processes to get a correct initial "self"
+    /// [`PdObject`] without invoking any syscalls.
+    pub fn self_in_user_cap_space(pid: CapSel) -> Rc<Self> {
         Self::new(pid, None, UserAppCapSpace::Pd.val())
     }
 

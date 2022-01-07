@@ -155,16 +155,16 @@ impl Userland {
             String::from("Linux Hello World (C + musl/GCC)"),
             SyscallAbi::Linux,
         );*/
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_elf.clone(),
             String::from("Linux Hello World (Rust + musl)"),
             SyscallAbi::Linux,
-        );
-        /*PROCESS_MNG.lock().start_process(
+        );*/
+        PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_hybrid_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl)"),
             SyscallAbi::Linux,
-        );*/
+        );
     }
 }
 
