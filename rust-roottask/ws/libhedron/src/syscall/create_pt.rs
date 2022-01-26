@@ -43,7 +43,7 @@ pub fn create_pt(
 
     // according to spec, bits 63-8 are the new
     // pt_cap_sel but it is 0.. wtf?!
-    arg1 |= new_pt_cap_sel << 8;
+    arg1 |= new_pt_cap_sel << 12;
 
     let arg2 = own_pd_sel;
     let arg3 = bound_ec_sel;

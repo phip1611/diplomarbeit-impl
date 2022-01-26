@@ -35,8 +35,8 @@ pub fn create_sc(
         bound_ec_sel
     );
     let mut arg1 = 0;
-    arg1 |= SyscallNum::CreateSc.val() & 0xf;
-    arg1 |= cap_sel << 8;
+    arg1 |= SyscallNum::CreateSc.val() & 0xff;
+    arg1 |= cap_sel << 12;
     let arg2 = owned_pd_sel;
     let arg3 = bound_ec_sel;
     let arg4 = scheduling_params.val();

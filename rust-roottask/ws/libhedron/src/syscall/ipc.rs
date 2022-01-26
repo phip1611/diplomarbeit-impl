@@ -25,9 +25,9 @@ pub fn call(portal_sel: CapSel) -> Result<(), SyscallStatus> {
     const NON_BLOCKING: usize = 1;
 
     let flags = BLOCKING as u64;
-    arg1 |= (flags << 4) & 0xf0;
+    arg1 |= (flags << 8) & 0xf00;
 
-    arg1 |= portal_sel << 8;
+    arg1 |= portal_sel << 12;
 
     unsafe {
         generic_syscall(arg1, 0, 0, 0, 0)

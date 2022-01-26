@@ -24,8 +24,8 @@ pub fn pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> Result<(), SyscallStat
         "maximum cap sel for object capabilities exceeded!"
     );
     let mut arg1 = 0;
-    arg1 |= SyscallNum::PtCtrl.val() & 0xf;
-    arg1 |= pt_sel << 8;
+    arg1 |= SyscallNum::PtCtrl.val() & 0xff;
+    arg1 |= pt_sel << 12;
     unsafe {
         generic_syscall(arg1, callback_argument, 0, 0, 0)
             .map(|_x| ())

@@ -25,7 +25,7 @@ enum EcKind {
 
 impl EcKind {
     /// Bitmask for EcKind. Bits 5-4.
-    const BITMASK: u64 = 0x30;
+    const BITMASK: u64 = 0x300;
 
     fn val(self) -> u8 {
         self as u8
@@ -169,16 +169,16 @@ fn create_ec(
 
     let mut arg1 = 0;
     arg1 |= CreateEc.val();
-    arg1 |= ((kind.val() as u64) << 4) & EcKind::BITMASK;
+    arg1 |= ((kind.val() as u64) << 8) & EcKind::BITMASK;
 
     // Ignored for non-vCPUs or if no vLAPIC page is created.
     if use_apic_access_page {
-        arg1 |= 1 << 6;
+        arg1 |= 1 << 10;
     }
     if use_page_destination {
-        arg1 |= 1 << 7;
+        arg1 |= 1 << 11;
     }
-    arg1 |= dest_cap_sel << 8;
+    arg1 |= dest_cap_sel << 12;
 
     let arg2 = parent_pd_sel;
 

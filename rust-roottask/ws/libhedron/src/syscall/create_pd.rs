@@ -59,11 +59,11 @@ pub fn create_pd(
         parent_pd_sel
     );
     let mut arg1 = 0;
-    arg1 |= SyscallNum::CreatePd.val() & 0xf;
+    arg1 |= SyscallNum::CreatePd.val() & 0xff;
     if passthrough_access {
-        arg1 |= 1 << 4;
+        arg1 |= 1 << 8;
     }
-    arg1 |= cap_sel << 8;
+    arg1 |= cap_sel << 12;
     let arg2 = parent_pd_sel;
     // arg3 is poorly described in spec. What kind of capabilities should be delegated initially?
     // Object ones, memory ones, ..?

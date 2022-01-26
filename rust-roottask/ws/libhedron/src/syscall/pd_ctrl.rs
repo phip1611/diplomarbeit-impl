@@ -127,11 +127,11 @@ pub fn pd_ctrl_delegate<Perm, Spec, ObjSpec>(
         dest_pd < NUM_CAP_SEL,
         "maximum cap sel for object capabilities exceeded!"
     );
-    const SYSCALL_BITMASK: u64 = 0xf;
-    const SUB_SYSCALL_BITMASK: u64 = 0x30;
-    const SUB_SYSCALL_BITSHIFT: u64 = 4;
-    const SOURCE_PD_BITMASK: u64 = !0xff;
-    const SOURCE_PD_BITSHIFT: u64 = 8;
+    const SYSCALL_BITMASK: u64 = 0xff;
+    const SUB_SYSCALL_BITMASK: u64 = 0x300;
+    const SUB_SYSCALL_BITSHIFT: u64 = 8;
+    const SOURCE_PD_BITMASK: u64 = !0x3ff;
+    const SOURCE_PD_BITSHIFT: u64 = 12;
 
     /*log::trace!(
         "delegate[{:?}] PD({})=>PD({}): src cap base={}, order={}; dest cap base={}, order={}",
