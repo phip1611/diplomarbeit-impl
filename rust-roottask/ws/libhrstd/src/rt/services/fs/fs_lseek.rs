@@ -6,7 +6,7 @@ use libhedron::ipc_serde::{
     Deserialize,
     Serialize,
 };
-use libhedron::syscall::ipc::sys_call;
+use libhedron::syscall::sys_call;
 
 pub fn fs_lseek(request: FsLseekRequest) -> FD {
     let utcb = user_load_utcb_mut();

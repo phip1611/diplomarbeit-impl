@@ -7,9 +7,9 @@ use crate::services::foreign_syscall::linux::{
 };
 use core::alloc::Layout;
 use core::fmt::Write;
-use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::MemCapPermissions;
+use libhrstd::libhedron::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]

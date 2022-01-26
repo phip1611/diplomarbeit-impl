@@ -4,7 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::UtcbDataException;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/sigprocmask.2.html>.
 #[derive(Debug)]

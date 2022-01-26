@@ -5,8 +5,8 @@ use crate::consts::{
     NUM_EXC,
 };
 use crate::mem::PAGE_SIZE;
-use crate::syscall::generic::sys_generic_5;
-use crate::syscall::generic::SyscallNum::CreateEc;
+use crate::syscall::sys_generic_5;
+use crate::syscall::SyscallNum::CreateEc;
 use crate::syscall::{
     SyscallError,
     SyscallResult,
@@ -81,7 +81,7 @@ pub fn sys_create_local_ec(
 /// Creates a global EC. . Wrapper around [`sys_create_ec`].
 /// This will result in a [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception in the PD, where the new global EC belongs to. Note that in comparison to
-/// [`create_local_ec`], this doesn't take a `stack_ptr` argument, because the stack
+/// [`sys_create_local_ec`], this doesn't take a `stack_ptr` argument, because the stack
 /// is set in the handler of the [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception.
 ///

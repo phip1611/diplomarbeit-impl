@@ -4,7 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::UtcbDataException;
 
 /// * <https://man7.org/linux/man-pages/man2/set_tid_address.2.html>
 /// * <https://github.com/torvalds/linux/blob/master/kernel/fork.c#L1718>

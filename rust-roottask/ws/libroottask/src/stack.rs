@@ -2,15 +2,15 @@
 //! because it reduces distribution of responsibility/functionality across Rust code,
 //! assembler code and the linker script.
 
-use libhrstd::libhedron::capability::{
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::syscall::{
+    sys_pd_ctrl_delegate,
+    DelegateFlags,
+};
+use libhrstd::libhedron::{
     CapSel,
     CrdMem,
     MemCapPermissions,
-};
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::syscall::pd_ctrl::{
-    sys_pd_ctrl_delegate,
-    DelegateFlags,
 };
 use libhrstd::mem::PageAlignedByteBuf;
 

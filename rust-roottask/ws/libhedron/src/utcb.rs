@@ -7,7 +7,7 @@
 //! avoid the chicken-egg problem!
 
 use crate::mem::PAGE_SIZE;
-use crate::mtd::Mtd;
+use crate::Mtd;
 use arrayvec::ArrayString;
 use core::fmt::{
     Debug,
@@ -144,7 +144,7 @@ impl Utcb {
         &self.data.typed_items()[begin_i..]
     }
 
-    /// Loads data from the UTCB, that was stored using [`store_data`].
+    /// Loads data from the UTCB, that was stored using [`Self::store_data`].
     /// Returns a new, owned copy. Doesn't require heap allocations.
     pub fn load_data<'a, T: Deserialize<'a>>(&'a self) -> Result<T, UtcbError> {
         if self.untyped_items_count() == 0 {
@@ -288,7 +288,7 @@ impl Debug for UtcbData {
 pub struct UtcbDataItems([u64; PAGE_SIZE - size_of::<UtcbHead>()]);
 
 /// Payload structure of [`UtcbData`] if a portal gets called after an event (exception or VM exit).
-/// What data is filled here depends on the [`super::mtd::Mtd`] that is attached to the portal.
+/// What data is filled here depends on the [`super::Mtd`] that is attached to the portal.
 ///
 /// It is also used as payload for the REPLY syscall after an exception. According to the
 /// MTD, the registers will be set.

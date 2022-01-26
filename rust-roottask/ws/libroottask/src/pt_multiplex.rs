@@ -7,8 +7,8 @@ use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
 };
-use libhrstd::libhedron::syscall::ipc::sys_reply;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::syscall::sys_reply;
+use libhrstd::libhedron::Utcb;
 
 /// Describes a function, that handles a specific portal call.
 /// # Parameters

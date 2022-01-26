@@ -7,10 +7,10 @@ use libhrstd::kobjects::{
     PtCtx,
     PtObject,
 };
-use libhrstd::libhedron::capability::CapSel;
-use libhrstd::libhedron::hip::HIP;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::CapSel;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::Utcb;
+use libhrstd::libhedron::HIP;
 use libhrstd::service_ids::ServiceId;
 use libhrstd::sync::mutex::{
     SimpleMutex,

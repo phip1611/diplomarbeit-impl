@@ -11,14 +11,14 @@ use libhrstd::kobjects::{
     PtCtx,
     PtObject,
 };
-use libhrstd::libhedron::capability::{
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::{
     CapSel,
     MemCapPermissions,
 };
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::mtd::Mtd;
 
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::Utcb;
 use libhrstd::rt::services::allocate::AllocRequest;
 use libhrstd::service_ids::ServiceId;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;

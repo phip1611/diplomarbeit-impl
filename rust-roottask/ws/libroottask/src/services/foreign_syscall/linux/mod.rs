@@ -17,7 +17,7 @@ use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use core::fmt::Debug;
 pub use generic::GenericLinuxSyscall;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::UtcbDataException;
 
 pub struct LinuxSyscallResult(i64);
 

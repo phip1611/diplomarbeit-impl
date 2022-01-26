@@ -1,4 +1,4 @@
-﻿#![no_std]
+#![no_std]
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
@@ -46,9 +46,9 @@ use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
-use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::Utcb;
+use libhrstd::libhedron::HIP;
 use libroottask::process_mng::manager;
 use libroottask::rt::userland;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;

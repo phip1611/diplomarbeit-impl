@@ -15,7 +15,7 @@ use enum_iterator::IntoEnumIterator;
 /// # Safety
 /// This function may change the systems functionality in an unintended way,
 /// if the arguments are illegal or wrong.
-pub unsafe fn sys_generic_5(
+pub(super) unsafe fn sys_generic_5(
     arg1: u64,
     arg2: u64,
     arg3: u64,
@@ -143,7 +143,7 @@ pub enum SyscallStatus {
 }
 
 impl From<u64> for SyscallStatus {
-    /// Constructs a SyscallStatus with respect to [`SYSCALL_STATUS_BITMASK`].
+    /// Constructs a SyscallStatus with respect to [`Self::SYSCALL_STATUS_BITMASK`].
     fn from(val: u64) -> Self {
         let val = val & Self::SYSCALL_STATUS_BITMASK;
 
@@ -169,7 +169,7 @@ impl SyscallStatus {
 
 #[cfg(test)]
 mod tests {
-    use crate::syscall::generic::SyscallStatus;
+    use crate::syscall::SyscallStatus;
 
     #[test]
     fn test_syscall_status() {

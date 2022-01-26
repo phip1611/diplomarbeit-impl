@@ -16,6 +16,9 @@
 )]
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
+// I see a benefit here: Even tho it might not be usable from the outside world,
+// it may contain useful information about how the implementation works.
+#![allow(rustdoc::private_intra_doc_links)]
 #![allow(rustdoc::missing_doc_code_examples)]
 #![feature(alloc_error_handler)]
 

@@ -2,8 +2,8 @@ use crate::mem::VIRT_MEM_ALLOC;
 use core::alloc::Layout;
 use core::mem::size_of;
 use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 

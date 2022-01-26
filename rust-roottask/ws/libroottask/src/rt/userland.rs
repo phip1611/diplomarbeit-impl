@@ -11,13 +11,13 @@ use crate::process_mng::syscall_abi::SyscallAbi;
 use alloc::string::String;
 use core::alloc::Layout;
 use libhrstd::cstr::CStr;
-use libhrstd::libhedron::capability::MemCapPermissions;
-use libhrstd::libhedron::hip::{
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::MemCapPermissions;
+use libhrstd::libhedron::{
     HipMem,
     HipMemType,
     HIP,
 };
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::mem::calc_page_count;
 use tar_no_std::TarArchiveRef;
 

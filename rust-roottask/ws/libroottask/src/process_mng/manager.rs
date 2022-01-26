@@ -11,9 +11,9 @@ use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
 };
-use libhrstd::libhedron::event_offset::ExceptionEventOffset;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::ExceptionEventOffset;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::Utcb;
 use libhrstd::process::consts::{
     ProcessId,
     ROOTTASK_PROCESS_PID,

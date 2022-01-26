@@ -1,7 +1,6 @@
 use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
-use crate::mtd::Mtd;
-use crate::syscall::generic::{
+use crate::syscall::{
     sys_generic_5,
     SyscallNum,
 };
@@ -9,6 +8,7 @@ use crate::syscall::{
     SyscallError,
     SyscallResult,
 };
+use crate::Mtd;
 use alloc::string::ToString;
 
 /// Creates a new portal and attaches it to the owning local EC.

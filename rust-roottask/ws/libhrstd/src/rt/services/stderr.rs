@@ -1,7 +1,7 @@
 use crate::cap_space::user::UserAppCapSpace;
 use crate::rt::services::stdout::msg_chunk_bulk_apply;
 use crate::rt::user_load_utcb::user_load_utcb_mut;
-use libhedron::syscall::ipc::sys_call;
+use libhedron::syscall::sys_call;
 
 /// Writes a message to STDERR. If the message is too long, it does so in multiple iterations.
 pub fn stderr_write(msg: &str) {

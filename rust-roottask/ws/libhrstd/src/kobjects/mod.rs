@@ -28,7 +28,7 @@ mod tests {
     };
     use crate::process::consts::ROOTTASK_PROCESS_PID;
     use crate::service_ids::ServiceId;
-    use libhedron::mtd::Mtd;
+    use libhedron::Mtd;
 
     #[test]
     fn test_pd_1() {

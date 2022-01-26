@@ -25,7 +25,7 @@ use libhedron::ipc_serde::{
     Serialize,
 };
 use libhedron::mem::PAGE_SIZE;
-use libhedron::utcb::UTCB_DATA_CAPACITY;
+use libhedron::UTCB_DATA_CAPACITY;
 
 /// Calculates the number of needed pages to cover all bytes.
 pub const fn calc_page_count(size: u64) -> u64 {

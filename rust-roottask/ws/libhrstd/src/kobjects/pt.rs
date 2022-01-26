@@ -2,7 +2,7 @@ use crate::kobjects::{
     LocalEcObject,
     PdObject,
 };
-use crate::libhedron::mtd::Mtd;
+use crate::libhedron::Mtd;
 use crate::service_ids::ServiceId;
 use crate::util::global_counter::GlobalIncrementingCounter;
 use alloc::rc::{
@@ -12,9 +12,9 @@ use alloc::rc::{
 use core::cell::RefCell;
 use core::cmp::Ordering;
 use core::fmt::Debug;
-use libhedron::capability::CapSel;
 use libhedron::mem::PAGE_SIZE;
-use libhedron::utcb::Utcb;
+use libhedron::CapSel;
+use libhedron::Utcb;
 
 /// Type for a function, that is the entry from a function call.
 /// This function should wrap a [`PtObjCallbackFn`].
@@ -101,7 +101,7 @@ impl PtObject {
         // log::trace!("created PT with sel={}", pt_sel);
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::create_pt::sys_create_pt;
+        let syscall_fn = libhedron::syscall::sys_create_pt;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_pt;
 
@@ -116,7 +116,7 @@ impl PtObject {
         let portal_id = PORTAL_IDENTIFIER_COUNTER.next();
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::pt_ctrl::sys_pt_ctrl;
+        let syscall_fn = libhedron::syscall::sys_pt_ctrl;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pt_ctrl;
         syscall_fn(pt_sel, portal_id).unwrap();

@@ -5,7 +5,7 @@ use crate::capability::{
     CrdNull,
 };
 use crate::consts::NUM_CAP_SEL;
-use crate::syscall::generic::{
+use crate::syscall::{
     sys_generic_5,
     SyscallNum,
 };

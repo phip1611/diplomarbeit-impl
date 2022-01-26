@@ -26,12 +26,12 @@ use libhrstd::kobjects::{
     LocalEcObject,
     PtObject,
 };
-use libhrstd::libhedron::capability::CapSel;
 use libhrstd::libhedron::consts::NUM_EXC;
-use libhrstd::libhedron::event_offset::ExceptionEventOffset;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::CapSel;
+use libhrstd::libhedron::ExceptionEventOffset;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::Utcb;
 use libhrstd::process::consts::ROOTTASK_PROCESS_PID;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;

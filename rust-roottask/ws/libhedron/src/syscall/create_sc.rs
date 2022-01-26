@@ -3,7 +3,7 @@
 use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
 use crate::qpd::Qpd;
-use crate::syscall::generic::{
+use crate::syscall::{
     sys_generic_5,
     SyscallNum,
 };

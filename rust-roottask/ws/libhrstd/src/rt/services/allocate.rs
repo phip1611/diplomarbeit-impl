@@ -1,7 +1,7 @@
 use crate::cap_space::user::UserAppCapSpace;
 use crate::rt::user_load_utcb::user_load_utcb_mut;
 use core::alloc::Layout;
-use libhedron::syscall::ipc::sys_call;
+use libhedron::syscall::sys_call;
 use serde::{
     Deserialize,
     Serialize,

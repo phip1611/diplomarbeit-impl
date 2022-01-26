@@ -12,8 +12,8 @@ use libhrstd::kobjects::{
     PtObject,
 };
 use libhrstd::libhedron::consts::NUM_CPUS;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::Utcb;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 mod linux;

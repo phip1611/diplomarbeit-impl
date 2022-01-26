@@ -5,8 +5,8 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallResult,
 };
 use enum_iterator::IntoEnumIterator;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::UtcbDataException;
 
 /// * <https://man7.org/linux/man-pages/man2/arch_prctl.2.html>
 /// * <https://elixir.bootlin.com/linux/latest/source/arch/x86/um/syscalls_64.c#L15>

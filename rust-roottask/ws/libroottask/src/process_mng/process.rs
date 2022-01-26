@@ -43,13 +43,13 @@ use libhrstd::kobjects::{
     PtObject,
     ScObject,
 };
-use libhrstd::libhedron::capability::{
+use libhrstd::libhedron::consts::NUM_EXC;
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::Qpd;
+use libhrstd::libhedron::{
     CapSel,
     MemCapPermissions,
 };
-use libhrstd::libhedron::consts::NUM_EXC;
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::qpd::Qpd;
 use libhrstd::mem::PinnedPageAlignedHeapArray;
 use libhrstd::process::consts::{
     ProcessId,

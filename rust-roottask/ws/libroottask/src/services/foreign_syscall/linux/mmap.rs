@@ -6,9 +6,9 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallResult,
 };
 use core::alloc::Layout;
-use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::MemCapPermissions;
+use libhrstd::libhedron::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// * <https://man7.org/linux/man-pages/man2/mmap.2.html>

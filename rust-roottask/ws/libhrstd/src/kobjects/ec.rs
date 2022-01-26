@@ -4,12 +4,12 @@ use crate::kobjects::{
     PtObject,
     ScObject,
 };
-use crate::libhedron::capability::{
+use crate::libhedron::syscall::DelegateFlags;
+use crate::libhedron::Utcb;
+use crate::libhedron::{
     CapSel,
     CrdObjEC,
 };
-use crate::libhedron::syscall::pd_ctrl::DelegateFlags;
-use crate::libhedron::utcb::Utcb;
 use crate::util::global_counter::GlobalIncrementingCounter;
 use alloc::collections::BTreeSet;
 use alloc::rc::{
@@ -22,8 +22,8 @@ use core::cell::{
     RefMut,
 };
 use core::cmp::Ordering;
-use libhedron::capability::ECCapPermissions;
 use libhedron::mem::PAGE_SIZE;
+use libhedron::ECCapPermissions;
 
 pub static EC_IDENTIFIER_COUNTER: GlobalIncrementingCounter = GlobalIncrementingCounter::new();
 
@@ -55,7 +55,7 @@ impl LocalEcObject {
         let obj = Self::new(ec_sel, pd_obj, stack_top_ptr, utcb_addr);
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::create_ec::sys_create_local_ec;
+        let syscall_fn = libhedron::syscall::sys_create_local_ec;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_local_ec;
         syscall_fn(
@@ -192,7 +192,7 @@ impl GlobalEcObject {
         let obj = Self::new(ec_sel, pd_obj, utcb_addr, stack_top_ptr);
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::create_ec::sys_create_global_ec;
+        let syscall_fn = libhedron::syscall::sys_create_global_ec;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_global_ec;
         syscall_fn(
@@ -206,7 +206,7 @@ impl GlobalEcObject {
         .unwrap();
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::pd_ctrl::sys_pd_ctrl_delegate;
+        let syscall_fn = libhedron::syscall::sys_pd_ctrl_delegate;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pd_ctrl_delegate;
         syscall_fn(

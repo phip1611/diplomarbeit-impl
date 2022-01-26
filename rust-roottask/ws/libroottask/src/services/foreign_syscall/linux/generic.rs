@@ -15,8 +15,8 @@ use crate::services::foreign_syscall::linux::LinuxSyscallImpl;
 use alloc::boxed::Box;
 use core::fmt::Debug;
 use libhrstd::libhedron::ipc_serde::__private::Formatter;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::UtcbDataException;
 
 /// Generic Syscall. Bindings from registers
 /// to argument number. See <https://github.com/torvalds/linux/blob/35776f10513c0d523c5dd2f1b415f642497779e2/arch/x86/entry/entry_64.S>

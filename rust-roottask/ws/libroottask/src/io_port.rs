@@ -1,14 +1,14 @@
 //! Utilities to request I/O ports from the kern PD into the roottask PD.
 
-use libhrstd::libhedron::capability::{
-    CapSel,
-    CrdPortIO,
-};
-use libhrstd::libhedron::syscall::pd_ctrl::{
+use libhrstd::libhedron::syscall::SyscallResult;
+use libhrstd::libhedron::syscall::{
     sys_pd_ctrl_delegate,
     DelegateFlags,
 };
-use libhrstd::libhedron::syscall::SyscallResult;
+use libhrstd::libhedron::{
+    CapSel,
+    CrdPortIO,
+};
 
 /// Wrapper around [`request_io_ports`].
 pub fn request_io_port(pd: CapSel, io_port: u16) -> SyscallResult {

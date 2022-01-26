@@ -9,9 +9,9 @@ use core::alloc::Layout;
 use core::ptr::null;
 use core::ptr::NonNull;
 use core::sync::atomic::Ordering;
-use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::MemCapPermissions;
+use libhrstd::libhedron::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/brk.2.html>.

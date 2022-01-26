@@ -1,7 +1,7 @@
 use crate::cap_space::user::UserAppCapSpace;
 use crate::rt::user_load_utcb::user_load_utcb_mut;
 use core::cmp::min;
-use libhedron::syscall::ipc::sys_call;
+use libhedron::syscall::sys_call;
 
 /// Writes a message to STDOUT. If the message is too long, it does so in multiple iterations.
 pub fn stdout_write(msg: &str) {

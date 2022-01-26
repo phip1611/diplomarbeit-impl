@@ -10,7 +10,7 @@ use core::fmt::{
     Debug,
     Write,
 };
-use libhrstd::libhedron::capability::{
+use libhrstd::libhedron::{
     CapSel,
     CrdPortIO,
 };

@@ -5,11 +5,11 @@ use crate::kobjects::{
     PortalIdentifier,
     PtObject,
 };
-use crate::libhedron::capability::{
+use crate::libhedron::syscall::DelegateFlags;
+use crate::libhedron::{
     CrdObjPD,
     PDCapPermissions,
 };
-use crate::libhedron::syscall::pd_ctrl::DelegateFlags;
 use crate::process::consts::{
     ProcessId,
     ROOTTASK_PROCESS_PID,
@@ -25,7 +25,7 @@ use core::cell::{
     RefCell,
     RefMut,
 };
-use libhedron::capability::CapSel;
+use libhedron::CapSel;
 
 /// Object that wraps around a kernel PD object with convenient runtime
 /// data and methods. This is the base for all user processes.
@@ -78,7 +78,7 @@ impl PdObject {
         );
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::create_pd::sys_create_pd;
+        let syscall_fn = libhedron::syscall::sys_create_pd;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_pd;
         syscall_fn(false, cap_sel, parent.cap_sel, foreign_syscall_base).unwrap();
@@ -90,7 +90,7 @@ impl PdObject {
             UserAppCapSpace::Pd.val()
         );
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::pd_ctrl::sys_pd_ctrl_delegate;
+        let syscall_fn = libhedron::syscall::sys_pd_ctrl_delegate;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pd_ctrl_delegate;
         syscall_fn(

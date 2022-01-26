@@ -1,18 +1,20 @@
 use crate::cap_space::user::UserAppCapSpace;
 use crate::kobjects::GlobalEcObject;
-use crate::libhedron::capability::CrdObjSC;
-use crate::libhedron::ipc_serde::__private::Formatter;
-use crate::libhedron::syscall::pd_ctrl::DelegateFlags;
+use crate::libhedron::syscall::DelegateFlags;
+use crate::libhedron::CrdObjSC;
 use alloc::rc::{
     Rc,
     Weak,
 };
-use core::fmt::Debug;
-use libhedron::capability::{
+use core::fmt::{
+    Debug,
+    Formatter,
+};
+use libhedron::Qpd;
+use libhedron::{
     CapSel,
     SCCapPermissions,
 };
-use libhedron::qpd::Qpd;
 
 /// Object that wraps around a global EC kernel object with convenient runtime
 /// data and methods.
@@ -34,13 +36,13 @@ impl ScObject {
         let target_pd_sel = gl_ec.pd().cap_sel();
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::create_sc::sys_create_sc;
+        let syscall_fn = libhedron::syscall::sys_create_sc;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_sc;
         syscall_fn(cap_sel, parent_pd_sel, gl_ec.ec_sel(), qpd).unwrap();
 
         #[cfg(not(feature = "foreign_rust_rt"))]
-        let syscall_fn = libhedron::syscall::pd_ctrl::sys_pd_ctrl_delegate;
+        let syscall_fn = libhedron::syscall::sys_pd_ctrl_delegate;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pd_ctrl_delegate;
         // install SC cap in new PD at well-known place
