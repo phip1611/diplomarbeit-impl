@@ -70,7 +70,7 @@ pub enum CrdKind {
 
 impl CrdKind {
     /// Returns the raw unsigned integer value.
-    pub fn val(self) -> u8 {
+    pub const fn val(self) -> u8 {
         self as u8
     }
 }
@@ -134,7 +134,7 @@ impl From<u64> for UI52Bit {
 
 impl UI52Bit {
     /// Returns the raw value of the base. The value is valid.
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self.0
     }
 }
@@ -177,7 +177,7 @@ impl From<u64> for UI5Bit {
 
 impl UI5Bit {
     /// Returns the raw value of the order. The value is valid.
-    pub fn val(self) -> u8 {
+    pub const fn val(self) -> u8 {
         self.0
     }
 }
@@ -260,7 +260,7 @@ impl<Permissions, Specialization, ObjectSpecialization>
 
     /// Returns the `Crd` as encoded u64 value. This is used as transfer type to the kernel.
     /// All properties are encoded at their corresponding bitshift-offset.
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self.val
     }
 
@@ -270,20 +270,20 @@ impl<Permissions, Specialization, ObjectSpecialization>
     }
 
     /// Returns the order of this [`Crd`]. `2^order` defines the range.
-    pub fn order(self) -> u8 {
+    pub const fn order(self) -> u8 {
         ((self.val & Self::ORDER_BITMASK) >> Self::ORDER_LEFT_SHIFT) as u8
     }
 
     /// Returns the base of this [`Crd`]. The base can refer to the number
     /// of the I/O port or the (virtual) page number in memory. Depends
     /// on the Crd specialisation.
-    pub fn base(self) -> u64 {
+    pub const fn base(self) -> u64 {
         (self.val & Self::BASE_BITMASK) >> Self::BASE_LEFT_SHIFT
     }
 
     /// Returns the generic permissions, i.e. untyped.
     /// Internal API.
-    fn gen_permissions(self) -> u8 {
+    const fn gen_permissions(self) -> u8 {
         ((self.val & Self::PERMISSIONS_BITMASK) >> Self::PERMISSIONS_LEFT_SHIFT) as u8
     }
 }
@@ -678,9 +678,9 @@ macro_rules! impl_permission_traits {
             }
         }
 
-        impl Into<u8> for $name {
-            fn into(self) -> u8 {
-                self.bits()
+        impl From<$name> for u8 {
+            fn from(val: $name) -> Self {
+                val.bits()
             }
         }
 

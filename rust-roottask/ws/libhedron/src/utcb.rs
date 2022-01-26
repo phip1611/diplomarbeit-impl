@@ -86,12 +86,12 @@ impl Utcb {
     }
 
     /// Number of untyped items, alias arbitrary payload.
-    pub fn untyped_items_count(&self) -> u16 {
+    pub const fn untyped_items_count(&self) -> u16 {
         self.head.items as u16
     }
 
     /// Number of typed items.
-    pub fn typed_items_count(&self) -> u16 {
+    pub const fn typed_items_count(&self) -> u16 {
         (self.head.items >> 16) as u16
     }
 
@@ -103,12 +103,12 @@ impl Utcb {
     }
 
     /// Returns the "thread local storage"-field from the UTCB head.
-    pub fn head_tls(&self) -> u64 {
+    pub const fn head_tls(&self) -> u64 {
         self.head.tls
     }
 
     /// Sets the "thread local storage"-field from the UTCB head.
-    pub fn set_head_tls(&mut self, val: u64) {
+    pub const fn set_head_tls(&mut self, val: u64) {
         self.head.tls = val;
     }
 

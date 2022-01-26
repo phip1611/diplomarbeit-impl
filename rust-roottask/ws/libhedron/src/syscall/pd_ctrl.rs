@@ -31,7 +31,7 @@ impl DelegateFlags {
     /// - `hotspot` A hotspot is used to disambiguate send and receive windows for
     ///             delegations. The hotspot carries additional information for some types
     ///             of mappings as well.
-    pub fn new(
+    pub const fn new(
         in_host_pt: bool,
         in_device_pt: bool,
         in_guest_pt: bool,
@@ -60,7 +60,7 @@ impl DelegateFlags {
         Self(base)
     }
 
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self.0
     }
 
@@ -71,27 +71,27 @@ impl DelegateFlags {
     }*/
 
     /// Mapping needs to go into (0) / not into (1) host page table. Only valid for memory and I/O delegations.
-    pub fn host(self) -> bool {
+    pub const fn host(self) -> bool {
         (self.0 & 0x100) != 0
     }
 
     /// Mapping needs to go into (1) / not into (0) guest page table / IO space. Valid for memory and I/O delegations.
-    pub fn guest(self) -> bool {
+    pub const fn guest(self) -> bool {
         (self.0 & 0x200) != 0
     }
 
     /// Mapping needs to go into (1) / not into (0) device page table. Only valid for memory delegations.
-    pub fn device(self) -> bool {
+    pub const fn device(self) -> bool {
         (self.0 & 0x400) != 0
     }
 
     /// Source is actually hypervisor PD. Only valid when used by the roottask, silently ignored otherwise
-    pub fn hypervisor(self) -> bool {
+    pub const fn hypervisor(self) -> bool {
         (self.0 & 0x800) != 0
     }
 
     /// The hotspot used to disambiguate send and receive windows.
-    pub fn hotspot(self) -> bool {
+    pub const fn hotspot(self) -> bool {
         (self.0 & 0xfffffffffffff000) != 0
     }
 }

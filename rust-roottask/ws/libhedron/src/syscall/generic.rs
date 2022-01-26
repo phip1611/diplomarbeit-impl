@@ -11,6 +11,10 @@ use enum_iterator::IntoEnumIterator;
 /// together with "out2".
 ///
 /// This function never panics.
+///
+/// # Safety
+/// This function may change the systems functionality in an unintended way,
+/// if the arguments are illegal or wrong.
 pub unsafe fn generic_syscall(
     arg1: u64,
     arg2: u64,
@@ -70,7 +74,7 @@ pub enum SyscallNum {
 }
 
 impl SyscallNum {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -83,7 +87,7 @@ pub enum PdCtrlSubSyscall {
 }
 
 impl PdCtrlSubSyscall {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -95,7 +99,7 @@ pub enum EcCtrlSubSyscall {
 }
 
 impl EcCtrlSubSyscall {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -108,7 +112,7 @@ pub enum MachineCtrlSubSyscall {
 }
 
 impl MachineCtrlSubSyscall {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -158,7 +162,7 @@ impl SyscallStatus {
     /// Only the lowest 8 bits are used to encode the status.
     const SYSCALL_STATUS_BITMASK: u64 = 0xff;
 
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }

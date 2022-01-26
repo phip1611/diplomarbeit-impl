@@ -99,7 +99,7 @@ pub enum ExceptionEventOffset {
 
 impl ExceptionEventOffset {
     /// Returns the value of the enum variant.
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }

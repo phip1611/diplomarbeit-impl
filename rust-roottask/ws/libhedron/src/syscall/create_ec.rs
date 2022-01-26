@@ -30,7 +30,7 @@ impl EcKind {
     const BITMASK: u64 = 0x300;
     const LEFT_SHIFT: u64 = 8;
 
-    fn val(self) -> u8 {
+    const fn val(self) -> u8 {
         self as u8
     }
 }
@@ -155,6 +155,7 @@ const DEST_CAP_SEL_LEFT_SHIFT: u64 = 12;
 /// - `use_apic_access_page` Whether a vCPU should respect the APIC Access Page. Ignored for non-vCPUs or if no vLAPIC page is created.
 ///                          Important for interrupt handling.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
+#[allow(clippy::too_many_arguments)]
 fn create_ec(
     kind: EcKind,
     dest_cap_sel: CapSel,
