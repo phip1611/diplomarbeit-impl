@@ -6,11 +6,9 @@ use crate::services::foreign_syscall::linux::{
 };
 use core::alloc::Allocator;
 use core::alloc::Layout;
-use core::cmp::max;
 use core::ptr::null;
 use core::ptr::NonNull;
 use core::sync::atomic::Ordering;
-use enum_iterator::IntoEnumIterator;
 use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::utcb::UtcbDataException;

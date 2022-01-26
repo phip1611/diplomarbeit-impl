@@ -5,11 +5,8 @@ use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
-use elf_rs::{
-    Elf,
-    ElfFile,
-};
-use libhrstd::cap_space::user::ForeignUserAppCapSpace;
+use elf_rs::ElfFile;
+
 use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,

@@ -3,7 +3,7 @@
 use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
-    generic_syscall,
+    sys_generic_5,
     SyscallNum,
 };
 use crate::syscall::{
@@ -13,11 +13,11 @@ use crate::syscall::{
 use alloc::string::ToString;
 use core::arch::asm;
 
-/// Performs a blocking IPC call to the specified portal.
+/// Performs a blocking IPC syscall to the specified portal.
 /// Payload is transferred via the UTCB.
 ///
 /// This function never panics.
-pub fn call(portal_sel: CapSel) -> SyscallResult {
+pub fn sys_call(portal_sel: CapSel) -> SyscallResult {
     if portal_sel >= NUM_CAP_SEL {
         Err(SyscallError::ClientArgumentError(
             "Argument `portal_sel` is too big".to_string(),
@@ -37,7 +37,7 @@ pub fn call(portal_sel: CapSel) -> SyscallResult {
         arg1 |= portal_sel << 12;
 
         unsafe {
-            generic_syscall(arg1, 0, 0, 0, 0)
+            sys_generic_5(arg1, 0, 0, 0, 0)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }
@@ -51,7 +51,7 @@ pub fn call(portal_sel: CapSel) -> SyscallResult {
 /// Pitfall: Hedron doesn't reset the RSP of the local EC that handles calls.
 /// Therefore, during a reply, the userland has to do this by itself, in order
 /// to fulfill the next request as expected.
-pub fn reply(local_ec_stack_top: u64) -> ! {
+pub fn sys_reply(local_ec_stack_top: u64) -> ! {
     if local_ec_stack_top == 0 {
         log::error!("local_ec_stack_top is 0!")
     }

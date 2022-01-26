@@ -5,7 +5,7 @@ use crate::consts::{
     NUM_EXC,
 };
 use crate::mem::PAGE_SIZE;
-use crate::syscall::generic::generic_syscall;
+use crate::syscall::generic::sys_generic_5;
 use crate::syscall::generic::SyscallNum::CreateEc;
 use crate::syscall::{
     SyscallError,
@@ -35,7 +35,7 @@ impl EcKind {
     }
 }
 
-/// Creates a local EC.
+/// Creates a local EC. Wrapper around [`sys_create_ec`].
 ///
 /// This function never panics.
 ///
@@ -46,7 +46,7 @@ impl EcKind {
 /// - `evt_base_sel` [`CapSel`] for the event base.
 /// - `cpu_num` Number of the CPU. ECs are permanently bound to a CPU.
 /// - `utcb_page_num` Page number of the UTCB. NOT A VIRTUAL ADDRESS.
-pub fn create_local_ec(
+pub fn sys_create_local_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
     stack_ptr: u64,
@@ -63,7 +63,7 @@ pub fn create_local_ec(
             "Argument `utcb_page_num` is null".to_string(),
         ))
     } else {
-        create_ec(
+        sys_create_ec(
             EcKind::Local,
             ec_cap_sel,
             parent_pd_sel,
@@ -78,14 +78,15 @@ pub fn create_local_ec(
     }
 }
 
-/// Creates a global EC. This will result in a [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
+/// Creates a global EC. . Wrapper around [`sys_create_ec`].
+/// This will result in a [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception in the PD, where the new global EC belongs to. Note that in comparison to
 /// [`create_local_ec`], this doesn't take a `stack_ptr` argument, because the stack
 /// is set in the handler of the [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception.
 ///
 /// This function never panics.
-pub fn create_global_ec(
+pub fn sys_create_global_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
     evt_base_sel: CapSel,
@@ -97,7 +98,7 @@ pub fn create_global_ec(
             "Argument `utcb_page_num` is null".to_string(),
         ))
     } else {
-        create_ec(
+        sys_create_ec(
             EcKind::Global,
             ec_cap_sel,
             parent_pd_sel,
@@ -115,6 +116,7 @@ pub fn create_global_ec(
 const USE_APIC_ACCESS_PAGE_LEFT_SHIFT: u64 = 10;
 const USE_PAGE_DESTINATION_LEFT_SHIFT: u64 = 11;
 const DEST_CAP_SEL_LEFT_SHIFT: u64 = 12;
+const PAGE_NUM_LEFT_SHIFT: u64 = 12;
 
 /// `create_ec` creates an EC kernel object and a capability pointing to
 /// the newly created kernel object.
@@ -156,7 +158,7 @@ const DEST_CAP_SEL_LEFT_SHIFT: u64 = 12;
 ///                          Important for interrupt handling.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
 #[allow(clippy::too_many_arguments)]
-fn create_ec(
+fn sys_create_ec(
     kind: EcKind,
     dest_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -213,14 +215,14 @@ fn create_ec(
 
         let mut arg3 = 0;
         arg3 |= cpu_num & 0xfff;
-        arg3 |= utcb_vlapic_page_num << 12;
+        arg3 |= utcb_vlapic_page_num << PAGE_NUM_LEFT_SHIFT;
 
         let arg4 = stack_ptr;
 
         let arg5 = event_base_sel;
 
         unsafe {
-            generic_syscall(arg1, arg2, arg3, arg4, arg5)
+            sys_generic_5(arg1, arg2, arg3, arg4, arg5)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }

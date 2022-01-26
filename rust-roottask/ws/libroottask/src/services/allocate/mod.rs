@@ -3,10 +3,7 @@ use crate::pt_multiplex::roottask_generic_portal_callback;
 use alloc::alloc::Layout;
 use alloc::rc::Rc;
 use core::alloc::Allocator;
-use core::cmp::{
-    max,
-    min,
-};
+use core::cmp::max;
 use core::ptr::NonNull;
 use core::sync::atomic::Ordering;
 use libhrstd::kobjects::{
@@ -16,15 +13,11 @@ use libhrstd::kobjects::{
 };
 use libhrstd::libhedron::capability::{
     CapSel,
-    CrdMem,
     MemCapPermissions,
 };
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
-    DelegateFlags,
-};
+
 use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::rt::services::allocate::AllocRequest;
 use libhrstd::service_ids::ServiceId;

@@ -1,7 +1,3 @@
-use crate::mem::{
-    VirtMemAllocator,
-    VIRT_MEM_ALLOC,
-};
 use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::brk::BrkSyscall;
@@ -13,19 +9,14 @@ use crate::services::foreign_syscall::linux::rtsigprocmask::RtSigProcMaskSyscall
 use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;
 use crate::services::foreign_syscall::linux::signalstack::SignalStackSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
-use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum::MMap;
 use crate::services::foreign_syscall::linux::write::WriteSyscall;
 use crate::services::foreign_syscall::linux::write_v::WriteVSyscall;
 use crate::services::foreign_syscall::linux::LinuxSyscallImpl;
 use alloc::boxed::Box;
-use core::alloc::Layout;
 use core::fmt::Debug;
-use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::ipc_serde::__private::Formatter;
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::UtcbDataException;
-use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Generic Syscall. Bindings from registers
 /// to argument number. See <https://github.com/torvalds/linux/blob/35776f10513c0d523c5dd2f1b415f642497779e2/arch/x86/entry/entry_64.S>

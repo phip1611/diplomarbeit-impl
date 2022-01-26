@@ -24,6 +24,7 @@
 #![feature(allocator_api)]
 #![feature(const_btree_new)]
 #![feature(slice_ptr_get)]
+#![allow(unused)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]

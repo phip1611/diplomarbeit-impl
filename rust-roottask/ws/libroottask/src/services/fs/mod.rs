@@ -6,7 +6,6 @@ use crate::pt_multiplex::roottask_generic_portal_callback;
 use alloc::rc::Rc;
 use alloc::string::ToString;
 use core::alloc::Layout;
-use core::sync::atomic::Ordering;
 use libhrstd::kobjects::{
     LocalEcObject,
     PtCtx,
@@ -54,7 +53,7 @@ pub fn fs_service_handler(
                 request.flags(),
                 request.umode(),
             );
-            utcb.store_data(&fd);
+            utcb.store_data(&fd).unwrap();
         }
         FsServiceRequest::Read(request) => {
             let read_bytes =
@@ -81,7 +80,7 @@ pub fn fs_service_handler(
             }
 
             // read bytes
-            utcb.store_data(&read_bytes.len());
+            utcb.store_data(&read_bytes.len()).unwrap();
         }
         FsServiceRequest::Write(request) => {
             libfileserver::fs_write(
@@ -92,13 +91,15 @@ pub fn fs_service_handler(
             )
             .unwrap();
 
-            utcb.store_data(&request.data().embedded_slice().len());
+            utcb.store_data(&request.data().embedded_slice().len())
+                .unwrap();
         }
         FsServiceRequest::Close(request) => {
             libfileserver::fs_close(process.pid(), request.fd()).unwrap();
         }
         FsServiceRequest::LSeek(request) => {
-            libfileserver::fs_lseek(process.pid(), request.fd(), request.offset() as usize);
+            libfileserver::fs_lseek(process.pid(), request.fd(), request.offset() as usize)
+                .unwrap();
         }
     }
 

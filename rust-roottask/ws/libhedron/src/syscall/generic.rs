@@ -15,7 +15,7 @@ use enum_iterator::IntoEnumIterator;
 /// # Safety
 /// This function may change the systems functionality in an unintended way,
 /// if the arguments are illegal or wrong.
-pub unsafe fn generic_syscall(
+pub unsafe fn sys_generic_5(
     arg1: u64,
     arg2: u64,
     arg3: u64,

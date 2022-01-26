@@ -6,15 +6,14 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallResult,
 };
 use core::alloc::Layout;
-use enum_iterator::IntoEnumIterator;
 use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::mtd::Mtd;
 use libhrstd::libhedron::utcb::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// * <https://man7.org/linux/man-pages/man2/mmap.2.html>
 #[derive(Debug)]
+#[allow(unused)]
 pub struct MMapSyscall {
     addr: *const u8,
     len: u64,
@@ -38,7 +37,7 @@ impl From<&GenericLinuxSyscall> for MMapSyscall {
 }
 
 impl LinuxSyscallImpl for MMapSyscall {
-    fn handle(&self, utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
         // two most popular combinations
         let mut ptr = None;
         if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {
@@ -75,7 +74,7 @@ impl LinuxSyscallImpl for MMapSyscall {
         );
 
         // ptr: roottask mem address
-        ptr.map(|x| 0x1234567000)
+        ptr.map(|_x| 0x1234567000)
             .map(LinuxSyscallResult::new_success)
             .unwrap_or(LinuxSyscallResult::new_error(LinuxErrorCode::ENOMEM))
     }

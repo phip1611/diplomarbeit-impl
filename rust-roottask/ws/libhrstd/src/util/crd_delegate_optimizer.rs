@@ -11,7 +11,7 @@ use libhedron::capability::{
     PTCapPermissions,
 };
 use libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
+    sys_pd_ctrl_delegate,
     DelegateFlags,
 };
 
@@ -105,7 +105,7 @@ impl CrdDelegateOptimizer {
             // currently in Hedron: needs twice the same permissions (this will be removed soon)
             let src_crd = CrdMem::new(params.src_base, params.order, perm);
             let dest_crd = CrdMem::new(params.dest_base, params.order, perm);
-            pd_ctrl_delegate(
+            sys_pd_ctrl_delegate(
                 src_pd,
                 dest_pd,
                 src_crd,
@@ -134,7 +134,8 @@ impl CrdDelegateOptimizer {
             // currently in Hedron: needs twice the same permissions (this will be removed soon)
             let src_crd = CrdObjPT::new(params.src_base, params.order, perm);
             let dest_crd = CrdObjPT::new(params.dest_base, params.order, perm);
-            pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, DelegateFlags::default()).unwrap();
+            sys_pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, DelegateFlags::default())
+                .unwrap();
         });
     }
 }

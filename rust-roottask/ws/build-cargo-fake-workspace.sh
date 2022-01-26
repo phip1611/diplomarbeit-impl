@@ -27,6 +27,8 @@ function fn_main() {
     do
       fn_build_rust_bin "$BIN"
     done
+
+    fn_build_extra_checks
 }
 
 
@@ -54,5 +56,12 @@ function fn_build_rust_bin() {
     )
 }
 
+# some extra checks that I can not cover with the stuff above..
+function fn_build_extra_checks() {
+    (
+        cd "libhrstd" || exit
+        cargo check --features foreign_rust_rt
+    )
+}
 
 fn_main

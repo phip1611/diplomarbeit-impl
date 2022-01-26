@@ -9,7 +9,7 @@ use libhrstd::libhedron::capability::{
 };
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
+    sys_pd_ctrl_delegate,
     DelegateFlags,
 };
 use libhrstd::mem::PageAlignedByteBuf;
@@ -115,7 +115,7 @@ impl<const PAGE_NUM: usize> StaticStack<PAGE_NUM> {
             0,
             MemCapPermissions::empty(),
         );
-        pd_ctrl_delegate(
+        sys_pd_ctrl_delegate(
             pd_sel,
             pd_sel,
             crd,

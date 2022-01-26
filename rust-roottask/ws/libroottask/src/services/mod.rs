@@ -21,7 +21,7 @@ use libhrstd::libhedron::capability::{
 use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
+    sys_pd_ctrl_delegate,
     DelegateFlags,
 };
 use libhrstd::libhedron::utcb::Utcb;
@@ -115,7 +115,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
     {
         let stdout_pt = stdout::create_service_pt(cap_base_sel, &ec);
         log::trace!("created stdout service pt");
-        pd_ctrl_delegate(
+        sys_pd_ctrl_delegate(
             RootCapSpace::RootPd.val(),
             process.pd_obj().cap_sel(),
             CrdObjPT::new(stdout_pt.cap_sel(), 0, PTCapPermissions::CALL),
@@ -135,7 +135,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
     {
         let stderr_pt = stderr::create_service_pt(cap_base_sel, &ec);
         log::trace!("created stderr service pt");
-        pd_ctrl_delegate(
+        sys_pd_ctrl_delegate(
             RootCapSpace::RootPd.val(),
             process.pd_obj().cap_sel(),
             CrdObjPT::new(stderr_pt.cap_sel(), 0, PTCapPermissions::CALL),
@@ -155,7 +155,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
     {
         let alloc_pt = allocate::create_service_pt(cap_base_sel, &ec);
         log::trace!("created alloc service pt");
-        pd_ctrl_delegate(
+        sys_pd_ctrl_delegate(
             RootCapSpace::RootPd.val(),
             process.pd_obj().cap_sel(),
             CrdObjPT::new(alloc_pt.cap_sel(), 0, PTCapPermissions::CALL),
@@ -175,7 +175,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
     {
         let alloc_pt = fs::create_service_pt(cap_base_sel, &ec);
         log::trace!("created fs service pt");
-        pd_ctrl_delegate(
+        sys_pd_ctrl_delegate(
             RootCapSpace::RootPd.val(),
             process.pd_obj().cap_sel(),
             CrdObjPT::new(alloc_pt.cap_sel(), 0, PTCapPermissions::CALL),

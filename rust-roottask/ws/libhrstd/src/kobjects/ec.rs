@@ -8,14 +8,7 @@ use crate::libhedron::capability::{
     CapSel,
     CrdObjEC,
 };
-use crate::libhedron::syscall::create_ec::{
-    create_global_ec,
-    create_local_ec,
-};
-use crate::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
-    DelegateFlags,
-};
+use crate::libhedron::syscall::pd_ctrl::DelegateFlags;
 use crate::libhedron::utcb::Utcb;
 use crate::util::global_counter::GlobalIncrementingCounter;
 use alloc::collections::BTreeSet;
@@ -60,7 +53,12 @@ impl LocalEcObject {
         utcb_addr: u64,
     ) -> Rc<Self> {
         let obj = Self::new(ec_sel, pd_obj, stack_top_ptr, utcb_addr);
-        create_local_ec(
+
+        #[cfg(not(feature = "foreign_rust_rt"))]
+        let syscall_fn = libhedron::syscall::create_ec::sys_create_local_ec;
+        #[cfg(feature = "foreign_rust_rt")]
+        let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_local_ec;
+        syscall_fn(
             ec_sel,
             pd_obj.cap_sel(),
             stack_top_ptr,
@@ -192,7 +190,12 @@ impl GlobalEcObject {
         stack_top_ptr: u64,
     ) -> Rc<Self> {
         let obj = Self::new(ec_sel, pd_obj, utcb_addr, stack_top_ptr);
-        create_global_ec(
+
+        #[cfg(not(feature = "foreign_rust_rt"))]
+        let syscall_fn = libhedron::syscall::create_ec::sys_create_global_ec;
+        #[cfg(feature = "foreign_rust_rt")]
+        let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_create_global_ec;
+        syscall_fn(
             ec_sel,
             pd_obj.cap_sel(),
             // 0 is used as event base in all PDs by convention
@@ -201,7 +204,12 @@ impl GlobalEcObject {
             obj.utcb_page_num(),
         )
         .unwrap();
-        pd_ctrl_delegate(
+
+        #[cfg(not(feature = "foreign_rust_rt"))]
+        let syscall_fn = libhedron::syscall::pd_ctrl::sys_pd_ctrl_delegate;
+        #[cfg(feature = "foreign_rust_rt")]
+        let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pd_ctrl_delegate;
+        syscall_fn(
             pd_obj.parent().unwrap().cap_sel(),
             pd_obj.cap_sel(),
             CrdObjEC::new(ec_sel, 0, ECCapPermissions::empty()),

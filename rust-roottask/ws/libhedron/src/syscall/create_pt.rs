@@ -2,7 +2,7 @@ use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
 use crate::mtd::Mtd;
 use crate::syscall::generic::{
-    generic_syscall,
+    sys_generic_5,
     SyscallNum,
 };
 use crate::syscall::{
@@ -17,7 +17,7 @@ use alloc::string::ToString;
 /// into the capability space of the PD.
 ///
 /// This function never panics.
-pub fn create_pt(
+pub fn sys_create_pt(
     // Free selector (must refer to a null capability).
     // The portal is installed at this [`CapSel`].
     new_pt_cap_sel: CapSel,
@@ -55,7 +55,7 @@ pub fn create_pt(
         let arg5 = instruction_pointer as u64;
 
         unsafe {
-            generic_syscall(arg1, arg2, arg3, arg4, arg5)
+            sys_generic_5(arg1, arg2, arg3, arg4, arg5)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }

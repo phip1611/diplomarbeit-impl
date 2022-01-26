@@ -4,7 +4,6 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
-use enum_iterator::IntoEnumIterator;
 use libhrstd::libhedron::utcb::UtcbDataException;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/sigprocmask.2.html>.
@@ -12,7 +11,7 @@ use libhrstd::libhedron::utcb::UtcbDataException;
 pub struct RtSigProcMaskSyscall {}
 
 impl From<&GenericLinuxSyscall> for RtSigProcMaskSyscall {
-    fn from(syscall: &GenericLinuxSyscall) -> Self {
+    fn from(_syscall: &GenericLinuxSyscall) -> Self {
         Self {}
     }
 }

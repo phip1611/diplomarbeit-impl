@@ -3,7 +3,7 @@
 use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
-    generic_syscall,
+    sys_generic_5,
     SyscallNum,
 };
 use crate::syscall::{
@@ -25,7 +25,7 @@ use alloc::string::ToString;
 
 ///
 /// This function never panics.
-pub fn pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
+pub fn sys_pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
     if pt_sel >= NUM_CAP_SEL {
         Err(SyscallError::ClientArgumentError(
             "Argument `pt_sel` is too big".to_string(),
@@ -35,7 +35,7 @@ pub fn pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
         arg1 |= SyscallNum::PtCtrl.val() & 0xff;
         arg1 |= pt_sel << 12;
         unsafe {
-            generic_syscall(arg1, callback_argument, 0, 0, 0)
+            sys_generic_5(arg1, callback_argument, 0, 0, 0)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }

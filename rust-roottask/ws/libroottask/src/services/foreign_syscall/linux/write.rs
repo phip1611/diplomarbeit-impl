@@ -7,7 +7,6 @@ use crate::services::foreign_syscall::linux::{
 };
 use core::alloc::Layout;
 use core::fmt::Write;
-use enum_iterator::IntoEnumIterator;
 use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::utcb::UtcbDataException;
@@ -50,7 +49,9 @@ impl LinuxSyscallImpl for WriteSyscall {
         let r_cstr_bytes = &r_bytes[u_page_offset..u_page_offset + self.count];
         let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
 
-        crate::services::stdout::writer_mut().write_str(r_cstr);
+        crate::services::stdout::writer_mut()
+            .write_str(r_cstr)
+            .unwrap();
 
         LinuxSyscallResult::new_success(self.count as u64)
     }

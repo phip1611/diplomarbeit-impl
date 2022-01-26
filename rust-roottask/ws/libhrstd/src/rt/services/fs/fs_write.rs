@@ -7,13 +7,13 @@ use libhedron::ipc_serde::{
     Deserialize,
     Serialize,
 };
-use libhedron::syscall::ipc::call;
+use libhedron::syscall::ipc::sys_call;
 
 pub fn fs_write(request: FsWriteRequest) -> FD {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::Write(request);
     utcb.store_data(&request).unwrap();
-    call(UserAppCapSpace::FsServicePT.val()).unwrap();
+    sys_call(UserAppCapSpace::FsServicePT.val()).unwrap();
     utcb.load_data().unwrap()
 }
 

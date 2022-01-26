@@ -6,7 +6,7 @@ use crate::capability::{
 };
 use crate::consts::NUM_CAP_SEL;
 use crate::syscall::generic::{
-    generic_syscall,
+    sys_generic_5,
     SyscallNum,
 };
 use crate::syscall::{
@@ -45,7 +45,7 @@ use alloc::string::ToString;
 /// - `parent_pd_sel` The capability selector of the parent protection domain (e.g. root task)
 /// - `foreign_syscall_base` Of some, this PD will be a foreign PD (syscalls handled as exceptions)
 ///                          with the given foreign syscall base.
-pub fn create_pd(
+pub fn sys_create_pd(
     passthrough_access: bool,
     cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -78,7 +78,7 @@ pub fn create_pd(
         let arg3 = CrdNull::default().val();
         let arg4 = foreign_syscall_base.map(|x| (x << 1) | 1).unwrap_or(0);
         unsafe {
-            generic_syscall(arg1, arg2, arg3, arg4, 0)
+            sys_generic_5(arg1, arg2, arg3, arg4, 0)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }

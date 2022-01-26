@@ -153,8 +153,7 @@ impl Utcb {
 
         // postcard itself already encodes slices with their length properly
 
-        let res = postcard::from_bytes(self.data.bytes())
-            .map_err(UtcbError::DeserializeError)?;
+        let res = postcard::from_bytes(self.data.bytes()).map_err(UtcbError::DeserializeError)?;
 
         Ok(res)
     }

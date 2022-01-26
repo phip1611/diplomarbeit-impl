@@ -11,18 +11,9 @@ use libhrstd::kobjects::{
     PtCtx,
     PtObject,
 };
-use libhrstd::libhedron::capability::{
-    CrdObjPT,
-    MemCapPermissions,
-    PTCapPermissions,
-};
 use libhrstd::libhedron::consts::NUM_CPUS;
 use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::syscall::pd_ctrl::pd_ctrl_delegate;
-use libhrstd::libhedron::utcb::{
-    Utcb,
-    UtcbDataException,
-};
+use libhrstd::libhedron::utcb::Utcb;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 mod linux;

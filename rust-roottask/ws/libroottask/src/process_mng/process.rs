@@ -26,15 +26,10 @@ use core::hash::{
     Hash,
     Hasher,
 };
-use core::sync::atomic::{
-    AtomicU64,
-    AtomicUsize,
-};
+use core::sync::atomic::AtomicU64;
 use elf_rs::{
-    Elf,
     ElfFile,
     ProgramType,
-    SectionHeaderFlags,
 };
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::cap_space::user::{
@@ -50,17 +45,11 @@ use libhrstd::kobjects::{
 };
 use libhrstd::libhedron::capability::{
     CapSel,
-    CrdObjPT,
     MemCapPermissions,
-    PTCapPermissions,
 };
 use libhrstd::libhedron::consts::NUM_EXC;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::qpd::Qpd;
-use libhrstd::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
-    DelegateFlags,
-};
 use libhrstd::mem::PinnedPageAlignedHeapArray;
 use libhrstd::process::consts::{
     ProcessId,
@@ -73,7 +62,6 @@ use libhrstd::uaddress_space::{
     USER_STACK_BOTTOM_PAGE_NUM,
     USER_STACK_SIZE,
     USER_STACK_TOP,
-    USER_STACK_VERY_TOP,
     USER_UTCB_ADDR,
 };
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
@@ -334,7 +322,7 @@ impl Process {
                     let load_segment_dest_page_num = pr_hdr.vaddr() as usize / PAGE_SIZE;
 
                     // number of pages to map
-                    let mut num_pages = if pr_hdr.filesz() as usize % PAGE_SIZE == 0 {
+                    let num_pages = if pr_hdr.filesz() as usize % PAGE_SIZE == 0 {
                         pr_hdr.filesz() as usize / PAGE_SIZE
                     } else {
                         (pr_hdr.filesz() as usize / PAGE_SIZE) + 1

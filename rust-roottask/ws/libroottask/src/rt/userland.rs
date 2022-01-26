@@ -24,6 +24,7 @@ use tar_no_std::TarArchiveRef;
 /// Describes the files for the userland, that are provided by the MB module.
 /// Each ELF file is guaranteed to be page-aligned.
 #[derive(Debug)]
+#[allow(unused)]
 pub struct Userland {
     hello_world_elf: MappedMemory,
     fs_service_elf: MappedMemory,
