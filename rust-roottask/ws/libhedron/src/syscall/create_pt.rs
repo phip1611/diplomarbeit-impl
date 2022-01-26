@@ -4,13 +4,19 @@ use crate::mtd::Mtd;
 use crate::syscall::generic::{
     generic_syscall,
     SyscallNum,
-    SyscallStatus,
 };
+use crate::syscall::{
+    SyscallError,
+    SyscallResult,
+};
+use alloc::string::ToString;
 
 /// Creates a new portal and attaches it to the owning local EC.
 /// It is up to the caller to pass a new, yet unused capability selector.
 /// If the call is successful, the kernel will install this kernel object
 /// into the capability space of the PD.
+///
+/// This function never panics.
 pub fn create_pt(
     // Free selector (must refer to a null capability).
     // The portal is installed at this [`CapSel`].
@@ -25,34 +31,33 @@ pub fn create_pt(
     // The function can take one argument. To specify the argument,
     // see [`super::pt_ctrl::pt_ctrl`]
     instruction_pointer: *const u64,
-) -> Result<(), SyscallStatus> {
-    assert!(
-        new_pt_cap_sel < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    assert!(
-        own_pd_sel < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    assert!(
-        bound_ec_sel < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    let mut arg1 = 0;
-    arg1 |= SyscallNum::CreatePt.val();
+) -> SyscallResult {
+    if new_pt_cap_sel >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `new_pt_cap_sel` is too big".to_string(),
+        ))
+    } else if own_pd_sel >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `own_pd_sel` is too big".to_string(),
+        ))
+    } else if bound_ec_sel >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `bound_ec_sel` is too big".to_string(),
+        ))
+    } else {
+        let mut arg1 = 0;
+        arg1 |= SyscallNum::CreatePt.val();
+        arg1 |= new_pt_cap_sel << 12;
 
-    // according to spec, bits 63-8 are the new
-    // pt_cap_sel but it is 0.. wtf?!
-    arg1 |= new_pt_cap_sel << 12;
+        let arg2 = own_pd_sel;
+        let arg3 = bound_ec_sel;
+        let arg4 = mtd.bits();
+        let arg5 = instruction_pointer as u64;
 
-    let arg2 = own_pd_sel;
-    let arg3 = bound_ec_sel;
-    let arg4 = mtd.bits();
-    let arg5 = instruction_pointer as u64;
-
-    unsafe {
-        generic_syscall(arg1, arg2, arg3, arg4, arg5)
-            .map(|_x| ())
-            .map_err(|e| e.0)
+        unsafe {
+            generic_syscall(arg1, arg2, arg3, arg4, arg5)
+                .map(|_x| ())
+                .map_err(|e| SyscallError::HedronStatusError(e.0))
+        }
     }
 }

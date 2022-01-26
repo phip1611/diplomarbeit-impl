@@ -430,6 +430,7 @@ impl Process {
 
         let stack_layout = InitialLinuxLibcStackLayoutBuilder::new()
             .add_arg_v("./executable")
+            .add_arg_v("10.123")
             .add_arg_v("first")
             .add_arg_v("second")
             .add_env_v("FOO=BAR")

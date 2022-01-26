@@ -21,7 +21,4 @@ pub const NUM_VM_EXC: usize = 256;
 pub const NUM_CAP_SEL: CapSel = 67108864;
 
 #[cfg(test)]
-mod tests {
-
-    use super::*;
-}
+mod tests {}

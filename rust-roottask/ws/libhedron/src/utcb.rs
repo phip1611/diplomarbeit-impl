@@ -73,7 +73,7 @@ impl Utcb {
     }
 
     /// Returns a pointer to self.
-    pub const fn self_ptr(&self) -> *const Utcb {
+    pub const fn self_ptr(&self) -> *const Self {
         self as *const _
     }
 
@@ -154,7 +154,7 @@ impl Utcb {
         // postcard itself already encodes slices with their length properly
 
         let res = postcard::from_bytes(self.data.bytes())
-            .map_err(|err| UtcbError::DeserializeError(err))?;
+            .map_err(UtcbError::DeserializeError)?;
 
         Ok(res)
     }

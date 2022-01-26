@@ -9,6 +9,8 @@ use enum_iterator::IntoEnumIterator;
 /// On success, the "out2"-value is returned.
 /// On failure, the error code ("out1") is returned
 /// together with "out2".
+///
+/// This function never panics.
 pub unsafe fn generic_syscall(
     arg1: u64,
     arg2: u64,

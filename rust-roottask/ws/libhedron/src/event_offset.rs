@@ -108,7 +108,7 @@ impl TryFrom<u64> for ExceptionEventOffset {
     type Error = ();
 
     fn try_from(val: u64) -> Result<Self, Self::Error> {
-        for exc in ExceptionEventOffset::into_enum_iter() {
+        for exc in Self::into_enum_iter() {
             if exc.val() == val {
                 return Ok(exc);
             }

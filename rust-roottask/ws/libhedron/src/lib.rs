@@ -15,6 +15,8 @@
     clippy::redundant_pub_crate,
     clippy::fallible_impl_from
 )]
+// I can not influence this; this is the problem of some dependencies
+#![allow(clippy::multiple_crate_versions)]
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
 #![allow(rustdoc::missing_doc_code_examples)]
@@ -27,7 +29,6 @@
 #[cfg(test)]
 extern crate std;
 
-#[allow(unused)]
 #[macro_use]
 extern crate alloc;
 

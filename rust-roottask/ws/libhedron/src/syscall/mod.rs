@@ -8,6 +8,9 @@
 //! in the capability space of the caller. To have the capability in the target PD, you need
 //! to delegate the cap afterwards too!
 
+use crate::syscall::generic::SyscallStatus;
+use alloc::string::String;
+
 pub mod create_ec;
 pub mod create_pd;
 pub mod create_pt;
@@ -16,3 +19,16 @@ pub mod generic;
 pub mod ipc;
 pub mod pd_ctrl;
 pub mod pt_ctrl;
+
+/// Describes the possible results of system calls errors.
+#[derive(Debug)]
+pub enum SyscallError {
+    /// The user provided illegal arguments and the syscall failed when
+    /// the arguments where validated
+    ClientArgumentError(String),
+    /// Hedron returned an error.
+    HedronStatusError(SyscallStatus),
+}
+
+/// Describes the result of all Hedron system calls.
+pub type SyscallResult = Result<(), SyscallError>;

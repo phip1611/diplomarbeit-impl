@@ -584,7 +584,7 @@ bitflags::bitflags! {
 impl MemCapPermissions {
     /// Constructor from ELF segment permissions. There, READ is bit 2 and EXECUTE bit 0.
     pub fn from_elf_segment_permissions(bits: u8) -> Self {
-        let mut perm = MemCapPermissions::empty();
+        let mut perm = Self::empty();
         if bits & 0b001 == 0b001 {
             perm |= Self::EXECUTE
         }
@@ -750,7 +750,7 @@ mod tests {
         let crd = CrdNull::new();
         let _val = { crd.val() };
         let _crd2 = crd;
-        let _crd3 = crd.clone();
+        let _crd3 = crd;
     }
 
     #[test]
