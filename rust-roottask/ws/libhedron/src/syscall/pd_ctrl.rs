@@ -6,7 +6,7 @@ use crate::capability::{
 };
 use crate::consts::NUM_CAP_SEL;
 use crate::syscall::{
-    sys_generic_5,
+    hedron_syscall_5,
     PdCtrlSubSyscall,
     SyscallNum,
 };
@@ -118,6 +118,7 @@ impl Default for DelegateFlags {
 /// # Parameters
 /// - `source_crd` A [`Crd`] range descriptor describing the send window in the source PD.
 /// - `dest_crd` A [`Crd`] describing the receive window in the destination PD.
+#[inline]
 pub fn sys_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     source_pd: CapSel,
     dest_pd: CapSel,
@@ -163,7 +164,7 @@ pub fn sys_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
         let arg5 = dest_crd.val();
 
         unsafe {
-            sys_generic_5(arg1, arg2, arg3, arg4.val(), arg5)
+            hedron_syscall_5(arg1, arg2, arg3, arg4.val(), arg5)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }

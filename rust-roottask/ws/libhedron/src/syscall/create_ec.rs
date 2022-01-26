@@ -5,7 +5,7 @@ use crate::consts::{
     NUM_EXC,
 };
 use crate::mem::PAGE_SIZE;
-use crate::syscall::sys_generic_5;
+use crate::syscall::hedron_syscall_5;
 use crate::syscall::SyscallNum::CreateEc;
 use crate::syscall::{
     SyscallError,
@@ -46,6 +46,7 @@ impl EcKind {
 /// - `evt_base_sel` [`CapSel`] for the event base.
 /// - `cpu_num` Number of the CPU. ECs are permanently bound to a CPU.
 /// - `utcb_page_num` Page number of the UTCB. NOT A VIRTUAL ADDRESS.
+#[inline]
 pub fn sys_create_local_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -86,6 +87,7 @@ pub fn sys_create_local_ec(
 /// exception.
 ///
 /// This function never panics.
+#[inline]
 pub fn sys_create_global_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -158,6 +160,7 @@ const PAGE_NUM_LEFT_SHIFT: u64 = 12;
 ///                          Important for interrupt handling.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
 #[allow(clippy::too_many_arguments)]
+#[inline]
 fn sys_create_ec(
     kind: EcKind,
     dest_cap_sel: CapSel,
@@ -222,7 +225,7 @@ fn sys_create_ec(
         let arg5 = event_base_sel;
 
         unsafe {
-            sys_generic_5(arg1, arg2, arg3, arg4, arg5)
+            hedron_syscall_5(arg1, arg2, arg3, arg4, arg5)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }

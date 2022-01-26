@@ -3,7 +3,7 @@
 use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
 use crate::syscall::{
-    sys_generic_5,
+    hedron_syscall_1,
     SyscallNum,
 };
 use crate::syscall::{
@@ -17,6 +17,7 @@ use core::arch::asm;
 /// Payload is transferred via the UTCB.
 ///
 /// This function never panics.
+#[inline]
 pub fn sys_call(portal_sel: CapSel) -> SyscallResult {
     if portal_sel >= NUM_CAP_SEL {
         Err(SyscallError::ClientArgumentError(
@@ -37,7 +38,7 @@ pub fn sys_call(portal_sel: CapSel) -> SyscallResult {
         arg1 |= portal_sel << 12;
 
         unsafe {
-            sys_generic_5(arg1, 0, 0, 0, 0)
+            hedron_syscall_1(arg1)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }
@@ -51,6 +52,7 @@ pub fn sys_call(portal_sel: CapSel) -> SyscallResult {
 /// Pitfall: Hedron doesn't reset the RSP of the local EC that handles calls.
 /// Therefore, during a reply, the userland has to do this by itself, in order
 /// to fulfill the next request as expected.
+#[inline]
 pub fn sys_reply(local_ec_stack_top: u64) -> ! {
     if local_ec_stack_top == 0 {
         log::error!("local_ec_stack_top is 0!")

@@ -4,7 +4,7 @@ use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
 use crate::qpd::Qpd;
 use crate::syscall::{
-    sys_generic_5,
+    hedron_syscall_4,
     SyscallNum,
 };
 use crate::syscall::{
@@ -16,6 +16,7 @@ use alloc::string::ToString;
 /// Creates a SC object for a global EC.
 ///
 /// This function never panics.
+#[inline]
 pub fn sys_create_sc(
     cap_sel: CapSel,
     owned_pd_sel: CapSel,
@@ -48,7 +49,7 @@ pub fn sys_create_sc(
         let arg3 = bound_ec_sel;
         let arg4 = scheduling_params.val();
         unsafe {
-            sys_generic_5(arg1, arg2, arg3, arg4, 0)
+            hedron_syscall_4(arg1, arg2, arg3, arg4)
                 .map(|_x| ())
                 .map_err(|e| SyscallError::HedronStatusError(e.0))
         }
