@@ -4,15 +4,14 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
-use enum_iterator::IntoEnumIterator;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::UtcbDataException;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/signalstack.2.html>.
 #[derive(Debug)]
 pub struct SignalStackSyscall {}
 
 impl From<&GenericLinuxSyscall> for SignalStackSyscall {
-    fn from(syscall: &GenericLinuxSyscall) -> Self {
+    fn from(_syscall: &GenericLinuxSyscall) -> Self {
         Self {}
     }
 }

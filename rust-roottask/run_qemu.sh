@@ -79,7 +79,7 @@ main() {
         "vc:1024x768"
   )
 
-  echo "Executing: qemu-system-x86_64 " "${QEMU_ARGS[@]}"
+  # echo "Executing: qemu-system-x86_64 " "${QEMU_ARGS[@]}"
   qemu-system-x86_64 "${QEMU_ARGS[@]}"
 
 }

@@ -1,7 +1,7 @@
 use crate::cap_space::user::UserAppCapSpace;
 use crate::rt::user_load_utcb::user_load_utcb_mut;
 use core::cmp::min;
-use libhedron::syscall::ipc::call;
+use libhedron::syscall::sys_call;
 
 /// Writes a message to STDOUT. If the message is too long, it does so in multiple iterations.
 pub fn stdout_write(msg: &str) {
@@ -9,7 +9,7 @@ pub fn stdout_write(msg: &str) {
     let step_size = 4000;
     msg_chunk_bulk_apply(msg, step_size, move |msg| {
         utcb.store_data(&msg).unwrap();
-        call(UserAppCapSpace::StdoutServicePT.val()).unwrap();
+        sys_call(UserAppCapSpace::StdoutServicePT.val()).unwrap();
     });
 }
 

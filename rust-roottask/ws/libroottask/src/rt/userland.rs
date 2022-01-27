@@ -11,19 +11,20 @@ use crate::process_mng::syscall_abi::SyscallAbi;
 use alloc::string::String;
 use core::alloc::Layout;
 use libhrstd::cstr::CStr;
-use libhrstd::libhedron::capability::MemCapPermissions;
-use libhrstd::libhedron::hip::{
+use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::MemCapPermissions;
+use libhrstd::libhedron::{
     HipMem,
     HipMemType,
     HIP,
 };
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::mem::calc_page_count;
 use tar_no_std::TarArchiveRef;
 
 /// Describes the files for the userland, that are provided by the MB module.
 /// Each ELF file is guaranteed to be page-aligned.
 #[derive(Debug)]
+#[allow(unused)]
 pub struct Userland {
     hello_world_elf: MappedMemory,
     fs_service_elf: MappedMemory,
@@ -155,16 +156,16 @@ impl Userland {
             String::from("Linux Hello World (C + musl/GCC)"),
             SyscallAbi::Linux,
         );*/
-        /*PROCESS_MNG.lock().start_process(
+        PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_elf.clone(),
             String::from("Linux Hello World (Rust + musl)"),
             SyscallAbi::Linux,
-        );*/
-        PROCESS_MNG.lock().start_process(
+        );
+        /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_hybrid_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl)"),
             SyscallAbi::Linux,
-        );
+        );*/
     }
 }
 

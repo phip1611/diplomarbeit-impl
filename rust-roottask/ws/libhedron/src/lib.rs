@@ -15,8 +15,13 @@
     clippy::redundant_pub_crate,
     clippy::fallible_impl_from
 )]
+// I can not influence this; this is the problem of some dependencies
+#![allow(clippy::multiple_crate_versions)]
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
+// I see a benefit here: Even tho it might not be usable from the outside world,
+// it may contain useful information about how the implementation works.
+#![allow(rustdoc::private_intra_doc_links)]
 #![allow(rustdoc::missing_doc_code_examples)]
 #![feature(const_ptr_offset)]
 #![feature(const_fmt_arguments_new)]
@@ -27,21 +32,28 @@
 #[cfg(test)]
 extern crate std;
 
-#[allow(unused)]
 #[macro_use]
 extern crate alloc;
 
-pub mod acpi_gas;
-pub mod capability;
+mod acpi_gas;
+pub use acpi_gas::*;
+mod capability;
+pub use capability::*;
 pub mod consts;
-pub mod cpu;
-pub mod event_offset;
-pub mod hip;
+mod cpu;
+pub use cpu::*;
+mod event_offset;
+pub use event_offset::*;
+mod hip;
+pub use hip::*;
 pub mod mem;
-pub mod mtd;
-pub mod qpd;
+mod mtd;
+pub use mtd::Mtd;
+mod qpd;
+pub use qpd::Qpd;
+mod utcb;
+pub use utcb::*;
 pub mod syscall;
-pub mod utcb;
 
 /// Re-export the `postcard`-version required for serialization of arbitrary UTCB data.
 pub use postcard as ipc_postcard;

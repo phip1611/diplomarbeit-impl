@@ -7,10 +7,12 @@ edition = "2021"
 publish = false # prevent accidentaly publishing
 
 [features]
-default = ["rt"]
-# Runtime for native Hedron apps, except the roottask. Some features that the roottask can not see to either
-# enable successfull compilation or to prevent programming mistakes.
-rt = []
+default = ["native_rust_rt"]
+# Runtime for native Hedron apps, except the roottask. Includes some features that the roottask should not se
+# to either enable successfull compilation or to prevent programming mistakes.
+native_rust_rt = []
+# Contains runtime features only required for foreign applications that use this lib.
+foreign_rust_rt = []
 
 [dependencies]
 libhedron = { path = "../libhedron" }

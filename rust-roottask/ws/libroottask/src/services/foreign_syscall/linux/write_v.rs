@@ -7,10 +7,9 @@ use crate::services::foreign_syscall::linux::{
 };
 use core::alloc::Layout;
 use core::fmt::Write;
-use enum_iterator::IntoEnumIterator;
-use libhrstd::libhedron::capability::MemCapPermissions;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::MemCapPermissions;
+use libhrstd::libhedron::UtcbDataException;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]
@@ -84,7 +83,9 @@ impl LinuxSyscallImpl for WriteVSyscall {
 
             bytes_written += io_vec_entry.len;
             dbg!(r_cstr);
-            crate::services::stdout::writer_mut().write_str(r_cstr);
+            crate::services::stdout::writer_mut()
+                .write_str(r_cstr)
+                .unwrap();
         }
 
         dbg!(bytes_written);

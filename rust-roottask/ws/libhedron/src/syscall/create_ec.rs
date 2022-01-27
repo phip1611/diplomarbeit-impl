@@ -5,11 +5,13 @@ use crate::consts::{
     NUM_EXC,
 };
 use crate::mem::PAGE_SIZE;
-use crate::syscall::generic::SyscallNum::CreateEc;
-use crate::syscall::generic::{
-    generic_syscall,
-    SyscallStatus,
+use crate::syscall::hedron_syscall_5;
+use crate::syscall::SyscallNum::CreateEc;
+use crate::syscall::{
+    SyscallError,
+    SyscallResult,
 };
+use alloc::string::ToString;
 
 /// Kind of an EC. Bits 4-5 in ARG1 of syscall.
 #[derive(Copy, Clone, Debug)]
@@ -26,13 +28,16 @@ enum EcKind {
 impl EcKind {
     /// Bitmask for EcKind. Bits 5-4.
     const BITMASK: u64 = 0x300;
+    const LEFT_SHIFT: u64 = 8;
 
-    fn val(self) -> u8 {
+    const fn val(self) -> u8 {
         self as u8
     }
 }
 
-/// Creates a local EC.
+/// Creates a local EC. Wrapper around [`sys_create_ec`].
+///
+/// This function never panics.
 ///
 /// # Parameters
 /// - `ec_cap_sel` Free [`CapSel`] where this EC is installed in the PD specified by `parent_pd_sel`
@@ -41,59 +46,79 @@ impl EcKind {
 /// - `evt_base_sel` [`CapSel`] for the event base.
 /// - `cpu_num` Number of the CPU. ECs are permanently bound to a CPU.
 /// - `utcb_page_num` Page number of the UTCB. NOT A VIRTUAL ADDRESS.
-pub fn create_local_ec(
+#[inline]
+pub fn sys_create_local_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
     stack_ptr: u64,
     evt_base_sel: CapSel,
     cpu_num: u64,
     utcb_page_num: u64,
-) -> Result<(), SyscallStatus> {
-    assert_ne!(stack_ptr, 0, "stack_ptr is null!");
-    assert_ne!(utcb_page_num, 0, "utcb_page_num is null!");
-    assert!(cpu_num < NUM_CPUS as u64, "CPU-num to high");
-
-    create_ec(
-        EcKind::Local,
-        ec_cap_sel,
-        parent_pd_sel,
-        stack_ptr,
-        evt_base_sel,
-        cpu_num,
-        utcb_page_num,
-        false,
-        // TODO do I ever need this?
-        false,
-    )
+) -> SyscallResult {
+    if stack_ptr == 0 {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `stack_ptr` is null".to_string(),
+        ))
+    } else if utcb_page_num == 0 {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `utcb_page_num` is null".to_string(),
+        ))
+    } else {
+        sys_create_ec(
+            EcKind::Local,
+            ec_cap_sel,
+            parent_pd_sel,
+            stack_ptr,
+            evt_base_sel,
+            cpu_num,
+            utcb_page_num,
+            false,
+            // TODO do I ever need this?
+            false,
+        )
+    }
 }
 
-/// Creates a global EC. This will result in a [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
+/// Creates a global EC. . Wrapper around [`sys_create_ec`].
+/// This will result in a [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception in the PD, where the new global EC belongs to. Note that in comparison to
-/// [`create_local_ec`], this doesn't take a `stack_ptr` argument, because the stack
+/// [`sys_create_local_ec`], this doesn't take a `stack_ptr` argument, because the stack
 /// is set in the handler of the [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception.
-pub fn create_global_ec(
+///
+/// This function never panics.
+#[inline]
+pub fn sys_create_global_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
     evt_base_sel: CapSel,
     cpu_num: u64,
     utcb_page_num: u64,
-) -> Result<(), SyscallStatus> {
-    assert_ne!(utcb_page_num, 0, "utcb_page_num is null!");
-    assert!(cpu_num < NUM_CPUS as u64, "CPU-num to high");
-    create_ec(
-        EcKind::Global,
-        ec_cap_sel,
-        parent_pd_sel,
-        0,
-        evt_base_sel,
-        cpu_num,
-        utcb_page_num,
-        false,
-        // TODO do I ever need this?
-        false,
-    )
+) -> SyscallResult {
+    if utcb_page_num == 0 {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `utcb_page_num` is null".to_string(),
+        ))
+    } else {
+        sys_create_ec(
+            EcKind::Global,
+            ec_cap_sel,
+            parent_pd_sel,
+            0,
+            evt_base_sel,
+            cpu_num,
+            utcb_page_num,
+            false,
+            // TODO do I ever need this?
+            false,
+        )
+    }
 }
+
+const USE_APIC_ACCESS_PAGE_LEFT_SHIFT: u64 = 10;
+const USE_PAGE_DESTINATION_LEFT_SHIFT: u64 = 11;
+const DEST_CAP_SEL_LEFT_SHIFT: u64 = 12;
+const PAGE_NUM_LEFT_SHIFT: u64 = 12;
 
 /// `create_ec` creates an EC kernel object and a capability pointing to
 /// the newly created kernel object.
@@ -120,6 +145,8 @@ pub fn create_global_ec(
 /// the event reason are VM exit reasons, for normal ECs the reasons are
 /// exception numbers.
 ///
+/// This function never panics.
+///
 /// # Parameters
 /// - `kind` see [`EcKind`]
 /// - `dest_cap_sel`   A capability selector in the current PD that will point to the newly created EC.
@@ -132,7 +159,9 @@ pub fn create_global_ec(
 /// - `use_apic_access_page` Whether a vCPU should respect the APIC Access Page. Ignored for non-vCPUs or if no vLAPIC page is created.
 ///                          Important for interrupt handling.
 /// - `use_page_destination`  If 0, the UTCB / vLAPIC page will be mapped in the parent PD, otherwise it's mapped in the current PD.
-fn create_ec(
+#[allow(clippy::too_many_arguments)]
+#[inline]
+fn sys_create_ec(
     kind: EcKind,
     dest_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -143,69 +172,62 @@ fn create_ec(
     utcb_vlapic_page_num: u64,
     use_apic_access_page: bool,
     use_page_destination: bool,
-) -> Result<(), SyscallStatus> {
-    assert!(
-        dest_cap_sel < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    assert!(
-        parent_pd_sel < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    assert!(
-        event_base_sel + (NUM_EXC as u64) < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    log::trace!(
-        "syscall create_ec: kind={:?}, sel={}, pd={}, evt_base={}, cpu_num={}, utcb_lapic_page_num={}, utcb_lapic_page_num_addr={:016x}",
-        kind,
-        dest_cap_sel,
-        parent_pd_sel,
-        event_base_sel,
-        cpu_num,
-        utcb_vlapic_page_num,
-        utcb_vlapic_page_num * PAGE_SIZE as u64,
-    );
-
-    let mut arg1 = 0;
-    arg1 |= CreateEc.val();
-    arg1 |= ((kind.val() as u64) << 8) & EcKind::BITMASK;
-
-    // Ignored for non-vCPUs or if no vLAPIC page is created.
-    if use_apic_access_page {
-        arg1 |= 1 << 10;
-    }
-    if use_page_destination {
-        arg1 |= 1 << 11;
-    }
-    arg1 |= dest_cap_sel << 12;
-
-    let arg2 = parent_pd_sel;
-
-    let mut arg3 = 0;
-    // CPU 0 to 63 (the maximum supported CPU count)
-    if arg3 > NUM_CPUS as u64 {
-        panic!(
-            "Hedron supports CPUs 0..{}, you requested {}",
-            NUM_CPUS - 1,
-            cpu_num
+) -> SyscallResult {
+    if dest_cap_sel >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `dest_cap_sel` is bigger than NUM_CAP_SEL".to_string(),
+        ))
+    } else if parent_pd_sel >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `parent_pd_sel` is bigger than NUM_CAP_SEL".to_string(),
+        ))
+    } else if cpu_num >= NUM_CPUS as u64 {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `cpu_num` is too big".to_string(),
+        ))
+    } else if event_base_sel + NUM_EXC as u64 >= NUM_CAP_SEL as u64 {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `event_base_sel` is too big".to_string(),
+        ))
+    } else {
+        log::trace!(
+            "syscall create_ec: kind={:?}, sel={}, pd={}, evt_base={}, cpu_num={}, utcb_lapic_page_num={}, utcb_lapic_page_num_addr={:016x}",
+            kind,
+            dest_cap_sel,
+            parent_pd_sel,
+            event_base_sel,
+            cpu_num,
+            utcb_vlapic_page_num,
+            utcb_vlapic_page_num * PAGE_SIZE as u64,
         );
-        /*log::warn!(
-            "Hedron supports CPUs 0..{}, you requested {}",
-            NUM_CPUS - 1,
-            cpu_num
-        );*/
-    }
-    arg3 |= cpu_num & 0xfff;
-    arg3 |= utcb_vlapic_page_num << 12;
 
-    let arg4 = stack_ptr;
+        let mut arg1 = 0;
+        arg1 |= CreateEc.val();
+        arg1 |= ((kind.val() as u64) << EcKind::LEFT_SHIFT) & EcKind::BITMASK;
 
-    let arg5 = event_base_sel;
+        // Ignored for non-vCPUs or if no vLAPIC page is created.
+        if use_apic_access_page {
+            arg1 |= 1 << USE_APIC_ACCESS_PAGE_LEFT_SHIFT;
+        }
+        if use_page_destination {
+            arg1 |= 1 << USE_PAGE_DESTINATION_LEFT_SHIFT;
+        }
+        arg1 |= dest_cap_sel << DEST_CAP_SEL_LEFT_SHIFT;
 
-    unsafe {
-        generic_syscall(arg1, arg2, arg3, arg4, arg5)
-            .map(|_x| ())
-            .map_err(|e| e.0)
+        let arg2 = parent_pd_sel;
+
+        let mut arg3 = 0;
+        arg3 |= cpu_num & 0xfff;
+        arg3 |= utcb_vlapic_page_num << PAGE_NUM_LEFT_SHIFT;
+
+        let arg4 = stack_ptr;
+
+        let arg5 = event_base_sel;
+
+        unsafe {
+            hedron_syscall_5(arg1, arg2, arg3, arg4, arg5)
+                .map(|_x| ())
+                .map_err(|e| SyscallError::HedronStatusError(e.0))
+        }
     }
 }

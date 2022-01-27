@@ -7,8 +7,8 @@ use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
 };
-use libhrstd::libhedron::syscall::ipc::reply;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::syscall::sys_reply;
+use libhrstd::libhedron::Utcb;
 
 /// Describes a function, that handles a specific portal call.
 /// # Parameters
@@ -75,7 +75,7 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
     // not a convenient method in the PtObj itself, because the lock needs to be relased first!
     if do_reply {
         // log::debug!("reply now!");
-        reply(stack_top);
+        sys_reply(stack_top);
     } else {
         // furthermore, the stack of the local EC would be corrupted afterwards
         panic!("panic without reply, end of game");

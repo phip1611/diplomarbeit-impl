@@ -5,18 +5,15 @@ use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use alloc::string::String;
-use elf_rs::{
-    Elf,
-    ElfFile,
-};
-use libhrstd::cap_space::user::ForeignUserAppCapSpace;
+use elf_rs::ElfFile;
+
 use libhrstd::kobjects::{
     PortalIdentifier,
     PtObject,
 };
-use libhrstd::libhedron::event_offset::ExceptionEventOffset;
-use libhrstd::libhedron::mtd::Mtd;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::ExceptionEventOffset;
+use libhrstd::libhedron::Mtd;
+use libhrstd::libhedron::Utcb;
 use libhrstd::process::consts::{
     ProcessId,
     ROOTTASK_PROCESS_PID,

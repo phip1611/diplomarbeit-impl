@@ -5,11 +5,16 @@
 use core::arch::asm;
 use enum_iterator::IntoEnumIterator;
 
-/// Does a NOVA/Hedron syscall with 5 arguments.
-/// On success, the "out2"-value is returned.
-/// On failure, the error code ("out1") is returned
-/// together with "out2".
-pub unsafe fn generic_syscall(
+/// Does a Hedron syscall with 5 arguments. On success, the "out2"-value is returned.
+/// On failure, the error code ("out1") is returned together with "out2".
+///
+/// This function never panics.
+///
+/// # Safety
+/// This function may change the systems functionality in an unintended way,
+/// if the arguments are illegal or wrong.
+#[inline]
+pub(super) unsafe fn hedron_syscall_5(
     arg1: u64,
     arg2: u64,
     arg3: u64,
@@ -28,6 +33,166 @@ pub unsafe fn generic_syscall(
         in("rdx") arg3,
         in("rax") arg4,
         in("r8") arg5,
+        lateout("rdi") out1,
+        lateout("rsi") out2,
+        // mark as clobbered
+        // https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html
+        // NOVA/Hedron spec lists all registers that may be altered
+        lateout("r11") _,
+        lateout("rcx") _,
+        // Memory Clobber not necessary, because this is the default in Rust
+        options(nostack) // probably no effect, but strictly speaking correct
+    );
+    let (out1, out2) = (SyscallStatus::from(out1), out2);
+    if out1 == SyscallStatus::Success {
+        Ok(out2)
+    } else {
+        Err((out1, out2))
+    }
+}
+
+/// Does a Hedron syscall with 4 arguments. On success, the "out2"-value is returned.
+/// On failure, the error code ("out1") is returned together with "out2".
+///
+/// This function never panics.
+///
+/// # Safety
+/// This function may change the systems functionality in an unintended way,
+/// if the arguments are illegal or wrong.
+#[inline]
+pub(super) unsafe fn hedron_syscall_4(
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+    arg4: u64,
+) -> Result<u64, (SyscallStatus, u64)> {
+    let out1: u64;
+    let out2;
+    asm!(
+        // there is no need to write "mov"-instructions, see below
+        "syscall",
+        // from 'in("rax")' the compiler will
+        // generate corresponding 'mov'-instructions
+        in("rdi") arg1,
+        in("rsi") arg2,
+        in("rdx") arg3,
+        in("rax") arg4,
+        lateout("rdi") out1,
+        lateout("rsi") out2,
+        // mark as clobbered
+        // https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html
+        // NOVA/Hedron spec lists all registers that may be altered
+        lateout("r11") _,
+        lateout("rcx") _,
+        // Memory Clobber not necessary, because this is the default in Rust
+        options(nostack) // probably no effect, but strictly speaking correct
+    );
+    let (out1, out2) = (SyscallStatus::from(out1), out2);
+    if out1 == SyscallStatus::Success {
+        Ok(out2)
+    } else {
+        Err((out1, out2))
+    }
+}
+
+/// Does a Hedron syscall with 3 arguments. On success, the "out2"-value is returned.
+/// On failure, the error code ("out1") is returned together with "out2".
+///
+/// This function never panics.
+///
+/// # Safety
+/// This function may change the systems functionality in an unintended way,
+/// if the arguments are illegal or wrong.
+#[allow(unused)]
+#[inline]
+pub(super) unsafe fn hedron_syscall_3(
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+) -> Result<u64, (SyscallStatus, u64)> {
+    let out1: u64;
+    let out2;
+    asm!(
+        // there is no need to write "mov"-instructions, see below
+        "syscall",
+        // from 'in("rax")' the compiler will
+        // generate corresponding 'mov'-instructions
+        in("rdi") arg1,
+        in("rsi") arg2,
+        in("rdx") arg3,
+        lateout("rdi") out1,
+        lateout("rsi") out2,
+        // mark as clobbered
+        // https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html
+        // NOVA/Hedron spec lists all registers that may be altered
+        lateout("r11") _,
+        lateout("rcx") _,
+        // Memory Clobber not necessary, because this is the default in Rust
+        options(nostack) // probably no effect, but strictly speaking correct
+    );
+    let (out1, out2) = (SyscallStatus::from(out1), out2);
+    if out1 == SyscallStatus::Success {
+        Ok(out2)
+    } else {
+        Err((out1, out2))
+    }
+}
+
+/// Does a Hedron syscall with 2 arguments. On success, the "out2"-value is returned.
+/// On failure, the error code ("out1") is returned together with "out2".
+///
+/// This function never panics.
+///
+/// # Safety
+/// This function may change the systems functionality in an unintended way,
+/// if the arguments are illegal or wrong.
+#[inline]
+pub(super) unsafe fn hedron_syscall_2(arg1: u64, arg2: u64) -> Result<u64, (SyscallStatus, u64)> {
+    let out1: u64;
+    let out2;
+    asm!(
+        // there is no need to write "mov"-instructions, see below
+        "syscall",
+        // from 'in("rax")' the compiler will
+        // generate corresponding 'mov'-instructions
+        in("rdi") arg1,
+        in("rsi") arg2,
+        lateout("rdi") out1,
+        lateout("rsi") out2,
+        // mark as clobbered
+        // https://doc.rust-lang.org/beta/unstable-book/library-features/asm.html
+        // NOVA/Hedron spec lists all registers that may be altered
+        lateout("r11") _,
+        lateout("rcx") _,
+        // Memory Clobber not necessary, because this is the default in Rust
+        options(nostack) // probably no effect, but strictly speaking correct
+    );
+    let (out1, out2) = (SyscallStatus::from(out1), out2);
+    if out1 == SyscallStatus::Success {
+        Ok(out2)
+    } else {
+        Err((out1, out2))
+    }
+}
+
+/// Does a Hedron syscall with 2 arguments. On success, the "out2"-value is returned.
+/// On failure, the error code ("out1") is returned together with "out2".
+///
+/// This function never panics.
+///
+/// # Safety
+/// This function may change the systems functionality in an unintended way,
+/// if the arguments are illegal or wrong.
+#[inline]
+pub(super) unsafe fn hedron_syscall_1(arg1: u64) -> Result<u64, (SyscallStatus, u64)> {
+    let out1: u64;
+    let out2;
+    asm!(
+        // there is no need to write "mov"-instructions, see below
+        "syscall",
+        // from 'in("rax")' the compiler will
+        // generate corresponding 'mov'-instructions
+        in("rdi") arg1,
         lateout("rdi") out1,
         lateout("rsi") out2,
         // mark as clobbered
@@ -68,7 +233,7 @@ pub enum SyscallNum {
 }
 
 impl SyscallNum {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -81,7 +246,7 @@ pub enum PdCtrlSubSyscall {
 }
 
 impl PdCtrlSubSyscall {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -93,7 +258,7 @@ pub enum EcCtrlSubSyscall {
 }
 
 impl EcCtrlSubSyscall {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -106,7 +271,7 @@ pub enum MachineCtrlSubSyscall {
 }
 
 impl MachineCtrlSubSyscall {
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
@@ -137,7 +302,7 @@ pub enum SyscallStatus {
 }
 
 impl From<u64> for SyscallStatus {
-    /// Constructs a SyscallStatus with respect to [`SYSCALL_STATUS_BITMASK`].
+    /// Constructs a SyscallStatus with respect to [`Self::SYSCALL_STATUS_BITMASK`].
     fn from(val: u64) -> Self {
         let val = val & Self::SYSCALL_STATUS_BITMASK;
 
@@ -156,14 +321,14 @@ impl SyscallStatus {
     /// Only the lowest 8 bits are used to encode the status.
     const SYSCALL_STATUS_BITMASK: u64 = 0xff;
 
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self as u64
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::syscall::generic::SyscallStatus;
+    use crate::syscall::SyscallStatus;
 
     #[test]
     fn test_syscall_status() {

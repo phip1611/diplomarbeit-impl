@@ -35,6 +35,7 @@ pub fn init() {
 }
 
 /// Wrapper around [`GlobalStaticChunkAllocator::usage`].
+#[allow(unused)]
 pub fn usage() -> f64 {
     ALLOC.usage()
 }

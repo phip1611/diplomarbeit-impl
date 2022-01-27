@@ -5,12 +5,16 @@ use crate::capability::{
     Crd,
 };
 use crate::consts::NUM_CAP_SEL;
-use crate::syscall::generic::{
-    generic_syscall,
+use crate::syscall::{
+    hedron_syscall_5,
     PdCtrlSubSyscall,
     SyscallNum,
-    SyscallStatus,
 };
+use crate::syscall::{
+    SyscallError,
+    SyscallResult,
+};
+use alloc::string::ToString;
 
 /// Carries additional infos for a transfer or delegation call including some flags.
 /// Can also be understood typed item
@@ -27,7 +31,7 @@ impl DelegateFlags {
     /// - `hotspot` A hotspot is used to disambiguate send and receive windows for
     ///             delegations. The hotspot carries additional information for some types
     ///             of mappings as well.
-    pub fn new(
+    pub const fn new(
         in_host_pt: bool,
         in_device_pt: bool,
         in_guest_pt: bool,
@@ -56,7 +60,7 @@ impl DelegateFlags {
         Self(base)
     }
 
-    pub fn val(self) -> u64 {
+    pub const fn val(self) -> u64 {
         self.0
     }
 
@@ -67,27 +71,27 @@ impl DelegateFlags {
     }*/
 
     /// Mapping needs to go into (0) / not into (1) host page table. Only valid for memory and I/O delegations.
-    pub fn host(self) -> bool {
+    pub const fn host(self) -> bool {
         (self.0 & 0x100) != 0
     }
 
     /// Mapping needs to go into (1) / not into (0) guest page table / IO space. Valid for memory and I/O delegations.
-    pub fn guest(self) -> bool {
+    pub const fn guest(self) -> bool {
         (self.0 & 0x200) != 0
     }
 
     /// Mapping needs to go into (1) / not into (0) device page table. Only valid for memory delegations.
-    pub fn device(self) -> bool {
+    pub const fn device(self) -> bool {
         (self.0 & 0x400) != 0
     }
 
     /// Source is actually hypervisor PD. Only valid when used by the roottask, silently ignored otherwise
-    pub fn hypervisor(self) -> bool {
+    pub const fn hypervisor(self) -> bool {
         (self.0 & 0x800) != 0
     }
 
     /// The hotspot used to disambiguate send and receive windows.
-    pub fn hotspot(self) -> bool {
+    pub const fn hotspot(self) -> bool {
         (self.0 & 0xfffffffffffff000) != 0
     }
 }
@@ -104,6 +108,8 @@ impl Default for DelegateFlags {
 /// from one protection domain to another. It allows the same functionality as rights
 /// delegation via IPC.
 ///
+/// This function never panics.
+///
 /// # Memory Delegations
 /// SrcCRD and DestCRD ([`crate::capability::CrdMem`]) refer to virtual page numbers. If the
 /// `hypervisor` flag of [`DelegateFlags`] is set and the source_pd is `0` (the one of the roottask),
@@ -112,51 +118,55 @@ impl Default for DelegateFlags {
 /// # Parameters
 /// - `source_crd` A [`Crd`] range descriptor describing the send window in the source PD.
 /// - `dest_crd` A [`Crd`] describing the receive window in the destination PD.
-pub fn pd_ctrl_delegate<Perm, Spec, ObjSpec>(
+#[inline]
+pub fn sys_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     source_pd: CapSel,
     dest_pd: CapSel,
     source_crd: Crd<Perm, Spec, ObjSpec>,
     dest_crd: Crd<Perm, Spec, ObjSpec>,
     flags: DelegateFlags,
-) -> Result<(), SyscallStatus> {
-    assert!(
-        source_pd < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    assert!(
-        dest_pd < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    const SYSCALL_BITMASK: u64 = 0xff;
-    const SUB_SYSCALL_BITMASK: u64 = 0x300;
-    const SUB_SYSCALL_BITSHIFT: u64 = 8;
-    const SOURCE_PD_BITMASK: u64 = !0x3ff;
-    const SOURCE_PD_BITSHIFT: u64 = 12;
+) -> SyscallResult {
+    if source_pd >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `source_pd` is too big".to_string(),
+        ))
+    } else if dest_pd >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `dest_pd` is too big".to_string(),
+        ))
+    } else {
+        const SYSCALL_BITMASK: u64 = 0xff;
+        const SUB_SYSCALL_BITMASK: u64 = 0x300;
+        const SUB_SYSCALL_BITSHIFT: u64 = 8;
+        const SOURCE_PD_BITMASK: u64 = !0x3ff;
+        const SOURCE_PD_BITSHIFT: u64 = 12;
 
-    /*log::trace!(
-        "delegate[{:?}] PD({})=>PD({}): src cap base={}, order={}; dest cap base={}, order={}",
-        source_crd.kind(),
-        source_pd,
-        dest_pd,
-        source_crd.base(),
-        source_crd.order(),
-        dest_crd.base(),
-        dest_crd.order(),
-    );*/
+        /*log::trace!(
+            "delegate[{:?}] PD({})=>PD({}): src cap base={}, order={}; dest cap base={}, order={}",
+            source_crd.kind(),
+            source_pd,
+            dest_pd,
+            source_crd.base(),
+            source_crd.order(),
+            dest_crd.base(),
+            dest_crd.order(),
+        );*/
 
-    let mut arg1 = 0;
-    arg1 |= SyscallNum::PdCtrl.val() & SYSCALL_BITMASK;
-    arg1 |= (PdCtrlSubSyscall::PdCtrlDelegate.val() << SUB_SYSCALL_BITSHIFT) & SUB_SYSCALL_BITMASK;
-    arg1 |= (source_pd << SOURCE_PD_BITSHIFT) & SOURCE_PD_BITMASK;
+        let mut arg1 = 0;
+        arg1 |= SyscallNum::PdCtrl.val() & SYSCALL_BITMASK;
+        arg1 |=
+            (PdCtrlSubSyscall::PdCtrlDelegate.val() << SUB_SYSCALL_BITSHIFT) & SUB_SYSCALL_BITMASK;
+        arg1 |= (source_pd << SOURCE_PD_BITSHIFT) & SOURCE_PD_BITMASK;
 
-    let arg2 = dest_pd;
-    let arg3 = source_crd.val();
-    let arg4 = flags;
-    let arg5 = dest_crd.val();
+        let arg2 = dest_pd;
+        let arg3 = source_crd.val();
+        let arg4 = flags;
+        let arg5 = dest_crd.val();
 
-    unsafe {
-        generic_syscall(arg1, arg2, arg3, arg4.val(), arg5)
-            .map(|_x| ())
-            .map_err(|e| e.0)
+        unsafe {
+            hedron_syscall_5(arg1, arg2, arg3, arg4.val(), arg5)
+                .map(|_x| ())
+                .map_err(|e| SyscallError::HedronStatusError(e.0))
+        }
     }
 }

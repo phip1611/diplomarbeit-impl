@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use core::fmt::Debug;
 use core::mem::size_of;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::utcb::Utcb;
+use libhrstd::libhedron::Utcb;
 use libhrstd::mem::PinnedPageAlignedHeapArray;
 
 /// Trait for owned data in [`MemLocation`].

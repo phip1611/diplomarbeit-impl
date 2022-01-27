@@ -1,7 +1,7 @@
 //! Helper methods to load the UTCB in Hedron user apps.
 //! It is mapped at a well-known location.
 
-use crate::libhedron::utcb::Utcb;
+use crate::libhedron::Utcb;
 use crate::uaddress_space::USER_UTCB_ADDR;
 
 #[allow(unused)]

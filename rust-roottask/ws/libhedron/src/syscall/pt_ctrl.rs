@@ -2,11 +2,15 @@
 
 use crate::capability::CapSel;
 use crate::consts::NUM_CAP_SEL;
-use crate::syscall::generic::{
-    generic_syscall,
+use crate::syscall::{
+    hedron_syscall_2,
     SyscallNum,
-    SyscallStatus,
 };
+use crate::syscall::{
+    SyscallError,
+    SyscallResult,
+};
+use alloc::string::ToString;
 
 /// Attaches a specific argument to the callback function of a portal. When the portal gets
 /// called, this argument gets passed as first and only argument into the callback function
@@ -18,17 +22,23 @@ use crate::syscall::generic::{
 /// This implies that you need N portals for N exceptions.
 ///
 /// callback_argument is also called Portal ID in spec and supernova.
-pub fn pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> Result<(), SyscallStatus> {
-    assert!(
-        pt_sel < NUM_CAP_SEL,
-        "maximum cap sel for object capabilities exceeded!"
-    );
-    let mut arg1 = 0;
-    arg1 |= SyscallNum::PtCtrl.val() & 0xff;
-    arg1 |= pt_sel << 12;
-    unsafe {
-        generic_syscall(arg1, callback_argument, 0, 0, 0)
-            .map(|_x| ())
-            .map_err(|e| e.0)
+
+///
+/// This function never panics.
+#[inline]
+pub fn sys_pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
+    if pt_sel >= NUM_CAP_SEL {
+        Err(SyscallError::ClientArgumentError(
+            "Argument `pt_sel` is too big".to_string(),
+        ))
+    } else {
+        let mut arg1 = 0;
+        arg1 |= SyscallNum::PtCtrl.val() & 0xff;
+        arg1 |= pt_sel << 12;
+        unsafe {
+            hedron_syscall_2(arg1, callback_argument)
+                .map(|_x| ())
+                .map_err(|e| SyscallError::HedronStatusError(e.0))
+        }
     }
 }

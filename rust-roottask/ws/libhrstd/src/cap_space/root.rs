@@ -1,7 +1,7 @@
 //! See [`CapabilitySpace`].
 
-use crate::libhedron::capability::CapSel;
 use crate::libhedron::consts::NUM_EXC;
+use crate::libhedron::CapSel;
 use crate::process::consts::{
     ProcessId,
     NUM_PROCESSES,
@@ -30,7 +30,7 @@ const PROCESS_FOREIGN_SYSCALL_HANDLER_PT_END: u64 =
 /// the rest is a choice by me. Some of the capabilities stand also inside the HIP.
 /// Anyhow, we don't expect or support changing capability space layouts without recompilation.
 ///
-/// The variant value corresponds to the [`crate::libhrstd::libhedron::capability::CapSel`]
+/// The variant value corresponds to the [`crate::libhrstd::libhedron::CapSel`]
 /// that refers to the given capability.
 ///
 /// TODO remove this because it extremely pollutes the cap space. Make a dynamic capability selector!

@@ -7,7 +7,7 @@
 //! avoid the chicken-egg problem!
 
 use crate::mem::PAGE_SIZE;
-use crate::mtd::Mtd;
+use crate::Mtd;
 use arrayvec::ArrayString;
 use core::fmt::{
     Debug,
@@ -73,7 +73,7 @@ impl Utcb {
     }
 
     /// Returns a pointer to self.
-    pub const fn self_ptr(&self) -> *const Utcb {
+    pub const fn self_ptr(&self) -> *const Self {
         self as *const _
     }
 
@@ -86,12 +86,12 @@ impl Utcb {
     }
 
     /// Number of untyped items, alias arbitrary payload.
-    pub fn untyped_items_count(&self) -> u16 {
+    pub const fn untyped_items_count(&self) -> u16 {
         self.head.items as u16
     }
 
     /// Number of typed items.
-    pub fn typed_items_count(&self) -> u16 {
+    pub const fn typed_items_count(&self) -> u16 {
         (self.head.items >> 16) as u16
     }
 
@@ -103,12 +103,12 @@ impl Utcb {
     }
 
     /// Returns the "thread local storage"-field from the UTCB head.
-    pub fn head_tls(&self) -> u64 {
+    pub const fn head_tls(&self) -> u64 {
         self.head.tls
     }
 
     /// Sets the "thread local storage"-field from the UTCB head.
-    pub fn set_head_tls(&mut self, val: u64) {
+    pub const fn set_head_tls(&mut self, val: u64) {
         self.head.tls = val;
     }
 
@@ -144,7 +144,7 @@ impl Utcb {
         &self.data.typed_items()[begin_i..]
     }
 
-    /// Loads data from the UTCB, that was stored using [`store_data`].
+    /// Loads data from the UTCB, that was stored using [`Self::store_data`].
     /// Returns a new, owned copy. Doesn't require heap allocations.
     pub fn load_data<'a, T: Deserialize<'a>>(&'a self) -> Result<T, UtcbError> {
         if self.untyped_items_count() == 0 {
@@ -153,8 +153,7 @@ impl Utcb {
 
         // postcard itself already encodes slices with their length properly
 
-        let res = postcard::from_bytes(self.data.bytes())
-            .map_err(|err| UtcbError::DeserializeError(err))?;
+        let res = postcard::from_bytes(self.data.bytes()).map_err(UtcbError::DeserializeError)?;
 
         Ok(res)
     }
@@ -289,7 +288,7 @@ impl Debug for UtcbData {
 pub struct UtcbDataItems([u64; PAGE_SIZE - size_of::<UtcbHead>()]);
 
 /// Payload structure of [`UtcbData`] if a portal gets called after an event (exception or VM exit).
-/// What data is filled here depends on the [`super::mtd::Mtd`] that is attached to the portal.
+/// What data is filled here depends on the [`super::Mtd`] that is attached to the portal.
 ///
 /// It is also used as payload for the REPLY syscall after an exception. According to the
 /// MTD, the registers will be set.

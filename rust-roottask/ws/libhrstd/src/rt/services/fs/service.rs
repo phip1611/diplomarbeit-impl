@@ -3,7 +3,6 @@ use crate::rt::services::fs::fs_lseek::FsLseekRequest;
 use crate::rt::services::fs::fs_open::FsOpenRequest;
 use crate::rt::services::fs::fs_read::FsReadRequest;
 use crate::rt::services::fs::fs_write::FsWriteRequest;
-use alloc::string::String;
 use libhedron::ipc_serde::{
     Deserialize,
     Serialize,

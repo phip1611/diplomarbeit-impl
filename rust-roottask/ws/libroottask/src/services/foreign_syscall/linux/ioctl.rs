@@ -4,10 +4,10 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
-use enum_iterator::IntoEnumIterator;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::UtcbDataException;
 
 #[derive(Debug)]
+#[allow(unused)]
 pub struct IoctlSyscall {
     fd: u64,
     request: u64,

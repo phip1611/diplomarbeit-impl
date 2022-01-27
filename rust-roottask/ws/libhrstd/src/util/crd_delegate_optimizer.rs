@@ -3,20 +3,20 @@
 use crate::cap_space::root::RootCapSpace;
 use crate::libhedron::mem::PAGE_SIZE;
 use core::cmp::min;
-use libhedron::capability::{
+use libhedron::syscall::{
+    sys_pd_ctrl_delegate,
+    DelegateFlags,
+};
+use libhedron::{
     CapSel,
     CrdMem,
     CrdObjPT,
     MemCapPermissions,
     PTCapPermissions,
 };
-use libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
-    DelegateFlags,
-};
 
 /// An iterator that helps to delegate multiple capabilities via
-/// [`crate::libhedron::capability::Crd`] objects in a as optimal as it can be bulk operation.
+/// [`crate::libhedron::Crd`] objects in a as optimal as it can be bulk operation.
 /// Helps you to iterate over the optimal syscall parameters (regarding base and order)
 /// to reduce total syscalls.
 ///
@@ -105,7 +105,7 @@ impl CrdDelegateOptimizer {
             // currently in Hedron: needs twice the same permissions (this will be removed soon)
             let src_crd = CrdMem::new(params.src_base, params.order, perm);
             let dest_crd = CrdMem::new(params.dest_base, params.order, perm);
-            pd_ctrl_delegate(
+            sys_pd_ctrl_delegate(
                 src_pd,
                 dest_pd,
                 src_crd,
@@ -134,7 +134,8 @@ impl CrdDelegateOptimizer {
             // currently in Hedron: needs twice the same permissions (this will be removed soon)
             let src_crd = CrdObjPT::new(params.src_base, params.order, perm);
             let dest_crd = CrdObjPT::new(params.dest_base, params.order, perm);
-            pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, DelegateFlags::default()).unwrap();
+            sys_pd_ctrl_delegate(src_pd, dest_pd, src_crd, dest_crd, DelegateFlags::default())
+                .unwrap();
         });
     }
 }

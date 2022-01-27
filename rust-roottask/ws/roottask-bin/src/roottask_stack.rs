@@ -1,8 +1,8 @@
 //! Initial global stack for the roottask. Referenced in `assembly.S`.
 //! See [`ROOTTASK_STACK`]
 
-use libhrstd::libhedron::hip::HIP;
 use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::HIP;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 use libroottask::stack::StaticStack;
 

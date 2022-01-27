@@ -4,11 +4,11 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
-use enum_iterator::IntoEnumIterator;
-use libhrstd::libhedron::utcb::UtcbDataException;
+use libhrstd::libhedron::UtcbDataException;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/poll.2.html>.
 #[derive(Debug)]
+#[allow(unused)]
 pub struct PollSyscall {
     fds: *const *const PollFd,
     count: usize,

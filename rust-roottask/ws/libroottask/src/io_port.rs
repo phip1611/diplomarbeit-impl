@@ -1,17 +1,17 @@
 //! Utilities to request I/O ports from the kern PD into the roottask PD.
 
-use libhrstd::libhedron::capability::{
+use libhrstd::libhedron::syscall::SyscallResult;
+use libhrstd::libhedron::syscall::{
+    sys_pd_ctrl_delegate,
+    DelegateFlags,
+};
+use libhrstd::libhedron::{
     CapSel,
     CrdPortIO,
 };
-use libhrstd::libhedron::syscall::generic::SyscallStatus;
-use libhrstd::libhedron::syscall::pd_ctrl::{
-    pd_ctrl_delegate,
-    DelegateFlags,
-};
 
 /// Wrapper around [`request_io_ports`].
-pub fn request_io_port(pd: CapSel, io_port: u16) -> Result<(), SyscallStatus> {
+pub fn request_io_port(pd: CapSel, io_port: u16) -> SyscallResult {
     let crd = CrdPortIO::new(io_port, 0);
     request_io_ports(pd, crd)
 }
@@ -22,8 +22,8 @@ pub fn request_io_port(pd: CapSel, io_port: u16) -> Result<(), SyscallStatus> {
 ///
 /// # Parameters
 /// - `pd` The protection domain that is the target
-pub fn request_io_ports(pd: CapSel, io_cdr: CrdPortIO) -> Result<(), SyscallStatus> {
-    pd_ctrl_delegate(
+pub fn request_io_ports(pd: CapSel, io_cdr: CrdPortIO) -> SyscallResult {
+    sys_pd_ctrl_delegate(
         pd,
         pd,
         io_cdr,

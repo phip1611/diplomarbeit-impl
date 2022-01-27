@@ -1,13 +1,13 @@
 //! See [`UserAppCapabilitySpace`].
 
-use crate::libhedron::capability::CapSel;
 use crate::libhedron::consts::NUM_EXC;
+use crate::libhedron::CapSel;
 
 /// User application capability space.
 /// Describes the capability space of the PD of Hedron-native Apps.
 /// Each process has a 1:1 mapping to a PD.
 ///
-/// The variant value corresponds to the [`crate::libhrstd::libhedron::capability::CapSel`]
+/// The variant value corresponds to the [`crate::libhrstd::libhedron::CapSel`]
 /// that refers to the given capability.
 #[repr(u64)]
 #[derive(Copy, Clone, Debug)]
@@ -41,7 +41,7 @@ impl UserAppCapSpace {
 
 /// Capability space of foreign user applications. Binaries with different OS ABIs.
 ///
-/// The variant value corresponds to the [`crate::libhrstd::libhedron::capability::CapSel`]
+/// The variant value corresponds to the [`crate::libhrstd::libhedron::CapSel`]
 /// that refers to the given capability.
 #[repr(u64)]
 #[derive(Copy, Clone, Debug)]
