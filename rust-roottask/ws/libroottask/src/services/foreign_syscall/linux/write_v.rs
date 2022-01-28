@@ -31,7 +31,7 @@ impl From<&GenericLinuxSyscall> for WriteVSyscall {
 }
 
 impl LinuxSyscallImpl for WriteVSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
         let mut bytes_written = 0;
 
         // first: map the iovec itself
@@ -52,7 +52,11 @@ impl LinuxSyscallImpl for WriteVSyscall {
             r_iovec_mapping_dest / PAGE_SIZE as u64,
             r_mapping_pages,
         )
-        .mmap(101, 32, MemCapPermissions::READ);
+        .mmap(
+            process.pd_obj().cap_sel(),
+            process.parent().unwrap().pd_obj().cap_sel(),
+            MemCapPermissions::READ,
+        );
 
         let r_mapping_begin_ptr = r_iovec_mapping_dest as *const u8;
         let r_iovec_begin_ptr = unsafe {
@@ -61,34 +65,41 @@ impl LinuxSyscallImpl for WriteVSyscall {
                 .cast::<LinuxIoVec>()
         };
         let r_iovec = unsafe { core::slice::from_raw_parts(r_iovec_begin_ptr, self.count) };
-        dbg!(r_iovec);
 
-        // still somehow buggy
         for io_vec_entry in r_iovec {
             let cstr_mapping_dest = VIRT_MEM_ALLOC
                 .lock()
                 .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
+
+            let u_page_offset = io_vec_entry.u_iov_base as usize & 0xfff;
+            let byte_amount = u_page_offset + io_vec_entry.len as usize;
+            let page_count = if byte_amount % PAGE_SIZE == 0 {
+                byte_amount / PAGE_SIZE + 1
+            } else {
+                (byte_amount / PAGE_SIZE) + 1
+            };
             CrdDelegateOptimizer::new(
                 io_vec_entry.u_iov_base as u64 / PAGE_SIZE as u64,
                 cstr_mapping_dest / PAGE_SIZE as u64,
-                1,
+                page_count,
             )
-            .mmap(101, 32, MemCapPermissions::READ);
+            .mmap(
+                process.pd_obj().cap_sel(),
+                process.parent().unwrap().pd_obj().cap_sel(),
+                MemCapPermissions::READ,
+            );
 
-            let u_page_offset = io_vec_entry.u_iov_base as usize & 0xfff;
             let r_bytes =
-                unsafe { core::slice::from_raw_parts(cstr_mapping_dest as *const u8, PAGE_SIZE) };
+                unsafe { core::slice::from_raw_parts(cstr_mapping_dest as *const u8, byte_amount) };
             let r_cstr_bytes = &r_bytes[u_page_offset..u_page_offset + io_vec_entry.len as usize];
             let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
 
             bytes_written += io_vec_entry.len;
-            dbg!(r_cstr);
             crate::services::stdout::writer_mut()
                 .write_str(r_cstr)
                 .unwrap();
         }
 
-        dbg!(bytes_written);
         LinuxSyscallResult::new_success(bytes_written)
     }
 }

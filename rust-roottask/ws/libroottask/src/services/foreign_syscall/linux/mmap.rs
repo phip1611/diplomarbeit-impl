@@ -37,7 +37,7 @@ impl From<&GenericLinuxSyscall> for MMapSyscall {
 }
 
 impl LinuxSyscallImpl for MMapSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
         // two most popular combinations
         let mut ptr = None;
         if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {
@@ -68,8 +68,8 @@ impl LinuxSyscallImpl for MMapSyscall {
 
         // map into PD
         CrdDelegateOptimizer::new(src_page_num as u64, dest_page_num, page_num).mmap(
-            32,
-            101,
+            process.parent().unwrap().pd_obj().cap_sel(),
+            process.pd_obj().cap_sel(),
             MemCapPermissions::READ | MemCapPermissions::WRITE,
         );
 

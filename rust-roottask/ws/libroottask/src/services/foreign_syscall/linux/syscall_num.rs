@@ -44,6 +44,7 @@ impl TryFrom<u64> for LinuxSyscallNum {
                 return Ok(variant);
             }
         }
+        log::warn!("linux syscall {} not typed yet!", val);
         Err(())
     }
 }
