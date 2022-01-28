@@ -24,10 +24,7 @@ pub(super) unsafe fn hedron_syscall_5(
     let out1: u64;
     let out2;
     asm!(
-        // there is no need to write "mov"-instructions, see below
         "syscall",
-        // from 'in("rax")' the compiler will
-        // generate corresponding 'mov'-instructions
         in("rdi") arg1,
         in("rsi") arg2,
         in("rdx") arg3,
@@ -69,10 +66,7 @@ pub(super) unsafe fn hedron_syscall_4(
     let out1: u64;
     let out2;
     asm!(
-        // there is no need to write "mov"-instructions, see below
         "syscall",
-        // from 'in("rax")' the compiler will
-        // generate corresponding 'mov'-instructions
         in("rdi") arg1,
         in("rsi") arg2,
         in("rdx") arg3,
@@ -113,10 +107,7 @@ pub(super) unsafe fn hedron_syscall_3(
     let out1: u64;
     let out2;
     asm!(
-        // there is no need to write "mov"-instructions, see below
         "syscall",
-        // from 'in("rax")' the compiler will
-        // generate corresponding 'mov'-instructions
         in("rdi") arg1,
         in("rsi") arg2,
         in("rdx") arg3,
@@ -151,10 +142,7 @@ pub(super) unsafe fn hedron_syscall_2(arg1: u64, arg2: u64) -> Result<u64, (Sysc
     let out1: u64;
     let out2;
     asm!(
-        // there is no need to write "mov"-instructions, see below
         "syscall",
-        // from 'in("rax")' the compiler will
-        // generate corresponding 'mov'-instructions
         in("rdi") arg1,
         in("rsi") arg2,
         lateout("rdi") out1,
@@ -188,10 +176,7 @@ pub(super) unsafe fn hedron_syscall_1(arg1: u64) -> Result<u64, (SyscallStatus, 
     let out1: u64;
     let out2;
     asm!(
-        // there is no need to write "mov"-instructions, see below
         "syscall",
-        // from 'in("rax")' the compiler will
-        // generate corresponding 'mov'-instructions
         in("rdi") arg1,
         lateout("rdi") out1,
         lateout("rsi") out2,

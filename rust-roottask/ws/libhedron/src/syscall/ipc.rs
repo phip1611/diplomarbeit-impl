@@ -64,8 +64,8 @@ pub fn sys_reply(local_ec_stack_top: u64) -> ! {
             in(reg) local_ec_stack_top,
             in("rdi") SyscallNum::Reply.val(),
             // no clobbers here, because there isn't code after this anyway
-            options(nostack) // probably no effect, but strictly speaking correct
+            options(nostack, noreturn) // probably no effect, but strictly speaking correct
         )
     };
-    unreachable!("syscall reply failed?!")
+    // unreachable!("syscall reply failed?!")
 }
