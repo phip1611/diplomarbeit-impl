@@ -12,18 +12,20 @@ cd "$DIR" || exit
 
 function fn_main() {
     fn_build_ws
-    fn_cp_binaries_to_build_dir
-    fn_cp_linux_userland_payload
+    fn_cp_runtime_binaries_to_build_dir
+    fn_cp_foreign_linux_binaries
     fn_runtime_environment_tarball
 }
 
+# invokes the build of the whole Cargo workspace
 function fn_build_ws() {
     cd "./ws" || exit
     ./build-cargo-fake-workspace.sh
     cd ..
 }
 
-function fn_cp_binaries_to_build_dir() {
+# copy all artefacts (Roottask + Runtime Services) from the Rust workspace into the ./build directory
+function fn_cp_runtime_binaries_to_build_dir() {
     rm -rf "./build"
 
 
@@ -40,15 +42,15 @@ function fn_cp_binaries_to_build_dir() {
         if file "$FILE" | grep "executable" > /dev/null
         then
             NAME=$(basename "$FILE")
-            echo "$NAME now in './build/${NAME}_debug.elf'"
+            echo "$NAME now in './build/${NAME}--debug.elf'"
             # ln -fs "$FILE" "./build/${NAME}_release.elf"
             # we have to copy; QEMUs "-initrd" doesn't work with links
-            cp "$FILE" "./build/${NAME}_debug.elf"
+            cp "$FILE" "./build/${NAME}--debug.elf"
 
             # also stripped binaries, because they are smaller
             # => less mem delegations => faster
-            cp "$FILE" "./build/${NAME}_debug_stripped.elf"
-            strip "./build/${NAME}_debug_stripped.elf"
+            # cp "$FILE" "./build/${NAME}_debug_stripped.elf"
+            # strip "./build/${NAME}_debug_stripped.elf"
         fi
     done
 
@@ -57,48 +59,39 @@ function fn_cp_binaries_to_build_dir() {
         if file "$FILE" | grep "executable" > /dev/null
         then
             NAME=$(basename "$FILE")
-            echo "$NAME now in './build/${NAME}_release.elf'"
+            echo "$NAME now in './build/${NAME}--release.elf'"
             # ln -fs "$FILE" "./build/${NAME}_release.elf"
             # we have to copy; QEMUs "-initrd" doesn't work with links
-            cp "$FILE" "./build/${NAME}_release.elf"
+            cp "$FILE" "./build/${NAME}--release.elf"
 
             # also stripped binaries, because they are smaller
             # => less mem delegations => faster
-            cp "$FILE" "./build/${NAME}_release_stripped.elf"
-            strip "./build/${NAME}_release_stripped.elf"
+            # cp "$FILE" "./build/${NAME}_release_stripped.elf"
+            # strip "./build/${NAME}_release_stripped.elf"
         fi
     done
 }
 
-function fn_cp_linux_userland_payload() {
+# copies the foreign Linux binaries into the build directory
+function fn_cp_foreign_linux_binaries() {
     (
         cd "../static-hello-world" || exit
         make
-        # merge build-directories
+        # copy everything into "./build"
         cp -r "build/" "../rust-roottask/"
     )
 }
 
-# Builds the whole runtime environment into a tarball.
-# This means all executables in ./build except the roottask.
+# Builds the whole userland into a tarball. This includes runtime services and user applications.
+# It uses all executables in "./build" except for the roottask.
+# Some binaries are included twice as "debug" and as "release" version.
 function fn_runtime_environment_tarball() {
-    # Linux Files We
-    LINUX_BINS=$(cd "./build" || exit && find . -name "linux_*" | tr '\r\n' ' ')
-
-    # debug
     (
         cd "./build" || exit
-        # space separated string
-        HRSTD_RT_DEBUG_FILES=$(find . -name "*.elf" ! -path . | grep "_debug_stripped" | grep -v "roottask" | tr '\r\n' ' ')
-        tar cfv "hedron-userland_debug.tar" $HRSTD_RT_DEBUG_FILES $LINUX_BINS
-    )
 
-    # release
-    (
-        cd "./build" || exit
         # space separated string
-        HRSTD_RT_RELEASE_FILES=$(find . -name "*.elf" ! -path . | grep "_release_stripped" | grep -v "roottask" | tr '\r\n' ' ')
-        tar cfv "hedron-userland_release.tar" $HRSTD_RT_RELEASE_FILES $LINUX_BINS
+        RUST_RT_AND_LINUX_BINS=$(find . -name "*.elf" ! -path . | grep -v "roottask" | tr '\r\n' ' ')
+        tar cfv "hedron-userland_full.tar" $RUST_RT_AND_LINUX_BINS
     )
 }
 

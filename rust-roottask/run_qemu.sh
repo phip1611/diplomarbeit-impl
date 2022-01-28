@@ -12,12 +12,12 @@ set -e
 # make sure that this copy is up-to-date!
 HEDRON=/tftpboot/hypervisor.elf32
 
-# "debug" or "release"
-RELEASE=debug
+# "debug" or "release"; only influences the roottask binary itself
+RELEASE=release
 
-ROOTTASK="./build/roottask-bin_${RELEASE}.elf"
+ROOTTASK="./build/roottask-bin--${RELEASE}.elf"
 # all the other Rust binaries that get loaded by the Roottask
-HEDRON_USERLAND="./build/hedron-userland_${RELEASE}.tar"
+HEDRON_USERLAND="./build/hedron-userland_full.tar"
 
 #########################################################################
 # nice "hack" which make the script work, even if not executed from "./"
@@ -49,6 +49,8 @@ main() {
         "-smp"
         "2"
 
+        # I also use this CPU micro arch to optimize all
+        # Rust binaries for.
         "-cpu"
         "IvyBridge"
 
