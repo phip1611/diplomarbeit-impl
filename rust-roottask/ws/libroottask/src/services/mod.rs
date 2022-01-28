@@ -112,6 +112,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
     // local EC for all service calls
     let ec = LOCAL_EC.lock().as_ref().unwrap().upgrade().unwrap();
 
+    // Stdout Service PT
     {
         let stdout_pt = stdout::create_service_pt(cap_base_sel, &ec);
         log::trace!("created stdout service pt");
@@ -132,6 +133,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
         log::trace!("delegated stdout service pt");
     }
 
+    // Stderr Service PT
     {
         let stderr_pt = stderr::create_service_pt(cap_base_sel, &ec);
         log::trace!("created stderr service pt");
@@ -152,6 +154,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
         process.pd_obj().attach_delegated_pt(stderr_pt);
     }
 
+    // Alloc Service PT
     {
         let alloc_pt = allocate::create_service_pt(cap_base_sel, &ec);
         log::trace!("created alloc service pt");
@@ -172,6 +175,7 @@ pub fn create_and_delegate_service_pts(process: &Process) {
         process.pd_obj().attach_delegated_pt(alloc_pt);
     }
 
+    // FS Service PT
     {
         let alloc_pt = fs::create_service_pt(cap_base_sel, &ec);
         log::trace!("created fs service pt");
