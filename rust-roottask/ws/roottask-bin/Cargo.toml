@@ -19,3 +19,9 @@ arrayvec = { version = "0.7", default-features = false }
 # This led to long debugging sessions in memory bugs in the portal exception handler,
 # until I figured out, it is caused by a stack memory overrun.
 opt-level = 1
+
+[profile.release]
+# https://doc.rust-lang.org/cargo/reference/profiles.html
+# Changes for maximum performance: only differences to default settings
+codegen-units = 1
+lto = true

@@ -13,3 +13,9 @@ log = { version = "0.4", default-features = false }
 [profile.dev]
 # Significantly reduces redicously high stack usage by the binary.
 opt-level = 1
+
+[profile.release]
+# https://doc.rust-lang.org/cargo/reference/profiles.html
+# Changes for maximum performance: only differences to default settings
+codegen-units = 1
+lto = true
