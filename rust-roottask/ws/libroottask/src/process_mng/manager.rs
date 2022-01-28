@@ -78,7 +78,7 @@ impl ProcessManager {
         if !self.init {
             panic!("call init() first!");
         }
-        log::debug!("starting program {}", program_name);
+        log::info!("starting program {}", program_name);
 
         let pid = self.pid_counter;
         self.pid_counter += 1;
