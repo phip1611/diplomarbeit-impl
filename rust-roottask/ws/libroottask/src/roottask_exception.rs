@@ -184,6 +184,11 @@ pub fn generic_error_exception_handler(
         log::debug!("use generic (=panic) exception handler");
         log::debug!("{:#?}", utcb.exception_data());
         *do_reply = false;
-        panic!("can't handle exception {:?} currently - game over", exc);
+        panic!(
+            "can't handle exception {:?} at rip={:?} currently - game over\n{:#?}",
+            exc,
+            utcb.exception_data().rip as *const u8,
+            utcb.exception_data()
+        );
     }
 }
