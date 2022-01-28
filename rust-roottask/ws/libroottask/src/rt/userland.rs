@@ -19,26 +19,39 @@ use libhrstd::libhedron::{
     HIP,
 };
 use libhrstd::mem::calc_page_count;
+use runs_inside_qemu::runs_inside_qemu;
 use tar_no_std::TarArchiveRef;
 
-/// Describes the files for the userland, that are provided by the MB module.
-/// Each ELF file is guaranteed to be page-aligned.
+/// Contains all files of the userland (runtime services + user applications) that
+/// are provided by the userland tarball. The tarball is provided as multiboot boot module.
+/// Some files appear twice as "debug" and as "release" version to cope with situations
+/// where the release build doesn't work in QEMU (due to fancy CPU features) but should be
+/// executed on real hardware.
 #[derive(Debug)]
 #[allow(unused)]
-pub struct Userland {
-    hello_world_elf: MappedMemory,
-    fs_service_elf: MappedMemory,
-    /// statically compiled Hello World for Linux (C + musl/gcc)
+pub struct InitialUserland {
+    /// Hedron-native Rust App that acts as my testing playground.
+    rust_hello_world_elf: MappedMemory,
+    /// The file system service compiled as Hedron-native Rust application.
+    rust_fs_service_elf: MappedMemory,
+    /// Statically compiled Hello World for Linux (C + musl/gcc)
     linux_c_hello_world_elf: MappedMemory,
-    // /// statically compiled Hello World for Linux (Rust + musl/LLVM)
-    linux_rust_hello_world_elf: MappedMemory,
-    // /// statically compiled Hello World for Linux (Rust + musl/LLVM) + hybrid part (native Hedron syscalls)
-    linux_rust_hello_world_hybrid_elf: MappedMemory,
+    /// Statically compiled Hello World for Linux (Rust + musl/LLVM)
+    linux_rust_hello_world_debug_elf: MappedMemory,
+    /// Statically compiled Hello World for Linux (Rust + musl/LLVM) + hybrid part (native Hedron syscalls)
+    linux_rust_hello_world_hybrid_debug_elf: MappedMemory,
+    /// Release-version (=maximum optimized + fancy CPU features) of `linux_rust_hybrid_benchmark_debug_elf`
+    linux_rust_hello_world_hybrid_release_elf: MappedMemory,
+    /// Statically compiled Linux Application with Hybrid Parts that will act as my Evaluation Benchmark.
+    /// It will output all relevant information to serial. (debug)
+    linux_rust_hybrid_benchmark_debug_elf: MappedMemory,
+    /// Release-version (=maximum optimized + fancy CPU features) of `linux_rust_hybrid_benchmark_debug_elf`
+    linux_rust_hybrid_benchmark_release_elf: MappedMemory,
     // /// statically compiled Hello World for Linux (Zig)
     // linux_zig_hello_world_elf: MappedMemory,
 }
 
-impl Userland {
+impl InitialUserland {
     pub fn load(hip: &HIP) -> Self {
         let hip_mem = Self::find_userland_tar_mem_desc(hip)
             .ok_or(HedronUserlandError::FileNotFound)
@@ -57,23 +70,44 @@ impl Userland {
             .for_each(|e| log::trace!("    {} ({} bytes)", e.filename(), e.size()));
 
         Self {
-            hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(&tar_file, "helloworld-bin")
-                .unwrap(),
-            fs_service_elf: Self::map_tar_entry_to_page_aligned_dest(&tar_file, "fileserver-bin")
-                .unwrap(),
+            rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "helloworld-bin--debug",
+            )
+            .unwrap(),
+            rust_fs_service_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "fileserver-bin--debug",
+            )
+            .unwrap(),
             linux_c_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_c_hello_world_musl",
             )
             .unwrap(),
-            linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+            linux_rust_hello_world_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "linux_rust_hello_world_musl",
+                "linux_rust_hello_world_musl--debug",
             )
             .unwrap(),
-            linux_rust_hello_world_hybrid_elf: Self::map_tar_entry_to_page_aligned_dest(
+            linux_rust_hello_world_hybrid_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "linux_rust_hello_world_hybrid_musl",
+                "linux_rust_hello_world_hybrid_musl--debug",
+            )
+            .unwrap(),
+            linux_rust_hello_world_hybrid_release_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hello_world_hybrid_musl--release",
+            )
+            .unwrap(),
+            linux_rust_hybrid_benchmark_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hybrid_benchmark--debug",
+            )
+            .unwrap(),
+            linux_rust_hybrid_benchmark_release_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hybrid_benchmark--release",
             )
             .unwrap(),
             /*linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
@@ -146,26 +180,32 @@ impl Userland {
 
     /// Bootstraps the userland. Starts processes in the process manager.
     pub fn bootstrap(&self) {
-        /*PROCESS_MNG.lock().start_process(
-            self.hello_world_elf.clone(),
-            String::from("Hedron-native Hello World"),
-            SyscallAbi::Native,
+        /*let elf_file = if runs_inside_qemu().is_very_likely() {
+            self.linux_rust_hybrid_benchmark_debug_elf
+        } else {
+            self.linux_rust_hybrid_benchmark_release_elf
+        };
+        PROCESS_MNG.lock().start_process(
+            elf_file,
+            String::from("My Diplom thesis evaluation benchmark."),
+            SyscallAbi::Linux,
         );*/
+
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
-            String::from("Linux Hello World (C + musl/GCC)"),
+            String::from("Linux C Hello World Musl"),
+            SyscallAbi::Linux,
+        );*/
+        /*PROCESS_MNG.lock().start_process(
+            self.linux_rust_hello_world_hybrid_debug_elf.clone(),
+            String::from("Linux Hello World Hybrid (Rust + musl) [DEBUG]"),
             SyscallAbi::Linux,
         );*/
         PROCESS_MNG.lock().start_process(
-            self.linux_rust_hello_world_elf.clone(),
-            String::from("Linux Hello World (Rust + musl)"),
+            self.linux_rust_hello_world_hybrid_release_elf.clone(),
+            String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
         );
-        /*PROCESS_MNG.lock().start_process(
-            self.linux_rust_hello_world_hybrid_elf.clone(),
-            String::from("Linux Hello World Hybrid (Rust + musl)"),
-            SyscallAbi::Linux,
-        );*/
     }
 }
 
