@@ -45,6 +45,14 @@ use alloc::string::ToString;
 /// - `parent_pd_sel` The capability selector of the parent protection domain (e.g. root task)
 /// - `foreign_syscall_base` Of some, this PD will be a foreign PD (syscalls handled as exceptions)
 ///                          with the given foreign syscall base.
+///
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_create_pd(
     passthrough_access: bool,
@@ -61,11 +69,6 @@ pub fn sys_create_pd(
             "Argument `parent_pd_sel` is too big".to_string(),
         ))
     } else {
-        log::trace!(
-            "syscall create_pd: pd={:?}, parent_pd={}",
-            cap_sel,
-            parent_pd_sel
-        );
         let mut arg1 = 0;
         arg1 |= SyscallNum::CreatePd.val() & 0xff;
         if passthrough_access {

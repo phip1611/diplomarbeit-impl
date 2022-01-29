@@ -8,6 +8,11 @@ publish = false # prevent accidentaly publishing
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+# Contains runtime features only required for foreign applications that use this lib.
+foreign_rust_rt = []
+
 [dependencies]
 bitflags = "1.3"
 enum-iterator = "0.7"

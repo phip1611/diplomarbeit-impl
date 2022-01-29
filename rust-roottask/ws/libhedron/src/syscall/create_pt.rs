@@ -16,7 +16,13 @@ use alloc::string::ToString;
 /// If the call is successful, the kernel will install this kernel object
 /// into the capability space of the PD.
 ///
-/// This function never panics.
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_create_pt(
     // Free selector (must refer to a null capability).

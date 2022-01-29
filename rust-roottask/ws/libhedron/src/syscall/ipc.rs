@@ -16,7 +16,13 @@ use core::arch::asm;
 /// Performs a blocking IPC syscall to the specified portal.
 /// Payload is transferred via the UTCB.
 ///
-/// This function never panics.
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any system calls! Therefore also no
+///   log::trace()-stuff or similar. Otherwise, the current implementation of hybrid foreign
+///   system calls will fail.
 #[inline]
 pub fn sys_call(portal_sel: CapSel) -> SyscallResult {
     if portal_sel >= NUM_CAP_SEL {
@@ -52,8 +58,17 @@ pub fn sys_call(portal_sel: CapSel) -> SyscallResult {
 /// Pitfall: Hedron doesn't reset the RSP of the local EC that handles calls.
 /// Therefore, during a reply, the userland has to do this by itself, in order
 /// to fulfill the next request as expected.
+///
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_reply(local_ec_stack_top: u64) -> ! {
+    #[cfg(not(feature = "foreign_rust_rt"))]
     if local_ec_stack_top == 0 {
         log::error!("local_ec_stack_top is 0!")
     }

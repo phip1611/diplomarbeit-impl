@@ -1,7 +1,6 @@
 //! Contains all hybrid syscall wrappers.
 
 use crate::rt::user_load_utcb::user_load_utcb_mut;
-use libhedron::syscall::sys_create_pd;
 use libhedron::syscall::sys_create_pt;
 use libhedron::syscall::sys_create_sc;
 use libhedron::syscall::sys_pt_ctrl;
@@ -9,6 +8,10 @@ use libhedron::syscall::SyscallResult;
 use libhedron::syscall::{
     sys_create_global_ec,
     sys_create_local_ec,
+};
+use libhedron::syscall::{
+    sys_create_pd,
+    SyscallStatus,
 };
 use libhedron::syscall::{
     sys_pd_ctrl_delegate,
@@ -41,13 +44,13 @@ where
 }
 
 /// Like [`libhedron::syscall::sys_create_pd`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_create_pd(
     passthrough_access: bool,
     cap_sel: CapSel,
     parent_pd_sel: CapSel,
     foreign_syscall_base: Option<CapSel>,
 ) -> SyscallResult {
-    log::trace!("Executing hybrid foreign syscall: sys_create_pd");
     wrap_hybrid_hedron_syscall(|| {
         sys_create_pd(
             passthrough_access,
@@ -59,6 +62,7 @@ pub fn sys_hybrid_create_pd(
 }
 
 /// Like [`libhedron::syscall::sys_create_global_ec`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_create_global_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -79,6 +83,7 @@ pub fn sys_hybrid_create_global_ec(
 }
 
 /// Like [`libhedron::syscall::sys_create_local_ec`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_create_local_ec(
     ec_cap_sel: CapSel,
     parent_pd_sel: CapSel,
@@ -101,6 +106,7 @@ pub fn sys_hybrid_create_local_ec(
 }
 
 /// Like [`libhedron::syscall::sys_create_pt`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_create_pt(
     new_pt_cap_sel: CapSel,
     own_pd_sel: CapSel,
@@ -121,12 +127,14 @@ pub fn sys_hybrid_create_pt(
 }
 
 /// Like [`libhedron::syscall::sys_pt_ctrl`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
     log::trace!("Executing hybrid foreign syscall: sys_pt_ctrl");
     wrap_hybrid_hedron_syscall(|| sys_pt_ctrl(pt_sel, callback_argument))
 }
 
 /// Like [`libhedron::syscall::sys_pd_ctrl_delegate`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     source_pd: CapSel,
     dest_pd: CapSel,
@@ -141,6 +149,7 @@ pub fn sys_hybrid_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
 }
 
 /// Like [`libhedron::syscall::sys_create_sc`] but for usage in hybrid foreign applications.
+#[inline]
 pub fn sys_hybrid_create_sc(
     cap_sel: CapSel,
     owned_pd_sel: CapSel,

@@ -118,6 +118,14 @@ impl Default for DelegateFlags {
 /// # Parameters
 /// - `source_crd` A [`Crd`] range descriptor describing the send window in the source PD.
 /// - `dest_crd` A [`Crd`] describing the receive window in the destination PD.
+///
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
     source_pd: CapSel,
@@ -140,17 +148,6 @@ pub fn sys_pd_ctrl_delegate<Perm, Spec, ObjSpec>(
         const SUB_SYSCALL_BITSHIFT: u64 = 8;
         const SOURCE_PD_BITMASK: u64 = !0x3ff;
         const SOURCE_PD_BITSHIFT: u64 = 12;
-
-        /*log::trace!(
-            "delegate[{:?}] PD({})=>PD({}): src cap base={}, order={}; dest cap base={}, order={}",
-            source_crd.kind(),
-            source_pd,
-            dest_pd,
-            source_crd.base(),
-            source_crd.order(),
-            dest_crd.base(),
-            dest_crd.order(),
-        );*/
 
         let mut arg1 = 0;
         arg1 |= SyscallNum::PdCtrl.val() & SYSCALL_BITMASK;

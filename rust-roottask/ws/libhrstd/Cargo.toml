@@ -12,7 +12,7 @@ default = ["native_rust_rt"]
 # to either enable successfull compilation or to prevent programming mistakes.
 native_rust_rt = []
 # Contains runtime features only required for foreign applications that use this lib.
-foreign_rust_rt = []
+foreign_rust_rt = ["libhedron/foreign_rust_rt"]
 
 [dependencies]
 libhedron = { path = "../libhedron" }

@@ -22,9 +22,15 @@ use alloc::string::ToString;
 /// This implies that you need N portals for N exceptions.
 ///
 /// callback_argument is also called Portal ID in spec and supernova.
-
 ///
-/// This function never panics.
+///
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
     if pt_sel >= NUM_CAP_SEL {

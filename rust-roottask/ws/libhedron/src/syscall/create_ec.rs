@@ -37,7 +37,13 @@ impl EcKind {
 
 /// Creates a local EC. Wrapper around [`sys_create_ec`].
 ///
-/// This function never panics.
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 ///
 /// # Parameters
 /// - `ec_cap_sel` Free [`CapSel`] where this EC is installed in the PD specified by `parent_pd_sel`
@@ -86,7 +92,13 @@ pub fn sys_create_local_ec(
 /// is set in the handler of the [`crate::event_offset::ExceptionEventOffset::HedronGlobalEcStartup`]
 /// exception.
 ///
-/// This function never panics.
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_create_global_ec(
     ec_cap_sel: CapSel,
@@ -145,7 +157,13 @@ const PAGE_NUM_LEFT_SHIFT: u64 = 12;
 /// the event reason are VM exit reasons, for normal ECs the reasons are
 /// exception numbers.
 ///
-/// This function never panics.
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 ///
 /// # Parameters
 /// - `kind` see [`EcKind`]
@@ -190,6 +208,7 @@ fn sys_create_ec(
             "Argument `event_base_sel` is too big".to_string(),
         ))
     } else {
+        #[cfg(not(feature = "foreign_rust_rt"))]
         log::trace!(
             "syscall create_ec: kind={:?}, sel={}, pd={}, evt_base={}, cpu_num={}, utcb_lapic_page_num={}, utcb_lapic_page_num_addr={:016x}",
             kind,

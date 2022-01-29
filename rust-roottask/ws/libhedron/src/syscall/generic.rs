@@ -11,8 +11,12 @@ use enum_iterator::IntoEnumIterator;
 /// This function never panics.
 ///
 /// # Safety
-/// This function may change the systems functionality in an unintended way,
-/// if the arguments are illegal or wrong.
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub(super) unsafe fn hedron_syscall_5(
     arg1: u64,
@@ -54,8 +58,12 @@ pub(super) unsafe fn hedron_syscall_5(
 /// This function never panics.
 ///
 /// # Safety
-/// This function may change the systems functionality in an unintended way,
-/// if the arguments are illegal or wrong.
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub(super) unsafe fn hedron_syscall_4(
     arg1: u64,
@@ -95,8 +103,12 @@ pub(super) unsafe fn hedron_syscall_4(
 /// This function never panics.
 ///
 /// # Safety
-/// This function may change the systems functionality in an unintended way,
-/// if the arguments are illegal or wrong.
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any system calls! Therefore also no
+///   log::trace()-stuff or similar. Otherwise, the current implementation of hybrid foreign
+///   system calls will fail.
 #[allow(unused)]
 #[inline]
 pub(super) unsafe fn hedron_syscall_3(
@@ -135,8 +147,12 @@ pub(super) unsafe fn hedron_syscall_3(
 /// This function never panics.
 ///
 /// # Safety
-/// This function may change the systems functionality in an unintended way,
-/// if the arguments are illegal or wrong.
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any system calls! Therefore also no
+///   log::trace()-stuff or similar. Otherwise, the current implementation of hybrid foreign
+///   system calls will fail.
 #[inline]
 pub(super) unsafe fn hedron_syscall_2(arg1: u64, arg2: u64) -> Result<u64, (SyscallStatus, u64)> {
     let out1: u64;
@@ -169,8 +185,12 @@ pub(super) unsafe fn hedron_syscall_2(arg1: u64, arg2: u64) -> Result<u64, (Sysc
 /// This function never panics.
 ///
 /// # Safety
-/// This function may change the systems functionality in an unintended way,
-/// if the arguments are illegal or wrong.
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any system calls! Therefore also no
+///   log::trace()-stuff or similar. Otherwise, the current implementation of hybrid foreign
+///   system calls will fail.
 #[inline]
 pub(super) unsafe fn hedron_syscall_1(arg1: u64) -> Result<u64, (SyscallStatus, u64)> {
     let out1: u64;

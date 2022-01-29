@@ -15,7 +15,13 @@ use alloc::string::ToString;
 
 /// Creates a SC object for a global EC.
 ///
-/// This function never panics.
+/// # Safety
+/// * This function may change the systems functionality in an unintended way,
+///   if the arguments are illegal or wrong.
+/// * This function is not allowed to panic.
+/// * This function is strictly required to never produce any side effect system calls! Therefore,
+///   also no log::trace()-stuff or similar. Otherwise, the current implementation of hybrid
+///   foreign system calls will fail.
 #[inline]
 pub fn sys_create_sc(
     cap_sel: CapSel,
@@ -36,12 +42,14 @@ pub fn sys_create_sc(
             "Argument `bound_ec_sel` is too big".to_string(),
         ))
     } else {
+        /*#[cfg(not(feature = "foreign_rust_rt"))]
         log::trace!(
             "syscall create_sc: sel={}, pd={}, ec={}",
             cap_sel,
             owned_pd_sel,
             bound_ec_sel
-        );
+        );*/
+
         let mut arg1 = 0;
         arg1 |= SyscallNum::CreateSc.val() & 0xf;
         arg1 |= cap_sel << 12;
