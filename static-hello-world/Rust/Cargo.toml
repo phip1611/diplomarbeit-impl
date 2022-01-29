@@ -9,4 +9,6 @@ publish = false
 [dependencies]
 # libhedron = { path = "../../rust-roottask/ws/libhedron" }
 # exclude "rt" feature
-libhrstd = { path = "../../rust-roottask/ws/libhrstd", default-features = false }
+libhrstd = { path = "../../rust-roottask/ws/libhrstd", default-features = false, features = ["foreign_rust_rt"] }
+simple_logger = "2.1.0"
+log = "0.4.14"
