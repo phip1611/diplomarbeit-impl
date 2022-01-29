@@ -1,5 +1,4 @@
-
-all: c go rust zig 
+all: c go rust zig
 
 .PHONY: c go rust zig clean
 
@@ -17,11 +16,10 @@ go: | builddir
 
 rust: | builddir
 	cd Rust && $(MAKE)
-	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world ./build/linux_rust_hello_world_musl.elf
-	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world_hybrid ./build/linux_rust_hello_world_hybrid_musl.elf
-
-	strip ./build/linux_rust_hello_world_musl.elf
-	strip ./build/linux_rust_hello_world_hybrid_musl.elf
+	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world           ./build/linux_rust_hello_world_musl--debug.elf
+	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world_hybrid    ./build/linux_rust_hello_world_hybrid_musl--debug.elf
+	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world         ./build/linux_rust_hello_world_musl--release.elf
+	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world_hybrid  ./build/linux_rust_hello_world_hybrid_musl--release.elf
 
 zig: | builddir
 	cd Zig && $(MAKE)
