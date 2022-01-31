@@ -19,7 +19,6 @@ use libhrstd::libhedron::{
     HIP,
 };
 use libhrstd::mem::calc_page_count;
-use runs_inside_qemu::runs_inside_qemu;
 use tar_no_std::TarArchiveRef;
 
 /// Contains all files of the userland (runtime services + user applications) that
@@ -204,11 +203,14 @@ impl InitialUserland {
             String::from("My Diplom thesis evaluation benchmark."),
             SyscallAbi::Linux,
         );*/
+
+        /*
         PROCESS_MNG.lock().start_process(
             self.hedron_native_hello_world_rust_release_elf.clone(),
             String::from("Hedron-native Hello World Rust+libhrstd [RELEASE]"),
             SyscallAbi::NativeHedron,
-        );
+        );*/
+
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
             String::from("Linux C Hello World Musl"),
@@ -224,11 +226,12 @@ impl InitialUserland {
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
         );*/
-        /*PROCESS_MNG.lock().start_process(
+
+        PROCESS_MNG.lock().start_process(
             self.linux_rust_hybrid_benchmark_release_elf.clone(),
             String::from("My Diplom thesis evaluation benchmark. [RELEASE]"),
             SyscallAbi::Linux,
-        );*/
+        );
     }
 }
 
