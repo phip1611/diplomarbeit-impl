@@ -52,7 +52,7 @@ main() {
         # I also use this CPU micro arch to optimize all
         # Rust binaries for.
         "-cpu"
-        "IvyBridge"
+        "host"
 
         # Multiboot1 kernel
         "-kernel"

@@ -200,6 +200,7 @@ dependencies = [
  "libm",
  "log",
  "serde",
+ "x86 0.45.0",
 ]
 
 [[package]]
@@ -222,7 +223,7 @@ dependencies = [
  "log",
  "runs_inside_qemu",
  "tar-no-std",
- "x86",
+ "x86 0.41.0",
 ]
 
 [[package]]
@@ -374,7 +375,7 @@ dependencies = [
  "libroottask",
  "log",
  "runs_inside_qemu",
- "x86",
+ "x86 0.41.0",
 ]
 
 [[package]]
@@ -506,6 +507,17 @@ name = "x86"
 version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edcf43654d533a571fe7f7116373098a95ebc01279efdc5038fc45d3b220cb5a"
+dependencies = [
+ "bit_field",
+ "bitflags",
+ "raw-cpuid",
+]
+
+[[package]]
+name = "x86"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "637be4bacc6c06570eb05a3ba513f81d63e52862ced82db542215dd48dbab1e5"
 dependencies = [
  "bit_field",
  "bitflags",

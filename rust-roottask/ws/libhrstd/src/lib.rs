@@ -56,4 +56,5 @@ pub mod process;
 pub mod rt;
 pub mod service_ids;
 pub mod sync;
+pub mod time;
 pub mod uaddress_space;

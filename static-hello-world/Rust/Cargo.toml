@@ -7,8 +7,14 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# libhedron = { path = "../../rust-roottask/ws/libhedron" }
-# exclude "rt" feature
+simple_logger = "2.1"
+log = "0.4"
 libhrstd = { path = "../../rust-roottask/ws/libhrstd", default-features = false, features = ["foreign_rust_rt"] }
-simple_logger = "2.1.0"
-log = "0.4.14"
+libc = "0.2.116"
+
+# this will be my benchmark; maximum performance
+[profile.release]
+# https://doc.rust-lang.org/cargo/reference/profiles.html
+# Changes for maximum performance: only differences to default settings
+codegen-units = 1 # maximum performance in final binary
+lto = true # maximum performance in final binary
