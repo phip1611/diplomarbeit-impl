@@ -1,26 +1,30 @@
 //! The in memory file system service currently lives inside the roottask.
+//! This module connects the callable service portal with the actual functionality.
 
-use crate::mem::VIRT_MEM_ALLOC;
+mod close;
+mod lseek;
+mod open;
+mod read;
+mod write;
+
 use crate::process_mng::process::Process;
 use crate::pt_multiplex::roottask_generic_portal_callback;
+use crate::services::fs::close::fs_service_close;
+use crate::services::fs::lseek::fs_service_lseek;
+use crate::services::fs::open::fs_service_open;
+use crate::services::fs::read::fs_service_read;
+use crate::services::fs::write::fs_service_write;
 use alloc::rc::Rc;
-use alloc::string::ToString;
-use core::alloc::Layout;
 use libhrstd::kobjects::{
     LocalEcObject,
     PtCtx,
     PtObject,
 };
-use libhrstd::libhedron::mem::PAGE_SIZE;
+use libhrstd::libhedron::CapSel;
 use libhrstd::libhedron::Mtd;
 use libhrstd::libhedron::Utcb;
-use libhrstd::libhedron::{
-    CapSel,
-    MemCapPermissions,
-};
 use libhrstd::rt::services::fs::service::FsServiceRequest;
 use libhrstd::service_ids::ServiceId;
-use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Creates a new FILE SYSTEM service PT, which can be delegated to a new process.
 pub fn create_service_pt(base_cap_sel: CapSel, ec: &Rc<LocalEcObject>) -> Rc<PtObject> {
@@ -42,65 +46,13 @@ pub fn fs_service_handler(
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
-    dbg!(utcb.untyped_items_count());
     let file_server_request = utcb.load_data::<FsServiceRequest>().unwrap();
-    dbg!(&file_server_request);
     match file_server_request {
-        FsServiceRequest::Open(request) => {
-            let fd = libfileserver::fs_open(
-                process.pid(),
-                request.path().to_string(),
-                request.flags(),
-                request.umode(),
-            );
-            utcb.store_data(&fd).unwrap();
-        }
-        FsServiceRequest::Read(request) => {
-            let read_bytes =
-                libfileserver::fs_read(process.pid(), request.fd(), request.count()).unwrap();
-            let user_ptr = request.user_ptr();
-            let user_ptr_page_offset = user_ptr & 0xfff;
-            let user_page = user_ptr / PAGE_SIZE;
-            let mapping_dest = VIRT_MEM_ALLOC
-                .lock()
-                .next_addr(Layout::from_size_align(request.count(), PAGE_SIZE).unwrap());
-            let page_count = if request.count() % PAGE_SIZE == 0 {
-                request.count() / PAGE_SIZE
-            } else {
-                request.count() / PAGE_SIZE + 1
-            };
-            CrdDelegateOptimizer::new(user_page as u64, mapping_dest, page_count).mmap(
-                process.pd_obj().cap_sel(),
-                process.parent().unwrap().pd_obj().cap_sel(),
-                MemCapPermissions::READ | MemCapPermissions::WRITE,
-            );
-            let dest_ptr = (mapping_dest + user_ptr_page_offset as u64) as *mut u8;
-            unsafe {
-                core::ptr::copy_nonoverlapping(read_bytes.as_ptr(), dest_ptr, request.count());
-            }
-
-            // read bytes
-            utcb.store_data(&read_bytes.len()).unwrap();
-        }
-        FsServiceRequest::Write(request) => {
-            libfileserver::fs_write(
-                process.pid(),
-                request.fd(),
-                // currently don't support user ptr read
-                request.data().embedded_slice(),
-            )
-            .unwrap();
-
-            utcb.store_data(&request.data().embedded_slice().len())
-                .unwrap();
-        }
-        FsServiceRequest::Close(request) => {
-            libfileserver::fs_close(process.pid(), request.fd()).unwrap();
-        }
-        FsServiceRequest::LSeek(request) => {
-            libfileserver::fs_lseek(process.pid(), request.fd(), request.offset() as usize)
-                .unwrap();
-        }
+        FsServiceRequest::Open(request) => fs_service_open(&request, utcb, process),
+        FsServiceRequest::Read(request) => fs_service_read(&request, utcb, process),
+        FsServiceRequest::Write(request) => fs_service_write(&request, utcb, process),
+        FsServiceRequest::Close(request) => fs_service_close(&request, utcb, process),
+        FsServiceRequest::LSeek(request) => fs_service_lseek(&request, utcb, process),
     }
 
     *do_reply = true;

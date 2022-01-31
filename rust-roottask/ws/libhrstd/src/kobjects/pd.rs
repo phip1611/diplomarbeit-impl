@@ -25,10 +25,7 @@ use core::cell::{
     RefCell,
     RefMut,
 };
-use libhedron::{
-    CapSel,
-    PTCapPermissions,
-};
+use libhedron::CapSel;
 
 /// Object that wraps around a kernel PD object with convenient runtime
 /// data and methods. This is the base for all user processes.
