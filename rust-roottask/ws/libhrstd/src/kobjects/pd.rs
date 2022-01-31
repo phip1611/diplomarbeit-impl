@@ -93,15 +93,15 @@ impl PdObject {
         let syscall_fn = libhedron::syscall::sys_pd_ctrl_delegate;
         #[cfg(feature = "foreign_rust_rt")]
         let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pd_ctrl_delegate;
-        let perms = PDCapPermissions::CREATE_EC
-            | PDCapPermissions::CREATE_PD
-            | PDCapPermissions::CREATE_PT
-            | PDCapPermissions::CREATE_SC;
         syscall_fn(
             parent.cap_sel,
             cap_sel,
-            CrdObjPD::new(cap_sel, 0, perms),
-            CrdObjPD::new(UserAppCapSpace::Pd.val(), 0, perms),
+            CrdObjPD::new(cap_sel, 0, PDCapPermissions::CREATE_KOBJECTS),
+            CrdObjPD::new(
+                UserAppCapSpace::Pd.val(),
+                0,
+                PDCapPermissions::CREATE_KOBJECTS,
+            ),
             DelegateFlags::new(false, false, false, false, 0),
         )
         .unwrap();
