@@ -31,9 +31,13 @@ use tar_no_std::TarArchiveRef;
 #[allow(unused)]
 pub struct InitialUserland {
     /// Hedron-native Rust App that acts as my testing playground.
-    rust_hello_world_elf: MappedMemory,
+    hedron_native_hello_world_rust_debug_elf: MappedMemory,
+    /// Release-version (=maximum optimized + fancy CPU features) of `hedron_native_hello_world_rust_debug_elf`
+    hedron_native_hello_world_rust_release_elf: MappedMemory,
     /// The file system service compiled as Hedron-native Rust application.
-    rust_fs_service_elf: MappedMemory,
+    hedron_native_fs_service_rust_debug_elf: MappedMemory,
+    /// Release-version (=maximum optimized + fancy CPU features) of `hedron_native_fs_service_rust_debug_elf`
+    hedron_native_fs_service_rust_release_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (C + musl/gcc)
     linux_c_hello_world_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (Rust + musl/LLVM)
@@ -70,14 +74,24 @@ impl InitialUserland {
             .for_each(|e| log::trace!("    {} ({} bytes)", e.filename(), e.size()));
 
         Self {
-            rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+            hedron_native_hello_world_rust_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "helloworld-bin--debug",
             )
             .unwrap(),
-            rust_fs_service_elf: Self::map_tar_entry_to_page_aligned_dest(
+            hedron_native_hello_world_rust_release_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "helloworld-bin--release",
+            )
+            .unwrap(),
+            hedron_native_fs_service_rust_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "fileserver-bin--debug",
+            )
+            .unwrap(),
+            hedron_native_fs_service_rust_release_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "fileserver-bin--release",
             )
             .unwrap(),
             linux_c_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
@@ -190,7 +204,11 @@ impl InitialUserland {
             String::from("My Diplom thesis evaluation benchmark."),
             SyscallAbi::Linux,
         );*/
-
+        PROCESS_MNG.lock().start_process(
+            self.hedron_native_hello_world_rust_release_elf.clone(),
+            String::from("Hedron-native Hello World Rust+libhrstd [RELEASE]"),
+            SyscallAbi::NativeHedron,
+        );
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
             String::from("Linux C Hello World Musl"),
@@ -206,11 +224,11 @@ impl InitialUserland {
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
         );*/
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hybrid_benchmark_release_elf.clone(),
             String::from("My Diplom thesis evaluation benchmark. [RELEASE]"),
             SyscallAbi::Linux,
-        );
+        );*/
     }
 }
 
