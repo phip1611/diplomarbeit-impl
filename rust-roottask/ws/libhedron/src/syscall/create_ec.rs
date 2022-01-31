@@ -13,7 +13,7 @@ use crate::syscall::{
 };
 use alloc::string::ToString;
 
-/// Kind of an EC. Bits 4-5 in ARG1 of syscall.
+/// Kind of an EC. Bits 9-7 in ARG1 of syscall.
 #[derive(Copy, Clone, Debug)]
 #[allow(non_camel_case_types, dead_code)]
 #[repr(u8)]
@@ -26,7 +26,7 @@ enum EcKind {
 }
 
 impl EcKind {
-    /// Bitmask for EcKind. Bits 5-4.
+    /// Bitmask for EcKind. Bits 9-8.
     const BITMASK: u64 = 0x300;
     const LEFT_SHIFT: u64 = 8;
 
