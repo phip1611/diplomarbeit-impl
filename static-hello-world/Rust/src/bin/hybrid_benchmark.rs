@@ -1,12 +1,12 @@
 use libhrstd::cap_space::user::UserAppCapSpace;
 use libhrstd::kobjects::{LocalEcObject, PdObject, PortalIdentifier, PtCtx, PtObject};
 use libhrstd::libhedron::Mtd;
-use libhrstd::rt::hybrid_rt::syscalls::{sys_hybrid_create_pt, sys_hybrid_pt_ctrl};
+use libhrstd::rt::hybrid_rt::syscalls::{sys_hybrid_pt_ctrl};
 use libhrstd::time::Instant as HedronInstant;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use std::env::var;
-use std::time::Instant;
+
 
 // This executable is what I use for the evaluation of
 // my diplom thesis. It measures all relevant properties:

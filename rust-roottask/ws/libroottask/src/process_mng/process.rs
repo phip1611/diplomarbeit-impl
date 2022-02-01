@@ -212,12 +212,9 @@ impl Process {
         self.init_map_stack();
         self.init_map_elf_load_segments();
 
+        crate::services::create_and_delegate_service_pts(self);
         if self.syscall_abi.is_foreign() {
-            log::trace!("is foreign PD: only map syscall handler PTs");
             crate::services::foreign_syscall::create_and_delegate_syscall_handler_pts(self);
-        } else {
-            log::trace!("is native PD: map service PTs");
-            crate::services::create_and_delegate_service_pts(self);
         }
 
         // create SC-Object at the very end! Otherwise Hedron might schedule the new PD too early

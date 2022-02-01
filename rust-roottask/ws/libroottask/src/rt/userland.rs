@@ -204,11 +204,11 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.hedron_native_hello_world_rust_release_elf.clone(),
             String::from("Hedron-native Hello World Rust+libhrstd [RELEASE]"),
             SyscallAbi::NativeHedron,
-        );
+        );*/
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
@@ -220,11 +220,11 @@ impl InitialUserland {
             String::from("Linux Hello World Hybrid (Rust + musl) [DEBUG]"),
             SyscallAbi::Linux,
         );*/
-        /*PROCESS_MNG.lock().start_process(
+        PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_hybrid_release_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
-        );*/
+        );
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hybrid_benchmark_release_elf.clone(),
