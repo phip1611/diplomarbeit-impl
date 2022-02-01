@@ -1,4 +1,4 @@
-use crate::rt::services::stdout::stdout_write;
+use crate::rt::services::stdout::stdout_service;
 use crate::util::ansi::{
     AnsiStyle,
     Color,
@@ -111,7 +111,7 @@ impl Log for UserRustLogger {
 
     fn log(&self, record: &Record) {
         let msg = Self::fmt_msg(record);
-        stdout_write(msg.as_str());
+        stdout_service(msg.as_str());
     }
 
     fn flush(&self) {}

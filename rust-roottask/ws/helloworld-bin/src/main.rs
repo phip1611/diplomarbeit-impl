@@ -57,8 +57,8 @@ use libhrstd::rt::services::fs::fs_write::{
     fs_service_write,
     FsWriteRequest,
 };
-use libhrstd::rt::services::stderr::stderr_write;
-use libhrstd::rt::services::stdout::stdout_write;
+use libhrstd::rt::services::stderr::stderr_service;
+use libhrstd::rt::services::stdout::stdout_service;
 use libhrstd::rt::user_logger::UserRustLogger;
 use libhrstd::time::Instant;
 
@@ -68,8 +68,8 @@ mod panic;
 fn start() {
     UserRustLogger::init();
     let msg = "Hallo Welt Lorem Ipsum Dolor sit Damet.";
-    stdout_write(msg);
-    stderr_write(msg);
+    stdout_service(msg);
+    stderr_service(msg);
     log::info!("log info msg");
     log::debug!("log debug msg");
     log::warn!("log warn msg");
