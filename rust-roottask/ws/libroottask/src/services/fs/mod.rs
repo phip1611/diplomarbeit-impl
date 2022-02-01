@@ -9,11 +9,11 @@ mod write;
 
 use crate::process_mng::process::Process;
 use crate::pt_multiplex::roottask_generic_portal_callback;
-use crate::services::fs::close::fs_service_close;
-use crate::services::fs::lseek::fs_service_lseek;
-use crate::services::fs::open::fs_service_open;
-use crate::services::fs::read::fs_service_read;
-use crate::services::fs::write::fs_service_write;
+use crate::services::fs::close::fs_service_impl_close;
+use crate::services::fs::lseek::fs_service_impl_lseek;
+use crate::services::fs::open::fs_service_impl_open;
+use crate::services::fs::read::fs_service_impl_read;
+use crate::services::fs::write::fs_service_impl_write;
 use alloc::rc::Rc;
 use libhrstd::kobjects::{
     LocalEcObject,
@@ -23,7 +23,7 @@ use libhrstd::kobjects::{
 use libhrstd::libhedron::CapSel;
 use libhrstd::libhedron::Mtd;
 use libhrstd::libhedron::Utcb;
-use libhrstd::rt::services::fs::service::FsServiceRequest;
+use libhrstd::rt::services::fs::FsServiceRequest;
 use libhrstd::service_ids::ServiceId;
 
 /// Creates a new FILE SYSTEM service PT, which can be delegated to a new process.
@@ -48,11 +48,11 @@ pub fn fs_service_handler(
 ) {
     let file_server_request = utcb.load_data::<FsServiceRequest>().unwrap();
     match file_server_request {
-        FsServiceRequest::Open(request) => fs_service_open(&request, utcb, process),
-        FsServiceRequest::Read(request) => fs_service_read(&request, utcb, process),
-        FsServiceRequest::Write(request) => fs_service_write(&request, utcb, process),
-        FsServiceRequest::Close(request) => fs_service_close(&request, utcb, process),
-        FsServiceRequest::LSeek(request) => fs_service_lseek(&request, utcb, process),
+        FsServiceRequest::Open(request) => fs_service_impl_open(&request, utcb, process),
+        FsServiceRequest::Read(request) => fs_service_impl_read(&request, utcb, process),
+        FsServiceRequest::Write(request) => fs_service_impl_write(&request, utcb, process),
+        FsServiceRequest::Close(request) => fs_service_impl_close(&request, utcb, process),
+        FsServiceRequest::LSeek(request) => fs_service_impl_lseek(&request, utcb, process),
     }
 
     *do_reply = true;

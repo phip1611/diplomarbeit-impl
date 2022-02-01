@@ -1,23 +1,23 @@
 use crate::mem::UserPtrOrEmbedded;
-use crate::rt::services::fs::fd::FD;
-use crate::rt::services::fs::fs_close::{
+use crate::rt::services::fs::FD;
+use crate::rt::services::fs::{
     fs_service_close,
     FsCloseRequest,
 };
-use crate::rt::services::fs::fs_lseek::{
+use crate::rt::services::fs::{
     fs_service_lseek,
     FsLseekRequest,
 };
-use crate::rt::services::fs::fs_open::{
+use crate::rt::services::fs::{
     fs_service_open,
     FsOpenFlags,
     FsOpenRequest,
 };
-use crate::rt::services::fs::fs_read::{
+use crate::rt::services::fs::{
     fs_service_read,
     FsReadRequest,
 };
-use crate::rt::services::fs::fs_write::{
+use crate::rt::services::fs::{
     fs_service_write,
     FsWriteRequest,
 };

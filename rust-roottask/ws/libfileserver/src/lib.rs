@@ -49,8 +49,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cmp::min;
 use libhrstd::process::consts::ProcessId;
-use libhrstd::rt::services::fs::fd::FD;
-use libhrstd::rt::services::fs::fs_open::FsOpenFlags;
+use libhrstd::rt::services::fs::FsOpenFlags;
+use libhrstd::rt::services::fs::FD;
 use libhrstd::sync::mutex::SimpleMutex;
 
 /// Open file table with open files in [`IN_MEM_FS`].

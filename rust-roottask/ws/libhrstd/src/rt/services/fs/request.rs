@@ -1,8 +1,8 @@
-use crate::rt::services::fs::fs_close::FsCloseRequest;
-use crate::rt::services::fs::fs_lseek::FsLseekRequest;
-use crate::rt::services::fs::fs_open::FsOpenRequest;
-use crate::rt::services::fs::fs_read::FsReadRequest;
-use crate::rt::services::fs::fs_write::FsWriteRequest;
+use crate::rt::services::fs::FsCloseRequest;
+use crate::rt::services::fs::FsLseekRequest;
+use crate::rt::services::fs::FsOpenRequest;
+use crate::rt::services::fs::FsReadRequest;
+use crate::rt::services::fs::FsWriteRequest;
 use libhedron::ipc_serde::{
     Deserialize,
     Serialize,
@@ -21,7 +21,7 @@ pub enum FsServiceRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rt::services::fs::fs_open::FsOpenFlags;
+    use crate::rt::services::fs::FsOpenFlags;
 
     #[test]
     fn test_compiles() {

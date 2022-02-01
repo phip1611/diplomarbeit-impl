@@ -40,20 +40,20 @@ use libhrstd::kobjects::{
 use libhrstd::libhedron::syscall::sys_pt_ctrl;
 use libhrstd::libhedron::Mtd;
 use libhrstd::mem::UserPtrOrEmbedded;
-use libhrstd::rt::services::fs::fs_lseek::{
+use libhrstd::rt::services::fs::{
     fs_service_lseek,
     FsLseekRequest,
 };
-use libhrstd::rt::services::fs::fs_open::{
+use libhrstd::rt::services::fs::{
     fs_service_open,
     FsOpenFlags,
     FsOpenRequest,
 };
-use libhrstd::rt::services::fs::fs_read::{
+use libhrstd::rt::services::fs::{
     fs_service_read,
     FsReadRequest,
 };
-use libhrstd::rt::services::fs::fs_write::{
+use libhrstd::rt::services::fs::{
     fs_service_write,
     FsWriteRequest,
 };

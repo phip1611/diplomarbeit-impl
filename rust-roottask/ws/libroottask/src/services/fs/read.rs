@@ -6,10 +6,11 @@ use libhrstd::libhedron::{
     MemCapPermissions,
     Utcb,
 };
-use libhrstd::rt::services::fs::fs_read::FsReadRequest;
+use libhrstd::rt::services::fs::FsReadRequest;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
-pub(super) fn fs_service_read(request: &FsReadRequest, utcb: &mut Utcb, process: &Process) {
+/// Implements the fs read service functionality that is accessible via the FS portal.
+pub(super) fn fs_service_impl_read(request: &FsReadRequest, utcb: &mut Utcb, process: &Process) {
     // data from the file system
     let read_bytes = libfileserver::fs_read(process.pid(), request.fd(), request.count()).unwrap();
 
