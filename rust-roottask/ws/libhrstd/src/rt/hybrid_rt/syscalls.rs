@@ -1,7 +1,7 @@
 //! Contains all hybrid syscall wrappers.
 
 use crate::rt::user_load_utcb::user_load_utcb_mut;
-use libhedron::syscall::sys_create_pt;
+use libhedron::syscall::{sys_call, sys_create_pt};
 use libhedron::syscall::sys_create_sc;
 use libhedron::syscall::sys_pt_ctrl;
 use libhedron::syscall::SyscallResult;
@@ -159,5 +159,17 @@ pub fn sys_hybrid_create_sc(
     log::trace!("Executing hybrid foreign syscall: sys_create_sc");
     wrap_hybrid_hedron_syscall(|| {
         sys_create_sc(cap_sel, owned_pd_sel, bound_ec_sel, scheduling_params)
+    })
+}
+
+
+/// Like [`libhedron::syscall::sys_call`] but for usage in hybrid foreign applications.
+#[inline]
+pub fn sys_hybrid_call(
+    cap_sel: CapSel,
+) -> SyscallResult {
+    log::trace!("Executing hybrid foreign syscall: sys_call");
+    wrap_hybrid_hedron_syscall(|| {
+        sys_call(cap_sel)
     })
 }

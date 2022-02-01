@@ -7,13 +7,19 @@ use libhedron::ipc_serde::{
     Serialize,
 };
 use libhedron::syscall::sys_call;
+use crate::rt::hybrid_rt::syscalls::sys_hybrid_call;
 
 /// Wrapper around the FS service portal to update the file offset.
 pub fn fs_service_lseek(request: FsLseekRequest) -> FD {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::LSeek(request);
     utcb.store_data(&request).unwrap();
+
+    #[cfg(feature = "native_rust_rt")]
     sys_call(UserAppCapSpace::FsServicePT.val()).unwrap();
+    #[cfg(feature = "foreign_rust_rt")]
+    sys_hybrid_call(UserAppCapSpace::FsServicePT.val()).unwrap();
+
     utcb.load_data().unwrap()
 }
 

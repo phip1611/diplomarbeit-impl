@@ -14,7 +14,12 @@ pub fn fs_service_close(request: FsCloseRequest) -> FD {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::Close(request);
     utcb.store_data(&request).unwrap();
+
+    #[cfg(feature = "native_rust_rt")]
     sys_call(UserAppCapSpace::FsServicePT.val()).unwrap();
+    #[cfg(feature = "foreign_rust_rt")]
+    sys_hybrid_call(UserAppCapSpace::FsServicePT.val()).unwrap();
+
     utcb.load_data().unwrap()
 }
 
