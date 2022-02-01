@@ -9,7 +9,9 @@ use libhedron::ipc_serde::{
 };
 use libhedron::syscall::sys_call;
 
-pub fn fs_write(request: FsWriteRequest) -> FD {
+/// Wrapper around the FS service portal to write to files.
+/// Returns the number of written bytes.
+pub fn fs_service_write(request: FsWriteRequest) -> usize {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::Write(request);
     utcb.store_data(&request).unwrap();

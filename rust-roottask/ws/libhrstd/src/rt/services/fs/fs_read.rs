@@ -8,7 +8,8 @@ use libhedron::ipc_serde::{
 };
 use libhedron::syscall::sys_call;
 
-pub fn fs_read(request: FsReadRequest) -> usize {
+/// Wrapper around the FS service portal to read from files.
+pub fn fs_service_read(request: FsReadRequest) -> usize {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::Read(request);
     utcb.store_data(&request).unwrap();

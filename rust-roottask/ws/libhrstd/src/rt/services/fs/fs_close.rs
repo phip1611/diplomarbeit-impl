@@ -1,4 +1,5 @@
 use crate::cap_space::user::UserAppCapSpace;
+use crate::rt::hybrid_rt::syscalls::sys_hybrid_call;
 use crate::rt::services::fs::fd::FD;
 use crate::rt::services::fs::service::FsServiceRequest;
 use crate::rt::user_load_utcb::user_load_utcb_mut;
@@ -8,7 +9,8 @@ use libhedron::ipc_serde::{
 };
 use libhedron::syscall::sys_call;
 
-pub fn fs_close(request: FsCloseRequest) -> FD {
+/// Wrapper around the FS service portal to close files.
+pub fn fs_service_close(request: FsCloseRequest) -> FD {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::Close(request);
     utcb.store_data(&request).unwrap();

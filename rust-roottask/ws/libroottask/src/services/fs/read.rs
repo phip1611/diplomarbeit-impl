@@ -13,6 +13,12 @@ pub(super) fn fs_service_read(request: &FsReadRequest, utcb: &mut Utcb, process:
     // data from the file system
     let read_bytes = libfileserver::fs_read(process.pid(), request.fd(), request.count()).unwrap();
 
+    // early return if EOF reached
+    if read_bytes.len() == 0 {
+        utcb.store_data(&read_bytes.len()).unwrap();
+        return;
+    }
+
     // now map the data to a user destination
     let u_addr = request.user_ptr();
     let u_addr_page_offset = u_addr & 0xfff;

@@ -1,4 +1,6 @@
-//! File server lib.
+//! File server lib. Currently this library only contains the internal interface of the
+//! file system server. The public interface (exported via Portals) must be build around
+//! these interfaces.
 
 #![cfg_attr(not(test), no_std)]
 #![deny(
@@ -51,11 +53,13 @@ use libhrstd::rt::services::fs::fd::FD;
 use libhrstd::rt::services::fs::fs_open::FsOpenFlags;
 use libhrstd::sync::mutex::SimpleMutex;
 
+/// Open file table with open files in [`IN_MEM_FS`].
 static OPEN_FILE_TABLE: SimpleMutex<OpenFileTable> = SimpleMutex::new(OpenFileTable::new());
 
+/// Contains the file system in memory.
 static IN_MEM_FS: SimpleMutex<InMemFilesystem> = SimpleMutex::new(InMemFilesystem::new());
 
-/// Holds information about all files that are currently open.
+/// Holds information about all files that are currently open inside the system.
 #[derive(Debug)]
 struct OpenFileTable(BTreeMap<OpenFileHandleId, OpenFileHandle>);
 
@@ -64,6 +68,7 @@ impl OpenFileTable {
         Self(BTreeMap::new())
     }
 
+    /// Opens a file and returns a [`FD`].
     pub fn open(
         &mut self,
         caller: ProcessId,
@@ -95,6 +100,7 @@ impl OpenFileTable {
         }
     }
 
+    /// Closes a file.
     pub fn close(&mut self, caller: ProcessId, fd: FD) -> Result<(), ()> {
         let key = (caller, fd);
         self.data_mut().remove(&key).map(|_| ()).ok_or(())
@@ -108,6 +114,7 @@ impl OpenFileTable {
         &mut self.0
     }
 
+    /// Returns the next available file descriptor for a process.
     fn next_fd(&self, pid: ProcessId) -> FD {
         let mut i = 3;
         // all fds that the PID is using
@@ -127,7 +134,11 @@ impl OpenFileTable {
     }
 }
 
+/// Combines a process ID that has opened a certain file descriptor.
+/// Identifies objects of type [`OpenFileHandle`].
 type OpenFileHandleId = (ProcessId, FD);
+
+/// Describes an opened file.
 #[derive(Debug)]
 struct OpenFileHandle {
     file_offset: usize,
@@ -240,6 +251,12 @@ impl InMemFilesystem {
     }
 }
 
+/// Public interface to the file system management data structures to open files.
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX. On success, a new [`FD`] gets returned.
 pub fn fs_open(caller: ProcessId, path: String, flags: FsOpenFlags, umode: u16) -> FD {
     if flags.is_empty() {
         return FD::error();
@@ -253,6 +270,12 @@ pub fn fs_open(caller: ProcessId, path: String, flags: FsOpenFlags, umode: u16) 
         .unwrap_or(FD::error())
 }
 
+/// Public interface to the file system management data structures to read from open files.
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX. On success, a Vector with read bytes gets returned.
 pub fn fs_read(caller: ProcessId, fd: FD, count: usize) -> Result<Vec<u8>, ()> {
     let key = (caller, fd);
     let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
@@ -262,15 +285,20 @@ pub fn fs_read(caller: ProcessId, fd: FD, count: usize) -> Result<Vec<u8>, ()> {
     let file = in_mem_fs_lock.file(handle.file_path()).ok_or(())?;
 
     let mut data = Vec::new();
-    let to = min(file.data().len(), count + offset);
-    let bytes_read = to - 1 - offset;
-    handle.file_offset += bytes_read;
+    let new_offset = min(file.data().len(), count + offset);
+    handle.file_offset = new_offset;
 
-    data.extend_from_slice(&file.data()[offset..to]);
+    data.extend_from_slice(&file.data()[offset..new_offset]);
     Ok(data)
 }
 
-pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<(), ()> {
+/// Public interface to the file system management data structures to write to open files.
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX. On success, the number of written bytes gets returned.
+pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<usize, ()> {
     let key = (caller, fd);
     let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
     let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
@@ -278,20 +306,30 @@ pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<(), ()> {
 
     let file = in_mem_fs_lock.file_mut(handle.file_path()).ok_or(())?;
 
+    // on UNIX, APPEND always appends; independent from the file offset
     let offset = if handle.flags().is_append() {
         file.data.len() - 1
     } else {
         handle.file_offset()
     };
 
+    // update file offset
     handle.file_offset = offset + new_data.len();
 
     // currently I only support append..
     file.data_mut().extend_from_slice(new_data);
 
-    Ok(())
+    let written_bytes = new_data.len();
+    Ok(written_bytes)
 }
 
+/// Public interface to the file system management data structures to set the internal
+/// files offset of an open file
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX.
 pub fn fs_lseek(caller: ProcessId, fd: FD, offset: usize) -> Result<(), ()> {
     let key = (caller, fd);
     let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
@@ -303,6 +341,12 @@ pub fn fs_lseek(caller: ProcessId, fd: FD, offset: usize) -> Result<(), ()> {
     Ok(())
 }
 
+/// Public interface to the file system management data structures to close open files.
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX.
 pub fn fs_close(caller: ProcessId, fd: FD) -> Result<(), ()> {
     let mut lock = OPEN_FILE_TABLE.lock();
     lock.close(caller, fd)?;

@@ -9,8 +9,8 @@ use libhedron::ipc_serde::{
 };
 use libhedron::syscall::sys_call;
 
-///
-pub fn fs_open(request: FsOpenRequest) -> FD {
+/// Wrapper around the FS service portal to open files.
+pub fn fs_service_open(request: FsOpenRequest) -> FD {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::Open(request);
     utcb.store_data(&request).unwrap();

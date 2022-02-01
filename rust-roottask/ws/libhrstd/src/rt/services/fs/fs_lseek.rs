@@ -8,7 +8,8 @@ use libhedron::ipc_serde::{
 };
 use libhedron::syscall::sys_call;
 
-pub fn fs_lseek(request: FsLseekRequest) -> FD {
+/// Wrapper around the FS service portal to update the file offset.
+pub fn fs_service_lseek(request: FsLseekRequest) -> FD {
     let utcb = user_load_utcb_mut();
     let request = FsServiceRequest::LSeek(request);
     utcb.store_data(&request).unwrap();
