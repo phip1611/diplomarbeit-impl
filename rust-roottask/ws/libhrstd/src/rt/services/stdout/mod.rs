@@ -1,17 +1,12 @@
-use crate::cap_space::user::UserAppCapSpace;
-use crate::rt::user_load_utcb::user_load_utcb_mut;
-use core::cmp::min;
-use libhedron::syscall::sys_call;
+#[cfg(any(feature = "native_rust_rt", feature = "foreign_rust_rt"))]
+mod fnc;
+mod types;
 
-/// Writes a message to STDOUT. If the message is too long, it does so in multiple iterations.
-pub fn stdout_write(msg: &str) {
-    let utcb = user_load_utcb_mut();
-    let step_size = 4000;
-    msg_chunk_bulk_apply(msg, step_size, move |msg| {
-        utcb.store_data(&msg).unwrap();
-        sys_call(UserAppCapSpace::StdoutServicePT.val()).unwrap();
-    });
-}
+#[cfg(any(feature = "native_rust_rt", feature = "foreign_rust_rt"))]
+pub use fnc::*;
+pub use types::*;
+
+use core::cmp::min;
 
 /// Splits a message into multiple chunks and applies the function step by step. This is useful
 /// because the message may be to large to fit into the UTCB.
@@ -28,7 +23,7 @@ mod tests {
     use alloc::rc::Rc;
     use alloc::vec::Vec;
     use std::cell::RefCell;
-    use std::prelude::v1::String;
+    use std::string::String;
 
     #[test]
     fn test_msg_to_chunk_splitter() {

@@ -29,7 +29,7 @@ pub enum UserAppCapSpace {
     /// CapSel for the stderr service portal.
     StderrServicePT = 37,
     /// Service PT that multiplexes all file operations through a single portal.
-    FsServicePT,
+    FsServicePT = 38,
 }
 
 impl UserAppCapSpace {
@@ -39,17 +39,10 @@ impl UserAppCapSpace {
     }
 }
 
-/// Capability space of foreign user applications. Binaries with different OS ABIs.
-///
-/// The variant value corresponds to the [`crate::libhrstd::libhedron::CapSel`]
-/// that refers to the given capability.
+/// This is only an addition to [`UserAppCapSpace`] for foreign apps.
 #[repr(u64)]
 #[derive(Copy, Clone, Debug)]
 pub enum ForeignUserAppCapSpace {
-    /// Used as event offset for exceptions.
-    ExceptionEventBase = 0,
-    /// Last inclusive index of exception events.
-    ExceptionEnd = (NUM_EXC - 1) as u64,
     /// Begin value. This plus CPU_NUM equals the actual PT selector.
     SyscallBasePt = 50,
 }

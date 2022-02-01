@@ -1,3 +1,4 @@
+use crate::rt::services::allocate::alloc_service;
 use core::alloc::{
     GlobalAlloc,
     Layout,
@@ -16,8 +17,7 @@ impl GlobalAllocator {
 
 unsafe impl GlobalAlloc for GlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        log::trace!("alloc: layout={:?}", layout);
-        let ptr = super::super::services::allocate::alloc(layout);
+        let ptr = alloc_service(layout);
         log::trace!("alloc: layout={:?} ptr={:?}", layout, ptr);
         ptr
     }

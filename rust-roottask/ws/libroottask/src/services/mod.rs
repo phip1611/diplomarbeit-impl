@@ -1,4 +1,4 @@
-//! All services the roottask provides via portals.
+//! All service implementations the roottask provides via portals.
 
 use crate::mem::VIRT_MEM_ALLOC;
 use crate::process_mng::process::Process;

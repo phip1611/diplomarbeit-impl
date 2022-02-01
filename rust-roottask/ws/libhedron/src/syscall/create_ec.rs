@@ -4,7 +4,6 @@ use crate::consts::{
     NUM_CPUS,
     NUM_EXC,
 };
-use crate::mem::PAGE_SIZE;
 use crate::syscall::hedron_syscall_5;
 use crate::syscall::SyscallNum::CreateEc;
 use crate::syscall::{
@@ -217,7 +216,7 @@ fn sys_create_ec(
             event_base_sel,
             cpu_num,
             utcb_vlapic_page_num,
-            utcb_vlapic_page_num * PAGE_SIZE as u64,
+            utcb_vlapic_page_num * crate::mem::PAGE_SIZE as u64,
         );
 
         let mut arg1 = 0;

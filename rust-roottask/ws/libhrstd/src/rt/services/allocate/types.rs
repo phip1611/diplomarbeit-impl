@@ -1,19 +1,8 @@
-use crate::cap_space::user::UserAppCapSpace;
-use crate::rt::user_load_utcb::user_load_utcb_mut;
 use core::alloc::Layout;
-use libhedron::syscall::sys_call;
-use serde::{
+use libhedron::ipc_serde::{
     Deserialize,
     Serialize,
 };
-
-/// Allocates memory from the roottask allocator.
-pub fn alloc(layout: Layout) -> *mut u8 {
-    let utcb = user_load_utcb_mut();
-    utcb.store_data(&AllocRequest::from(layout)).unwrap();
-    sys_call(UserAppCapSpace::AllocatorServicePT.val()).unwrap();
-    utcb.load_data::<u64>().unwrap() as *mut u8
-}
 
 /// Like "Layout" but serializable.
 #[derive(Serialize, Deserialize, Debug)]

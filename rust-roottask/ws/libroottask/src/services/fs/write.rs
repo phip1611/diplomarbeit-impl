@@ -1,8 +1,9 @@
 use crate::process_mng::process::Process;
 use libhrstd::libhedron::Utcb;
-use libhrstd::rt::services::fs::fs_write::FsWriteRequest;
+use libhrstd::rt::services::fs::FsWriteRequest;
 
-pub(super) fn fs_service_write(request: &FsWriteRequest, utcb: &mut Utcb, process: &Process) {
+/// Implements the fs write service functionality that is accessible via the FS portal.
+pub(super) fn fs_service_impl_write(request: &FsWriteRequest, utcb: &mut Utcb, process: &Process) {
     libfileserver::fs_write(
         process.pid(),
         request.fd(),

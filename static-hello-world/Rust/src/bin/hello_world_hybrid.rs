@@ -24,6 +24,9 @@ fn main() {
             "Executed Hedron-native system call successfully! new PD: {:#?}",
             new_pd
         );
+
+        println!("Hedron service PTs can also be called:");
+        libhrstd::rt::services::stderr::stderr_service("direct STDERR PT call from hybrid part in Linux App. YAY");
         println!("hybrid part done");
     } else {
         println!("This Linux binary executes under native Linux");
