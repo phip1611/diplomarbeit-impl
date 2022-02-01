@@ -33,6 +33,9 @@
 #![feature(const_btree_new)]
 #![feature(panic_info_message)]
 
+#[cfg(all(feature = "foreign_rust_rt", feature = "native_rust_rt"))]
+compile_error!("Features 'foreign_rust_rt' and 'native_rust_rt' are mutually exclusive");
+
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
 #[cfg(test)]
@@ -50,6 +53,8 @@ pub use libhedron;
 pub mod util;
 pub mod cap_space;
 pub mod cstr;
+#[cfg(any(feature = "foreign_rust_rt", feature = "native_rust_rt"))]
+pub mod fs;
 pub mod kobjects;
 pub mod mem;
 pub mod process;

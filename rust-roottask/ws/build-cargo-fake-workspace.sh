@@ -60,7 +60,7 @@ function fn_build_rust_bin() {
 function fn_build_extra_checks() {
     (
         cd "libhrstd" || exit
-        cargo check --features foreign_rust_rt
+        cargo check --no-default-features --features foreign_rust_rt
     )
 }
 
