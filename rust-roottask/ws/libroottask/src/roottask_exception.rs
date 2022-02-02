@@ -184,10 +184,12 @@ pub fn generic_error_exception_handler(
         log::debug!("use generic (=panic) exception handler");
         *do_reply = false;
         panic!(
-            "can't handle exception {:?} at rip={:?} currently - game over\n{:#?}",
+            "can't handle exception {:?} at rip={:?} from process {} ({}) currently - game over\n{:#?}",
             exc,
             utcb.exception_data().rip as *const u8,
-            utcb.exception_data()
+            process.pid(),
+            process.name(),
+            utcb.exception_data(),
         );
     }
 }
