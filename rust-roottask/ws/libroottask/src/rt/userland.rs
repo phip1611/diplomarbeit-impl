@@ -133,33 +133,59 @@ impl InitialUserland {
 
     /// Finds the HipMem descriptor that holds the Tar file with the userland.
     fn find_userland_tar_mem_desc(hip: &HIP) -> Option<&HipMem> {
-        let mut userland_tar_mem_desc = None;
-        let mb_modules = hip
-            .mem_desc_iterator()
-            .filter(|x| x.typ() == HipMemType::MbModule);
-        for hipmem in mb_modules {
-            let cmdline = hipmem.cmdline().unwrap() as u64;
-            let cmdline_page = cmdline & !0xfff;
-            log::debug!("mapping memory for MB mod cmdline ptr");
-            let mem = ROOT_MEM_MAPPER
-                .lock()
-                .mmap(cmdline_page, 1, MemCapPermissions::READ);
-            let cmdline = mem.old_to_new_addr(cmdline);
-            let cmdline = CStr::try_from(cmdline as *const u8).unwrap();
-            let cmdline = cmdline.as_str();
-            assert!(cmdline.len() > 0,
-                    "cmdline must be something. If empty, there is some bigger problem with the memory mapping?!"
-            );
-            let first_arg = cmdline.split_once(' ').map(|(_file, first_arg)| first_arg);
+        hip.mem_desc_iterator()
+            .map(|hipmem| (hipmem, Self::hip_mem_mb_cmd_str(hipmem)))
+            .filter(|(_, cmdline)| cmdline.is_some())
+            .map(|(hipmem, cmdline)| (hipmem, cmdline.unwrap()))
+            .filter(|(_, cmdline)| *cmdline == USERLAND_MB_CMDLINE_ARGUMENT)
+            .map(|(hipmem, _)| hipmem)
+            .next()
+    }
 
-            // cmdline-string is sometihng like: "./build/roottask-bin_debug.elf roottask"
-            // I want to check if the first parameter (after first space) is "userland".
-            if first_arg.is_some() && first_arg.unwrap() == MB_MODULE_ARGUMENT {
-                userland_tar_mem_desc.replace(hipmem);
-                break;
-            }
+    /// Takes a hip mem object of type multiboot and returns the cmdline string
+    /// if available.
+    fn hip_mem_mb_cmd_str(hip_mem_mb: &HipMem) -> Option<&str> {
+        if hip_mem_mb.typ() != HipMemType::MbModule {
+            return None;
         }
-        userland_tar_mem_desc
+
+        // should never fail, because HipMem objects of type Multiboot boot module
+        // always have a cmdline string pointer (but the length might be zero)
+        let cmdline_ptr = hip_mem_mb.cmdline()? as u64;
+
+        let cmdline_page = cmdline_ptr & !0xfff;
+        log::debug!("mapping memory for MB mod cmdline ptr");
+        let mem = ROOT_MEM_MAPPER
+            .lock()
+            .mmap(cmdline_page, 1, MemCapPermissions::READ);
+        let cmdline = mem.old_to_new_addr(cmdline_ptr);
+
+        let cmdline = CStr::try_from(cmdline as *const u8).expect("must be valid c string");
+        let cmdline = cmdline.as_str();
+        if cmdline.is_empty() {
+            log::debug!("cmdline string is empty");
+            return None;
+        } else {
+            log::debug!("cmdline string: {}", cmdline);
+        }
+
+        // the cmdline arg describes the payload, i.e. "userland"
+        let cmdline_arg = if cmdline.contains(' ') {
+            // multiboot boot loaders put something like
+            // './build/roottask-bin--release.elf roottask'
+            // ==> 'roottask'
+            cmdline
+                .split_once(' ')
+                .map(|(_file, first_arg)| first_arg)
+                .unwrap()
+        } else {
+            // SVP UEFI loader put something like
+            // 'roottask'
+            // ==> 'roottask'
+            cmdline
+        };
+
+        Some(cmdline_arg)
     }
 
     /// Extracts an ELF from the TarArchive and maps it to a page-aligned destination with
@@ -204,11 +230,11 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        /*PROCESS_MNG.lock().start_process(
+        PROCESS_MNG.lock().start_process(
             self.hedron_native_hello_world_rust_release_elf.clone(),
             String::from("Hedron-native Hello World Rust+libhrstd [RELEASE]"),
             SyscallAbi::NativeHedron,
-        );*/
+        );
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
@@ -220,11 +246,11 @@ impl InitialUserland {
             String::from("Linux Hello World Hybrid (Rust + musl) [DEBUG]"),
             SyscallAbi::Linux,
         );*/
-        PROCESS_MNG.lock().start_process(
+        /*        PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_hybrid_release_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
-        );
+        );*/
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hybrid_benchmark_release_elf.clone(),
@@ -240,4 +266,4 @@ pub enum HedronUserlandError {
 }
 
 /// The first argument describing the given payload as userland file.
-const MB_MODULE_ARGUMENT: &str = "userland";
+const USERLAND_MB_CMDLINE_ARGUMENT: &str = "userland";
