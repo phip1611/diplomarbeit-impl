@@ -68,6 +68,14 @@ pub struct HIP {
     pm1a_cnt: AcpiGas,
     pm2b_cnt: AcpiGas,
 
+    // The base port of the serial device.
+    // If this is 0 the system may fall back to
+    // the default port 0x3f8.
+    //
+    // This is an u64 instead of an u16 (which would be enough)
+    // because the HIP definition in Hedron has no packed attribute.
+    serial_port: u64,
+
     cpu_desc: [HipCpu; NUM_CPUS],
     ioapic_desc: [HipIoApic; NUM_IOAPICS],
     /// Points to the first item of the dynamically sized array
@@ -196,6 +204,21 @@ impl HIP {
             "the struct must have an equal size to the struct in Hedron"
         );
         HipMemDescIterator::new(self)
+    }
+
+    // The base port of the serial device.
+    // If this is 0 the system may fall back to
+    // the default port 0x3f8.
+    pub fn serial_port(&self) -> u16 {
+        /// Default I/O Port on x86 platforms for the COM1 port/the serial device.
+        /// The I/O port connects the program to a uart16550 chip on the
+        /// chipset that handles the actual data transfer.
+        const DEFAULT_COM1_IO_PORT: u16 = 0x3f8;
+        if self.serial_port == 0 {
+            DEFAULT_COM1_IO_PORT
+        } else {
+            self.serial_port as u16
+        }
     }
 
     /// Returns the cap selector for the root PD.
@@ -466,7 +489,7 @@ mod tests {
         );
         assert_eq!(
             size_of::<HIP>(),
-            3352,
+            3360,
             "HIP must be as large as inside Hedron code"
         );
     }

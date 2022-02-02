@@ -136,7 +136,7 @@ impl StdoutWriterInner {
             debugcon_writer.replace(writer);
         }
 
-        let mut serial_writer = SerialWriter::new();
+        let mut serial_writer = SerialWriter::new(hip);
         serial_writer.init(hip.root_pd()).unwrap();
         serial_writer
             .write_str("+++ STDOUT via SerialWriter ready +++ \n")
