@@ -73,7 +73,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
     #[rustfmt::skip]
     {
-        log::trace!("stack top    (incl): 0x{:016x?}", roottask_stack::STACK_TOP_PTR.val());
+        log::trace!("stack top    (incl): 0x{:016x}", roottask_stack::STACK_TOP_PTR.val());
         log::trace!("stack bottom (incl): 0x{:016x}", roottask_stack::STACK_BOTTOM_PTR.val());
         log::trace!("stack size         : {:>18}", roottask_stack::STACK_SIZE);
         log::trace!("stack size (pages) : {:>18}", roottask_stack::STACK_SIZE / PAGE_SIZE);

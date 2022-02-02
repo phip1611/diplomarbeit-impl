@@ -41,7 +41,6 @@ extern crate alloc;
 #[macro_use]
 extern crate libhrstd;
 
-pub mod hw;
 pub mod io_port;
 pub mod mem;
 pub mod process_mng;
