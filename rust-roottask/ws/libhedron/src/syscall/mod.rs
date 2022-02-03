@@ -25,6 +25,11 @@ pub use ipc::*;
 mod pd_ctrl;
 pub use pd_ctrl::*;
 mod pt_ctrl;
+pub use create_sm::*;
+mod create_sm;
+pub use sm_ctrl::*;
+mod sm_ctrl;
+
 pub use pt_ctrl::*;
 
 /// Describes the possible results of system calls errors.

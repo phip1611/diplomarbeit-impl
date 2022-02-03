@@ -42,9 +42,10 @@ pub fn sys_pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
         arg1 |= SyscallNum::PtCtrl.val() & 0xff;
         arg1 |= pt_sel << 12;
         unsafe {
-            hedron_syscall_2(arg1, callback_argument)
-                .map(|_x| ())
-                .map_err(|e| SyscallError::HedronStatusError(e.0))
+            let _ = hedron_syscall_2(arg1, callback_argument);
+            Ok(())
+            /*.map(|_x| ())
+            .map_err(|e| SyscallError::HedronStatusError(e.0))*/
         }
     }
 }
