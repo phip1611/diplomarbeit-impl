@@ -1,9 +1,6 @@
 //! Contains all hybrid syscall wrappers.
 
 use crate::rt::user_load_utcb::user_load_utcb_mut;
-use libhedron::syscall::sys_create_pd;
-use libhedron::syscall::sys_create_sc;
-use libhedron::syscall::sys_pt_ctrl;
 use libhedron::syscall::SyscallResult;
 use libhedron::syscall::{
     sys_call,
@@ -14,8 +11,21 @@ use libhedron::syscall::{
     sys_create_local_ec,
 };
 use libhedron::syscall::{
+    sys_create_pd,
+    sys_create_sm,
+};
+use libhedron::syscall::{
+    sys_create_sc,
+    sys_sm_down,
+    sys_sm_up,
+};
+use libhedron::syscall::{
     sys_pd_ctrl_delegate,
     DelegateFlags,
+};
+use libhedron::syscall::{
+    sys_pt_ctrl,
+    SmCtrlZeroCounterStrategy,
 };
 use libhedron::Mtd;
 use libhedron::Qpd;
@@ -129,7 +139,7 @@ pub fn sys_hybrid_create_pt(
 /// Like [`libhedron::syscall::sys_pt_ctrl`] but for usage in hybrid foreign applications.
 #[inline]
 pub fn sys_hybrid_pt_ctrl(pt_sel: CapSel, callback_argument: u64) -> SyscallResult {
-    log::trace!("Executing hybrid foreign syscall: sys_pt_ctrl");
+    //log::trace!("Executing hybrid foreign syscall: sys_pt_ctrl");
     wrap_hybrid_hedron_syscall(|| sys_pt_ctrl(pt_sel, callback_argument))
 }
 
@@ -167,4 +177,28 @@ pub fn sys_hybrid_create_sc(
 pub fn sys_hybrid_call(cap_sel: CapSel) -> SyscallResult {
     log::trace!("Executing hybrid foreign syscall: sys_call");
     wrap_hybrid_hedron_syscall(|| sys_call(cap_sel))
+}
+
+/// Like [`libhedron::syscall::sys_create_sm`] but for usage in hybrid foreign applications.
+#[inline]
+pub fn sys_hybrid_create_sm(cap_sel: CapSel, owned_pd_sel: CapSel, count: u64) -> SyscallResult {
+    log::trace!("Executing hybrid foreign syscall: sys_create_sm");
+    wrap_hybrid_hedron_syscall(|| sys_create_sm(cap_sel, owned_pd_sel, count))
+}
+
+/// Like [`libhedron::syscall::sys_sm_up`] but for usage in hybrid foreign applications.
+#[inline]
+pub fn sys_hybrid_sm_up(cap_sel: CapSel) -> SyscallResult {
+    log::trace!("Executing hybrid foreign syscall: sys_sm_up");
+    wrap_hybrid_hedron_syscall(|| sys_sm_up(cap_sel))
+}
+/// Like [`libhedron::syscall::sys_sm_up`] but for usage in hybrid foreign applications.
+#[inline]
+pub fn sys_hybrid_sm_down(
+    sm_sel: CapSel,
+    counter_strategy: SmCtrlZeroCounterStrategy,
+    tsc_timeout: Option<u64>,
+) -> SyscallResult {
+    log::trace!("Executing hybrid foreign syscall: sys_sm_down");
+    wrap_hybrid_hedron_syscall(|| sys_sm_down(sm_sel, counter_strategy, tsc_timeout))
 }
