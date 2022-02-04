@@ -3,7 +3,7 @@
 
 [toolchain]
 # see README.md why this version was chosen
-channel = "nightly-2022-01-03"
+channel = "nightly-2022-02-03"
 # see https://rust-lang.github.io/rustup/concepts/components.html
 # for value you can put here
 components = ["rustfmt", "rustc", "rust-src", "cargo", "rust-std", "rust-docs", "clippy" ]

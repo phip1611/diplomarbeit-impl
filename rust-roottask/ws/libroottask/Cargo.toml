@@ -12,7 +12,7 @@ libfileserver = { path = "../libfileserver" } # currently, the file service live
 
 log = { version = "0.4", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
-x86 = "0.41"
+x86 = "0.46"
 bitflags = "1.3"
 enum-iterator = "0.7"
 tar-no-std = { version = "0.1", features = ["alloc"] }
