@@ -21,6 +21,17 @@ use log::{
 /// Synchronizes all logs.
 static LOGGER: GenericLogger = GenericLogger::new();
 
+/// Initializes the Rust logger for the root task. Forwards to the default STDERR location.
+pub fn init() {
+    // log::set_max_level(LevelFilter::max());
+    log::set_max_level(LevelFilter::Info);
+    log::set_logger(&LOGGER).expect("call this only once!");
+
+    // Q&D: execute this once, so catch the logging-messages, which gives us nice
+    //  info about the environment (hypervisor or not, ...)
+    let _ = runs_inside_qemu::runs_inside_qemu();
+}
+
 /// Generic logger for the roottask which decides where things
 /// should be logged to. Can use multiple/different loggers internally.
 ///
@@ -142,15 +153,4 @@ impl Log for GenericLogger {
     fn flush(&self) {
         // no buffering mechanism => no flushing
     }
-}
-
-/// Initializes the Rust logger for the root task. Forwards to the default STDERR location.
-pub fn init() {
-    // log::set_max_level(LevelFilter::max());
-    log::set_max_level(LevelFilter::Info);
-    log::set_logger(&LOGGER).expect("call this only once!");
-
-    // Q&D: execute this once, so catch the logging-messages, which gives us nice
-    //  info about the environment (hypervisor or not, ...)
-    let _ = runs_inside_qemu::runs_inside_qemu();
 }

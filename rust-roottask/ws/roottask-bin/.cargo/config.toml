@@ -19,6 +19,6 @@ rustflags = [
     "-C",
     # without this, Rustc uses only CPU features "fxsr,sse,sse2".
     # "native" activates all fancy CPU features of the CPU that compiles this but the
-    # binary probalby not run on older Intel micro architectures.
+    # binary probably not run on older Intel micro architectures.
     "target-cpu=broadwell",
 ]

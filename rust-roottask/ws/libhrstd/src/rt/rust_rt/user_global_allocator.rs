@@ -23,7 +23,7 @@ unsafe impl GlobalAlloc for GlobalAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        log::warn!(
+        log::debug!(
             "dealloc not implemented yet :D; ptr={:?}, layout={:?}",
             ptr,
             layout

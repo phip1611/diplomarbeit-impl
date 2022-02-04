@@ -75,19 +75,20 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
     #[rustfmt::skip]
     {
-        log::trace!("stack top    (incl): 0x{:016x}", roottask_stack::STACK_TOP_PTR.val());
-        log::trace!("stack bottom (incl): 0x{:016x}", roottask_stack::STACK_BOTTOM_PTR.val());
-        log::trace!("stack size         : {:>18}", roottask_stack::STACK_SIZE);
-        log::trace!("stack size (pages) : {:>18}", roottask_stack::STACK_SIZE / PAGE_SIZE);
+        log::debug!("stack top    (incl): 0x{:016x}", roottask_stack::STACK_TOP_PTR.val());
+        log::debug!("stack bottom (incl): 0x{:016x}", roottask_stack::STACK_BOTTOM_PTR.val());
+        log::debug!("stack size         : {:>18}", roottask_stack::STACK_SIZE);
+        log::debug!("stack size (pages) : {:>18}", roottask_stack::STACK_SIZE / PAGE_SIZE);
 
-        log::trace!("heap top    (excl) : 0x{:016x}", roottask_heap::HEAP_END_PTR.val());
-        log::trace!("heap bottom (incl) : 0x{:016x}", roottask_heap::HEAP_BEGIN_PTR.val());
-        log::trace!("heap size          : {:>18}", roottask_heap::HEAP_SIZE);
-        log::trace!("heap size (pages)  : {:>18}", roottask_heap::HEAP_SIZE / PAGE_SIZE);
-        log::trace!("heap size (chunks) : {:>18}", roottask_heap::HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE);
+        log::debug!("heap top    (excl) : 0x{:016x}", roottask_heap::HEAP_END_PTR.val());
+        log::debug!("heap bottom (incl) : 0x{:016x}", roottask_heap::HEAP_BEGIN_PTR.val());
+        log::debug!("heap size          : {:>18}", roottask_heap::HEAP_SIZE);
+        log::debug!("heap size (pages)  : {:>18}", roottask_heap::HEAP_SIZE / PAGE_SIZE);
+        log::debug!("heap size (chunks) : {:>18}", roottask_heap::HEAP_SIZE / GlobalStaticChunkAllocator::CHUNK_SIZE);
 
-        log::trace!("utcb ptr           : 0x{:016x}", utcb_addr);
-        log::trace!("hip ptr            : 0x{:016x}", hip_addr);
+        log::debug!("utcb ptr           : 0x{:016x}", utcb_addr);
+        log::debug!("hip ptr            : 0x{:016x}", hip_addr);
+        log::debug!("hip: serial port   : 0x{:04x}", hip.serial_port());
         log::debug!("===========================================================");
     }
 
@@ -114,11 +115,6 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     utcb.store_data(&msg).unwrap();
     call(RootCapSpace::RoottaskStdoutServicePortal.val()).unwrap();
     log::info!("done");*/
-
-    log::debug!(
-        "{:#?}",
-        hip.mem_desc_iterator().collect::<alloc::vec::Vec<_>>()
-    );
 
     let userland = userland::InitialUserland::load(hip);
     userland.bootstrap();

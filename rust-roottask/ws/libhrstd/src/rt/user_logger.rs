@@ -23,7 +23,7 @@ pub struct UserRustLogger;
 impl UserRustLogger {
     pub fn init() {
         log::set_logger(&LOGGER).unwrap();
-        log::set_max_level(LevelFilter::Debug);
+        log::set_max_level(LevelFilter::Info);
     }
 
     /// Builds the formatted error message in a stack-allocated array.
