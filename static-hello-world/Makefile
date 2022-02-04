@@ -9,7 +9,8 @@ builddir:
 c: | builddir
 	cd C && $(MAKE)
 	cp C/static_hello_world_musl ./build/linux_c_hello_world_musl.elf
-	strip ./build/linux_c_hello_world_musl.elf
+	cp C/static_dump_aux_musl ./build/linux_c_dump_aux_musl.elf
+	cp C/static_matrix_mult_musl ./build/linux_c_matrix_mult_musl.elf
 
 go: | builddir
 	cd Go && $(MAKE)

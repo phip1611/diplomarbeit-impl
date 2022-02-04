@@ -71,7 +71,7 @@ pub fn create_and_delegate_syscall_handler_pts(process: &Process) {
         process.name()
     );
 
-    let base_sel = RootCapSpace::calc_foreign_syscall_pt_sel_base(process.pid(), 0);
+    let base_sel = RootCapSpace::calc_foreign_syscall_pt_sel_base(process.pid());
 
     // local EC for all service calls
     let ec = LOCAL_EC.lock().as_ref().unwrap().upgrade().unwrap();

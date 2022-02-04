@@ -24,7 +24,7 @@ const PROCESS_SERVICE_PT_END: u64 =
     RootCapSpace::calc_service_pt_sel_base(NUM_PROCESSES as u64) + ServiceId::count() - 1;
 const PROCESS_FOREIGN_SYSCALL_HANDLER_PT_BASE: u64 = PROCESS_SERVICE_PT_END + 1;
 const PROCESS_FOREIGN_SYSCALL_HANDLER_PT_END: u64 =
-    RootCapSpace::calc_foreign_syscall_pt_sel_base(NUM_PROCESSES as u64, NUM_CPUS as u64) - 1;
+    RootCapSpace::calc_foreign_syscall_pt_sel_base(NUM_PROCESSES as u64) - 1;
 
 /// Describes the capability space of the roottask. Party determinined by Hedron,
 /// the rest is a choice by me. Some of the capabilities stand also inside the HIP.
@@ -124,8 +124,9 @@ impl RootCapSpace {
     }
 
     /// Calcs the cap sel base in the roottask for the syscall handler PTs for a given process.
-    pub const fn calc_foreign_syscall_pt_sel_base(pid: ProcessId, num_cpu: u64) -> CapSel {
-        PROCESS_FOREIGN_SYSCALL_HANDLER_PT_BASE + (num_cpu * pid)
+    pub const fn calc_foreign_syscall_pt_sel_base(pid: ProcessId) -> CapSel {
+        // -1: roottask is excluded here
+        PROCESS_FOREIGN_SYSCALL_HANDLER_PT_BASE + (NUM_CPUS as u64 * (pid - 1))
     }
 }
 

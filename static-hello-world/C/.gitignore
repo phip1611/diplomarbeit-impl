@@ -1,2 +1,2 @@
-static_hello_world_libc
-static_hello_world_musl
+static_*_libc
+static_*_musl

@@ -51,7 +51,10 @@ pub struct InitialUserland {
     /// Release-version (=maximum optimized + fancy CPU features) of `linux_rust_hybrid_benchmark_debug_elf`
     linux_rust_hybrid_benchmark_release_elf: MappedMemory,
     // /// statically compiled Hello World for Linux (Zig)
-    // linux_zig_hello_world_elf: MappedMemory,
+    // Statically compiled Matrix Multiplication in C that allocates matrices on the heap.
+    linux_c_matrix_mult_elf: MappedMemory,
+    // Statically compiled AUX Vec Dump tool.
+    linux_c_aux_dump_elf: MappedMemory,
 }
 
 impl InitialUserland {
@@ -123,11 +126,16 @@ impl InitialUserland {
                 "linux_rust_hybrid_benchmark--release",
             )
             .unwrap(),
-            /*linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
+            linux_c_matrix_mult_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "linux-rust-hello-world-bin",
+                "linux_c_matrix_mult_musl",
             )
-            .unwrap(),*/
+            .unwrap(),
+            linux_c_aux_dump_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_c_dump_aux_musl",
+            )
+            .unwrap(),
         }
     }
 
@@ -230,11 +238,11 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.hedron_native_hello_world_rust_release_elf.clone(),
             String::from("Hedron-native Hello World Rust+libhrstd [RELEASE]"),
             SyscallAbi::NativeHedron,
-        );
+        );*/
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_hello_world_elf.clone(),
@@ -257,6 +265,18 @@ impl InitialUserland {
             String::from("My Diplom thesis evaluation benchmark. [RELEASE]"),
             SyscallAbi::Linux,
         );*/
+
+        PROCESS_MNG.lock().start_process(
+            self.linux_c_matrix_mult_elf.clone(),
+            String::from("C Matrix Multiplication"),
+            SyscallAbi::Linux,
+        );
+
+        PROCESS_MNG.lock().start_process(
+            self.linux_c_aux_dump_elf.clone(),
+            String::from("C AUX DUMP"),
+            SyscallAbi::Linux,
+        );
     }
 }
 
