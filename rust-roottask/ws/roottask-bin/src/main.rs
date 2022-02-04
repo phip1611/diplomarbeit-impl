@@ -25,6 +25,8 @@
 #![deny(rustdoc::all)]
 
 use core::arch::global_asm;
+use libhrstd::cap_space::root::RootCapSpace;
+use libhrstd::kobjects::SmObject;
 
 // any global definitions required to be in assembly
 global_asm!(include_str!("assembly.S"));
@@ -98,7 +100,12 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     roottask_exception::init(manager::PROCESS_MNG.lock().root());
     manager::PROCESS_MNG.lock().register_startup_exc_callback();
 
+    let root_pd = manager::PROCESS_MNG.lock().root().clone();
+    let root_sm = SmObject::create(RootCapSpace::RootSmSleep.val(), &root_pd.pd_obj());
+
     services::init_services(manager::PROCESS_MNG.lock().root());
+
+    log::info!("Rust Roottask started & bootstrapped");
 
     // NOW READY TO START PROCESSES
 
@@ -115,6 +122,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
     let userland = userland::InitialUserland::load(hip);
     userland.bootstrap();
+    log::info!("Userland bootstrapped");
 
     /* test: floating point + SSE registers work
     let x = 2.0;
@@ -134,8 +142,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
         }
     }*/
 
-    log::info!("Rust Roottask started");
-
-    // panic!("panic works");
-    loop {}
+    // Puts the main thread to sleep nicely; there is no need for a busy loop
+    root_sm.sem_down();
+    unreachable!();
 }

@@ -56,6 +56,9 @@ pub enum RootCapSpace {
     /// The CapSel for the local EC that handles all services.
     RootServiceLocalEc = 36,
 
+    /// The SM object to put the root global EC into sleep, when its done.
+    RootSmSleep = 37,
+
     /// Base CapSel for the PD of a process. This + PID => capability index offset
     ProcessPdBase = PROCESS_PD_BASE,
     /// Last inclusive index relative to [`ProcessPdBase`].
