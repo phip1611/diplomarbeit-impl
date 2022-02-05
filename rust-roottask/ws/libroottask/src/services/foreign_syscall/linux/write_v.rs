@@ -1,12 +1,12 @@
 use crate::mem::VIRT_MEM_ALLOC;
 use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
+use crate::services::foreign_syscall::linux::write::WriteSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
 use core::alloc::Layout;
-use core::fmt::Write;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
@@ -31,9 +31,7 @@ impl From<&GenericLinuxSyscall> for WriteVSyscall {
 }
 
 impl LinuxSyscallImpl for WriteVSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
-        let mut bytes_written = 0;
-
+    fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
         // first: map the iovec itself
         let u_iovec_page_offset = self.usr_ptr as usize & 0xfff;
         let u_iovec_total_len = core::mem::size_of::<LinuxIoVec>() * self.count;
@@ -66,39 +64,13 @@ impl LinuxSyscallImpl for WriteVSyscall {
         };
         let r_iovec = unsafe { core::slice::from_raw_parts(r_iovec_begin_ptr, self.count) };
 
-        for io_vec_entry in r_iovec {
-            let cstr_mapping_dest = VIRT_MEM_ALLOC
-                .lock()
-                .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
-
-            let u_page_offset = io_vec_entry.u_iov_base as usize & 0xfff;
-            let byte_amount = u_page_offset + io_vec_entry.len as usize;
-            let page_count = if byte_amount % PAGE_SIZE == 0 {
-                byte_amount / PAGE_SIZE + 1
-            } else {
-                (byte_amount / PAGE_SIZE) + 1
-            };
-            CrdDelegateOptimizer::new(
-                io_vec_entry.u_iov_base as u64 / PAGE_SIZE as u64,
-                cstr_mapping_dest / PAGE_SIZE as u64,
-                page_count,
-            )
-            .mmap(
-                process.pd_obj().cap_sel(),
-                process.parent().unwrap().pd_obj().cap_sel(),
-                MemCapPermissions::READ,
-            );
-
-            let r_bytes =
-                unsafe { core::slice::from_raw_parts(cstr_mapping_dest as *const u8, byte_amount) };
-            let r_cstr_bytes = &r_bytes[u_page_offset..u_page_offset + io_vec_entry.len as usize];
-            let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
-
-            bytes_written += io_vec_entry.len;
-            crate::services::stdout::writer_mut()
-                .write_str(r_cstr)
-                .unwrap();
-        }
+        // I reuse the functionality of the write system call for every IO VEC
+        let bytes_written = r_iovec
+            .iter()
+            .map(|x| WriteSyscall::new(self.fd, x.u_iov_base, x.len as usize))
+            .map(|x| x.handle(utcb_exc, process))
+            .map(|x| x.val())
+            .sum();
 
         LinuxSyscallResult::new_success(bytes_written)
     }

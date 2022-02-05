@@ -41,6 +41,8 @@ pub struct InitialUserland {
     linux_c_hello_world_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (Rust + musl/LLVM)
     linux_rust_hello_world_debug_elf: MappedMemory,
+    ///
+    linux_rust_hello_world_release_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (Rust + musl/LLVM) + hybrid part (native Hedron syscalls)
     linux_rust_hello_world_hybrid_debug_elf: MappedMemory,
     /// Release-version (=maximum optimized + fancy CPU features) of `linux_rust_hybrid_benchmark_debug_elf`
@@ -104,6 +106,11 @@ impl InitialUserland {
             linux_rust_hello_world_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_rust_hello_world_musl--debug",
+            )
+            .unwrap(),
+            linux_rust_hello_world_release_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_rust_hello_world_musl--release",
             )
             .unwrap(),
             linux_rust_hello_world_hybrid_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
@@ -249,14 +256,16 @@ impl InitialUserland {
             String::from("Linux C Hello World Musl"),
             SyscallAbi::Linux,
         );*/
-        /*PROCESS_MNG.lock().start_process(
-            self.linux_rust_hello_world_hybrid_debug_elf.clone(),
-            String::from("Linux Hello World Hybrid (Rust + musl) [DEBUG]"),
-            SyscallAbi::Linux,
-        );*/
-        /*        PROCESS_MNG.lock().start_process(
-            self.linux_rust_hello_world_hybrid_release_elf.clone(),
+
+        PROCESS_MNG.lock().start_process(
+            self.linux_rust_hello_world_release_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
+            SyscallAbi::Linux,
+        );
+
+        /*PROCESS_MNG.lock().start_process(
+            self.linux_rust_hello_world_hybrid_release_elf.clone(),
+            String::from("Linux Hybrid Example (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
         );*/
 
@@ -266,17 +275,11 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.linux_c_matrix_mult_elf.clone(),
             String::from("C Matrix Multiplication"),
             SyscallAbi::Linux,
-        );
-
-        PROCESS_MNG.lock().start_process(
-            self.linux_c_aux_dump_elf.clone(),
-            String::from("C AUX DUMP"),
-            SyscallAbi::Linux,
-        );
+        );*/
     }
 }
 

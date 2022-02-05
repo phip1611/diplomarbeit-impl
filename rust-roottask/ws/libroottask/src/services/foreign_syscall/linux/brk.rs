@@ -30,7 +30,6 @@ impl From<&GenericLinuxSyscall> for BrkSyscall {
 
 impl LinuxSyscallImpl for BrkSyscall {
     fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
-        // do nothing; it's okay for simple Linux programs
         if self.addr == null() {
             LinuxSyscallResult::new_success(process.heap_ptr().load(Ordering::SeqCst))
         } else {

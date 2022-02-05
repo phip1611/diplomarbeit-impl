@@ -1,9 +1,15 @@
 use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::brk::BrkSyscall;
+use crate::services::foreign_syscall::linux::close::CloseSyscall;
+use crate::services::foreign_syscall::linux::fcntl::FcntlSyscall;
+use crate::services::foreign_syscall::linux::fstat::FstatSyscall;
 use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
+use crate::services::foreign_syscall::linux::lseek::LSeekSyscall;
 use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
+use crate::services::foreign_syscall::linux::open::OpenSyscall;
 use crate::services::foreign_syscall::linux::poll::PollSyscall;
+use crate::services::foreign_syscall::linux::read::ReadSyscall;
 use crate::services::foreign_syscall::linux::rtsigaction::RtSigactionSyscall;
 use crate::services::foreign_syscall::linux::rtsigprocmask::RtSigProcMaskSyscall;
 use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;
@@ -77,11 +83,13 @@ impl GenericLinuxSyscall {
         }*/
 
         let syscall_impl: Box<dyn LinuxSyscallImpl> = match self.rax {
-            LinuxSyscallNum::Read => todo!("LinuxSyscallNum::Read"),
+            LinuxSyscallNum::Read => Box::new(ReadSyscall::from(self)),
             LinuxSyscallNum::Write => Box::new(WriteSyscall::from(self)),
-            LinuxSyscallNum::Open => todo!("LinuxSyscallNum::Open"),
-            LinuxSyscallNum::Close => todo!("LinuxSyscallNum::Close"),
+            LinuxSyscallNum::Open => Box::new(OpenSyscall::from(self)),
+            LinuxSyscallNum::Close => Box::new(CloseSyscall::from(self)),
+            LinuxSyscallNum::Fstat => Box::new(FstatSyscall::from(self)),
             LinuxSyscallNum::Poll => Box::new(PollSyscall::from(self)),
+            LinuxSyscallNum::LSeek => Box::new(LSeekSyscall::from(self)),
             LinuxSyscallNum::MMap => Box::new(MMapSyscall::from(self)),
             LinuxSyscallNum::MProtect => todo!("LinuxSyscallNum::MProtect"),
             LinuxSyscallNum::MUnmap => todo!("LinuxSyscallNum::MUnmap"),
@@ -91,7 +99,7 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::Ioctl => Box::new(IoctlSyscall::from(self)),
             LinuxSyscallNum::WriteV => Box::new(WriteVSyscall::from(self)),
             LinuxSyscallNum::Clone => todo!("LinuxSyscallNum::Clone"),
-            LinuxSyscallNum::Fcntl => todo!("LinuxSyscallNum::Fcntl"),
+            LinuxSyscallNum::Fcntl => Box::new(FcntlSyscall::from(self)),
             LinuxSyscallNum::SigAltStack => Box::new(SignalStackSyscall::from(self)),
             LinuxSyscallNum::ArchPrctl => Box::new(ArchPrctlSyscall::from(self)),
             LinuxSyscallNum::Gettid => todo!("LinuxSyscallNum::Gettid"),

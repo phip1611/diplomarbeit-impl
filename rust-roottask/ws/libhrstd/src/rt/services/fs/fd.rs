@@ -4,6 +4,9 @@ use libhedron::ipc_serde::{
 };
 
 /// Either a fd (>=0) or error code (<0)
+///
+/// TODO remove type; make file descriptor only positive
+///  and use Result<> for errors
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Hash, Ord, Eq, Serialize, Deserialize)]
 pub struct FD(i32);

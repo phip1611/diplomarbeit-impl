@@ -10,6 +10,7 @@ use core::cmp::min;
 
 /// Splits a message into multiple chunks and applies the function step by step. This is useful
 /// because the message may be to large to fit into the UTCB.
+#[allow(unused)]
 pub(super) fn msg_chunk_bulk_apply(msg: &str, step_size: usize, fnc: impl FnMut(&str) -> ()) {
     (0..msg.len())
         .step_by(step_size)

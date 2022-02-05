@@ -10,6 +10,7 @@ use core::fmt::Write;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::rt::services::fs::FD;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]
@@ -27,6 +28,17 @@ impl From<&GenericLinuxSyscall> for WriteSyscall {
             usr_ptr: syscall.arg1() as _,
             count: syscall.arg2() as _,
         }
+    }
+}
+
+impl WriteSyscall {
+    pub(super) fn new(
+        fd: u64,
+        usr_ptr: *const u8,
+        // number of bytes
+        count: usize,
+    ) -> Self {
+        Self { fd, usr_ptr, count }
     }
 }
 
@@ -58,13 +70,35 @@ impl LinuxSyscallImpl for WriteSyscall {
             core::slice::from_raw_parts(cstr_mapping_dest as *const u8, PAGE_SIZE * page_count)
         };
         let r_cstr_bytes = &r_bytes[u_page_offset..u_page_offset + self.count];
-        let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
 
-        crate::services::stdout::writer_mut()
-            .write_str(r_cstr)
-            .unwrap();
+        match self.fd {
+            0 => panic!("write to stdin currently not supported"),
+            1 => {
+                let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
+                crate::services::stdout::writer_mut()
+                    .write_str(r_cstr)
+                    .unwrap();
+                LinuxSyscallResult::new_success(self.count as u64)
+            }
+            2 => {
+                let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
+                crate::services::stderr::writer_mut()
+                    .write_str(r_cstr)
+                    .unwrap();
+                LinuxSyscallResult::new_success(self.count as u64)
+            }
+            fd => {
+                let written_bytes = libfileserver::fs_write(
+                    process.pid(),
+                    FD::new(fd as i32),
+                    // currently don't support user ptr read
+                    r_cstr_bytes,
+                )
+                .unwrap();
 
-        LinuxSyscallResult::new_success(self.count as u64)
+                LinuxSyscallResult::new_success(written_bytes as u64)
+            }
+        }
     }
 }
 

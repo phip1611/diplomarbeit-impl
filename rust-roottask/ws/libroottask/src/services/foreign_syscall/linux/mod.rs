@@ -1,10 +1,16 @@
 mod arch_prctl;
 mod brk;
+mod close;
 mod error_code;
+mod fcntl;
+mod fstat;
 mod generic;
 mod ioctl;
+mod lseek;
 mod mmap;
+mod open;
 mod poll;
+mod read;
 mod rtsigaction;
 mod rtsigprocmask;
 mod set_tid_address;

@@ -25,8 +25,20 @@ bitflags::bitflags! {
         const O_RDWR = 0o2;
         /// Create file if it doesn't exist.
         const O_CREAT = 0o100;
+        /// Truncates the file
+        const O_TRUNC = 0o1000;
         /// Append for all writes, regardless of the current file pointer.
         const O_APPEND = 0o2000;
+        /// O_LARGEFILE should never be used directly by applications.
+        /// It's to be used internally by the 64-bit-offset-compatible
+        /// version of open in libc when it makes the syscall to the kernel
+        /// (Linux, or possibly another kernel with this 64-bit-offset-mode-is-
+        /// a-second-class-citizen nonsense). Just make sure to always include
+        /// -D_FILE_OFFSET_BITS=64 in your CFLAGS and you'll never have to
+        /// worry about anything.
+        const O_LARGEFILE = 0o100000;
+        /// On EXEC-Calls the FD must be closed.
+        const O_CLOEXEC = 0o2000000;
     }
 }
 
