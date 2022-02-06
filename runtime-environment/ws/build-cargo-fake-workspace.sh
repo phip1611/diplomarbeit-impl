@@ -14,9 +14,15 @@ cd "$DIR" || exit
 #########################################################################
 
 function fn_main() {
-    # find all direct directories without "."
-    LIBS=$(find . -maxdepth 1 -type d ! -path . -name "lib*")
+    # find all direct directories without "." and without libhedron (see below)
+    LIBS=$(find . -maxdepth 1 -type d ! -path . ! -name "libhedron" -name "lib*")
     BINS=$(find . -maxdepth 1 -type d ! -path . -name "*-bin")
+
+    # I trigger this build here extra so that Cargo has time to install its custom
+    # toolchain if it is not present. Otherwise, if someone doesn't have the toolchain
+    # installed yet, the build will fail when all Rust builds start in parallel and
+    # try to update the systems toolchain.
+    fn_build_rust_lib libhedron
 
     for LIB in $LIBS
     do
