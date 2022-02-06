@@ -1,2 +1,2 @@
-static_*_libc
+static_*_glibc
 static_*_musl

@@ -1,3 +1,6 @@
 [submodule "hedron"]
 	path = thesis-hedron-fork
 	url = https://github.com/phip1611/hedron.git
+[submodule "libc-musl"]
+	path = libc-musl
+	url = git://git.musl-libc.org/musl
