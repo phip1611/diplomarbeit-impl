@@ -10,14 +10,15 @@
 set -e
 
 # make sure that this copy is up-to-date!
-HEDRON=/tftpboot/hypervisor.elf32
+BUILD_DIR="../build"
+HEDRON="$BUILD_DIR/hedron.elf32"
 
 # "debug" or "release"; only influences the roottask binary itself
 RELEASE=release
 
-ROOTTASK="./build/roottask-bin--${RELEASE}.elf"
+ROOTTASK="$BUILD_DIR/roottask-bin"
 # all the other Rust binaries that get loaded by the Roottask
-HEDRON_USERLAND="./build/hedron-userland_full.tar"
+USERLAND="$BUILD_DIR/userland.tar"
 
 #########################################################################
 # nice "hack" which make the script work, even if not executed from "./"
@@ -26,7 +27,7 @@ cd "$DIR" || exit
 #########################################################################
 
 # main allows us to move all function definitions to the end of the file
-main() {
+fn_main() {
 
   QEMU_ARGS=(
         # Disable default devices
@@ -58,21 +59,20 @@ main() {
         "-kernel"
         "${HEDRON}"
 
+        #"-append"
+        # "" (additional Hedron args: "serial", "novga", ...)
+
         # QEMU passes this as Multiboot1 Modules to Hedron. Multiple modules are separated
         # by a comma. The text after the path is the "cmdline" string of the boot module.
         "-initrd"
-        "${ROOTTASK} roottask,${HEDRON_USERLAND} userland"
+        "${ROOTTASK} roottask,${USERLAND} userland"
 
-        # I use this for logging files that survive
-        # a QEMU shutdown or crash. Log keeps
-        # persistent until the next run.
+        # Logging from the Roottask:
+        # Same content as the serial log, but persists QEMU shutdowns (until the next run).
         "-debugcon"
-        "file:qemu_debugcon.txt"
+        "file:../qemu_debugcon.txt"
 
         # Enable serial
-        #
-        # Connect the serial port to the host. OVMF is kind enough to connect
-        # the UEFI stdout and stdin to that port too.
         "-serial"
         "stdio"
 
@@ -85,5 +85,6 @@ main() {
   qemu-system-x86_64 "${QEMU_ARGS[@]}"
 
 }
+
 # call main
-main
+fn_main

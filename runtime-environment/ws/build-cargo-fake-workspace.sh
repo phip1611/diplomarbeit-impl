@@ -20,13 +20,18 @@ function fn_main() {
 
     for LIB in $LIBS
     do
-      fn_build_rust_lib "$LIB"
+      fn_build_rust_lib "$LIB" &
     done
 
     for BIN in $BINS
     do
-      fn_build_rust_bin "$BIN"
+      fn_build_rust_bin "$BIN" &
     done
+
+    # to optimize build time, I build everything
+    # in parallel; "&" creates a bacground task
+    # for every compilation!
+    wait
 
     fn_build_extra_checks
 }

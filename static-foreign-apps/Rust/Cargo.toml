@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 simple_logger = "2.1"
 log = "0.4"
-libhrstd = { path = "../../rust-roottask/ws/libhrstd", default-features = false, features = ["foreign_rust_rt"] }
+libhrstd = { path = "../../runtime-environment/ws/libhrstd", default-features = false, features = ["foreign_rust_rt"] }
 libc = "0.2.116"
 
 # this will be my benchmark; maximum performance

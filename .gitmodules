@@ -1,0 +1,3 @@
+[submodule "hedron"]
+	path = thesis-hedron-fork
+	url = https://github.com/phip1611/hedron.git
