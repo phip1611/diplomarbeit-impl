@@ -70,7 +70,10 @@ userland_tarball: | runtime_environment static_foreign_apps
 # Starts QEMU with Hedron and my runtime environment
 # Doesn't depend on "all", because usage is intended to be: "make -j 8 && make run"
 run:
-	.build_helpers/run_qemu.sh
+	.build_helpers/run_qemu_gui.sh
+
+run_nogui:
+	.build_helpers/run_qemu_nogui.sh
 
 # Hack for build stability when using more than one job ($ make -j n). If multiple Rust builds (i.e. of runtime
 # environment and static foreign apps) start in parallel, they might use "rustup" simultaneously to install
