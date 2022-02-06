@@ -15,29 +15,23 @@ cd "$DIR" || exit
 
 function fn_main() {
     # find all direct directories without "." and without libhedron (see below)
-    LIBS=$(find . -maxdepth 1 -type d ! -path . ! -name "libhedron" -name "lib*")
+    LIBS=$(find . -maxdepth 1 -type d ! -path . -name "lib*")
     BINS=$(find . -maxdepth 1 -type d ! -path . -name "*-bin")
 
-    # I trigger this build here extra so that Cargo has time to install its custom
-    # toolchain if it is not present. Otherwise, if someone doesn't have the toolchain
-    # installed yet, the build will fail when all Rust builds start in parallel and
-    # try to update the systems toolchain.
-    fn_build_rust_lib libhedron
+    # I tried to parallelize this via background tasks, but this leads to build
+    # instabilities when the static binaries get build. It may happen that
+    # two cargo processes uses rustup to download further compiler targets or
+    # new compiler versions. This will fail.
 
     for LIB in $LIBS
     do
-      fn_build_rust_lib "$LIB" &
+      fn_build_rust_lib "$LIB"
     done
 
     for BIN in $BINS
     do
-      fn_build_rust_bin "$BIN" &
+      fn_build_rust_bin "$BIN"
     done
-
-    # to optimize build time, I build everything
-    # in parallel; "&" creates a bacground task
-    # for every compilation!
-    wait
 
     fn_build_extra_checks
 }
@@ -46,7 +40,10 @@ function fn_main() {
 function fn_build_rust_lib() {
     (
         cd "$1" || exit
-        cargo build
+        # For libraries it is okay to just "check".
+        # The libraries will be used by the binaries anyway,
+        # so "build" gets tested.
+        cargo check
         cargo test
         cargo fmt # automatically format everything
         # cargo fmt -- --check

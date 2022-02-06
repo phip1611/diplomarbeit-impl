@@ -1,4 +1,7 @@
 # Builds my runtime environment, the microkernel, and relevant userland components (Apps to run).
+#
+# "$ make -j 8"
+# "$ make run" (starts QEMU)
 
 BUILD_DIR=build
 # needs absolute paths!
@@ -24,7 +27,7 @@ microkernel: | $(BUILD_DIR)
 	cp "src/hypervisor.elf32" "../../$(BUILD_DIR)/hedron.elf32"
 
 # All artifacts of the Runtime Environment
-runtime_environment:| $(BUILD_DIR)
+runtime_environment: | $(BUILD_DIR)
 	cd "runtime-environment" && $(MAKE)
 	cp "runtime-environment/ws/roottask-bin/target/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
 	cp "runtime-environment/ws/helloworld-bin/target/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
@@ -32,7 +35,7 @@ runtime_environment:| $(BUILD_DIR)
 # cp "runtime-environment/ws/fileserver-bin/target/x86_64-unknown-hedron/release/fileserver-bin" "$(BUILD_DIR)"
 
 # Foreign Apps and Hybrid Foreign Apps in several languages (C, Rust).
-static_foreign_apps:| $(BUILD_DIR) libc_musl
+static_foreign_apps: | $(BUILD_DIR) libc_musl
 	# bind environment var MUSL_GCC_DIR
 	cd "static-foreign-apps" && MUSL_GCC_DIR="$(MUSL_GCC_DIR)" $(MAKE)
 	find "static-foreign-apps/build/" -type f -exec cp "{}" "$(BUILD_DIR)" \;
