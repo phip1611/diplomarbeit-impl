@@ -3,7 +3,7 @@
 BUILD_DIR="./build"
 # needs absolute paths!
 MUSL_BUILD_DIR="$(PWD)/$(BUILD_DIR)/.musl"
-MUSL_GCC="$(MUSL_BUILD_DIR)/bin/musl-gcc"
+MUSL_GCC_DIR="$(MUSL_BUILD_DIR)/bin"
 
 # "make" builds everything
 all: microkernel runtime_environment static_foreign_apps userland_tarball
@@ -33,8 +33,8 @@ runtime_environment:| $(BUILD_DIR)
 
 # Foreign Apps and Hybrid Foreign Apps in several languages (C, Rust).
 static_foreign_apps:| $(BUILD_DIR) libc_musl
-	# bind environment var MUSL_GCC
-	cd "static-foreign-apps" && MUSL_GCC="$(MUSL_GCC)" $(MAKE)
+	# bind environment var MUSL_GCC_DIR
+	cd "static-foreign-apps" && MUSL_GCC_DIR="$(MUSL_GCC_DIR)" $(MAKE)
 	find "static-foreign-apps/build/" -type f -exec cp "{}" "$(BUILD_DIR)" \;
 
 # Installs musl locally in the directory but doesn't require to have it installed

@@ -1,8 +1,7 @@
 CFLAGS=-O3 -march=broadwell -ggdb -static
 
 # Comes as ENV var from main Make file
-#MUSL_GCC="../../../obj/musl-gcc"
-# MUSL_GCC=/usr/local/musl/bin/musl-gcc
+MUSL_GCC=$(MUSL_GCC_DIR)/musl-gcc
 
 all: static_hello_world static_matrix_mult static_dump_aux
 
