@@ -1,4 +1,8 @@
-all: c go rust zig
+# By default I only build C and Rust so that others that check out this repository
+# can bootstrap everything fast without installing and setting up a ton of stuff.
+all: c rust
+
+all_extra: all go zig
 
 .PHONY: c go rust zig clean
 
