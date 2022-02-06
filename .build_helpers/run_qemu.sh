@@ -60,8 +60,7 @@ fn_check_qemu_version() {
     FEATURE_VERSION=$((FEATURE_VERSION + 0))
     echo "QEMU MAJOR_VER=${MAJOR_VERSION}, QEMU_FEATURE_VER=${FEATURE_VERSION}"
 
-    if [[ $MAJOR_VERSION -lt 6 ]] || [[ $MAJOR_VERSION == 6 && $FEATURE_VERSION -lt 2 ]]
-    then
+    if [[ $MAJOR_VERSION -lt 6 ]] || [[ $MAJOR_VERSION == 6 && $FEATURE_VERSION -lt 2 ]]; then
         ANSI_RED="\e[31m"
         ANSI_BOLD="\e[1m"
         ANSI_RESET="\e[0m"
@@ -79,60 +78,59 @@ fn_check_qemu_version() {
 
 fn_run_qemu() {
     QEMU_ARGS=(
-            # Disable default devices
-            # QEMU by default enables a ton of devices which slow down boot.
-            "-nodefaults"
+        # Disable default devices
+        # QEMU by default enables a ton of devices which slow down boot.
+        "-nodefaults"
 
-            # Use a standard VGA for graphics
-            "-vga"
-            "std"
+        # Use a standard VGA for graphics
+        "-vga"
+        "std"
 
-            # Use a modern machine, with acceleration if possible.
-            "-machine"
-            "q35,accel=kvm:tcg"
+        # Use a modern machine, with acceleration if possible.
+        "-machine"
+        "q35,accel=kvm:tcg"
 
-            # Allocate some memory
-            "-m"
-            "2048M"
+        # Allocate some memory
+        "-m"
+        "2048M"
 
-            # two cores
-            "-smp"
-            "2"
+        # two cores
+        "-smp"
+        "2"
 
-            # I also use this CPU micro arch to optimize all
-            # Rust binaries for.
-            "-cpu"
-            "host"
+        # I also use this CPU micro arch to optimize all
+        # Rust binaries for.
+        "-cpu"
+        "host"
 
-            # Multiboot1 kernel
-            "-kernel"
-            "${HEDRON}"
+        # Multiboot1 kernel
+        "-kernel"
+        "${HEDRON}"
 
-            #"-append"
-            # "" (additional Hedron args: "serial", "novga", ...)
+        #"-append"
+        # "" (additional Hedron args: "serial", "novga", ...)
 
-            # QEMU passes this as Multiboot1 Modules to Hedron. Multiple modules are separated
-            # by a comma. The text after the path is the "cmdline" string of the boot module.
-            "-initrd"
-            "$
-            }{ROOTTASK} roottask,${USERLAND} userland"
+        # QEMU passes this as Multiboot1 Modules to Hedron. Multiple modules are separated
+        # by a comma. The text after the path is the "cmdline" string of the boot module.
+        "-initrd"
+        "${ROOTTASK} roottask,${USERLAND} userland"
 
-            # Logging from the Roottask:
-            # Same content as the serial log, but persists QEMU shutdowns (until the next run).
-            "-debugcon"
-            "file:../qemu_debugcon.txt"
+        # Logging from the Roottask:
+        # Same content as the serial log, but persists QEMU shutdowns (until the next run).
+        "-debugcon"
+        "file:../qemu_debugcon.txt"
 
-            # Enable serial
-            "-serial"
-            "stdio"
+        # Enable serial
+        "-serial"
+        "stdio"
 
-            # Setup monitor
-            "-monitor"
-            "vc:1024x768"
-        )
+        # Setup monitor
+        "-monitor"
+        "vc:1024x768"
+    )
 
-        # echo "Executing: qemu-system-x86_64 " "${QEMU_ARGS[@]}"
-        qemu-system-x86_64 "${QEMU_ARGS[@]}"
+    # echo "Executing: qemu-system-x86_64 " "${QEMU_ARGS[@]}"
+    qemu-system-x86_64 "${QEMU_ARGS[@]}"
 }
 
 # call main
