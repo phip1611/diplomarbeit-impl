@@ -1,9 +1,9 @@
 # Builds my runtime environment, the microkernel, and relevant userland components (Apps to run).
 
-BUILD_DIR="./build"
+BUILD_DIR=build
 # needs absolute paths!
-MUSL_BUILD_DIR="$(PWD)/$(BUILD_DIR)/.musl"
-MUSL_GCC_DIR="$(MUSL_BUILD_DIR)/bin"
+MUSL_BUILD_DIR=$(PWD)/$(BUILD_DIR)/.musl
+MUSL_GCC_DIR=$(MUSL_BUILD_DIR)/bin
 
 # "make" builds everything
 all: microkernel runtime_environment static_foreign_apps userland_tarball
@@ -20,7 +20,7 @@ microkernel: | $(BUILD_DIR)
 	mkdir -p "build"; \
 	cd "build"; \
 	cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..; \
-	$(MAKE) \
+	$(MAKE); \
 	cp "src/hypervisor.elf32" "../../$(BUILD_DIR)/hedron.elf32"
 
 # All artifacts of the Runtime Environment
