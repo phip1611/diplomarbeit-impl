@@ -29,14 +29,8 @@ use tar_no_std::TarArchiveRef;
 #[derive(Debug)]
 #[allow(unused)]
 pub struct InitialUserland {
-    /// Hedron-native Rust App that acts as my testing playground.
-    hedron_native_hello_world_rust_debug_elf: MappedMemory,
     /// Release-version (=maximum optimized + fancy CPU features) of `hedron_native_hello_world_rust_debug_elf`
-    hedron_native_hello_world_rust_release_elf: MappedMemory,
-    /// The file system service compiled as Hedron-native Rust application.
-    hedron_native_fs_service_rust_debug_elf: MappedMemory,
-    /// Release-version (=maximum optimized + fancy CPU features) of `hedron_native_fs_service_rust_debug_elf`
-    hedron_native_fs_service_rust_release_elf: MappedMemory,
+    hedron_native_hello_world_rust_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (C + musl/gcc)
     linux_c_hello_world_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (Rust + musl/LLVM)
@@ -78,24 +72,9 @@ impl InitialUserland {
             .for_each(|e| log::trace!("    {} ({} bytes)", e.filename(), e.size()));
 
         Self {
-            hedron_native_hello_world_rust_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
+            hedron_native_hello_world_rust_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "helloworld-bin--debug",
-            )
-            .unwrap(),
-            hedron_native_hello_world_rust_release_elf: Self::map_tar_entry_to_page_aligned_dest(
-                &tar_file,
-                "helloworld-bin--release",
-            )
-            .unwrap(),
-            hedron_native_fs_service_rust_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
-                &tar_file,
-                "fileserver-bin--debug",
-            )
-            .unwrap(),
-            hedron_native_fs_service_rust_release_elf: Self::map_tar_entry_to_page_aligned_dest(
-                &tar_file,
-                "fileserver-bin--release",
+                "helloworld-bin",
             )
             .unwrap(),
             linux_c_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(

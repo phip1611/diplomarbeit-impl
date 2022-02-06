@@ -57,7 +57,8 @@ userland_tarball: | runtime_environment static_foreign_apps
 	.build_helpers/build_tarball.sh
 
 # Starts QEMU with Hedron and my runtime environment
-run: | all
+# Doesn't depend on "all", because usage is intended to be: "make -j 8 && make run"
+run:
 	.build_helpers/run_qemu.sh
 
 # Prepares the files for the network-boot. This is special to my
