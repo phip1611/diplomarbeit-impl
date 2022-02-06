@@ -64,8 +64,12 @@ run: | all
 # local setup on my developer machine, where remote computers are
 # connected via LAN and load files via TFTP from my laptop.
 networkboot:
+# TODO
 
 .PHONY: clean
 
 clean:
-
+	rm -rf $(BUILD_DIR)
+	cd "runtime-environment" && $(MAKE) clean
+	cd "static-foreign-apps" && $(MAKE) clean
+	cd "thesis-hedron-fork/build" && $(MAKE) clean
