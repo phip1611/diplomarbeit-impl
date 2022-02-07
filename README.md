@@ -25,6 +25,9 @@ under Hedron and its runtime environment. A hybrid foreign application is a fore
 part. The hybrid part contains Hedron-native system calls. Hedron knows how to differ between native/hybrid
 and foreign system calls from foreign applications. This way, all system calls get handled as expected.
 
+The binaries must not be modified to be compatible to Hedron. If the ELF file runs on Linux, it also runs
+under Hedron in my runtime environment. However, not all Linux system calls are supported (yet).
+
 This repository contains everything to fully bootstrap my development setup. It contain the modified
 version of Hedron, my runtime environment, and several static foreign apps. For simplicity, my work
 focus on statically linked Linux apps with musl.
@@ -64,6 +67,13 @@ relevant toolchain into your system. This is the only side-effect to your system
 
 To run the project, QEMU is used. This only works, if KVM is available on your Linux system. KVM is only required for
 QEMU and Hedron performs no virtualization tasks in my setup.
+
+The Tar archive that includes all applications that the roottask (i.e. my runtime environment) can start are mostly
+all release builds, i.e. optimized. To change that, you can modify the paths in the Makefiles that copy
+everything to the `build` directory. For example `../target/../{release => debug}`.
+
+All binaries in directory `static-foreign-apps` can be executed on Linux. I take the unmodified ELF files
+and put it into the Tar ball.
 
 (*However, it may be possible to build this on other systems/platforms than Linux with relatively small modifications
 to the build system and emulate x86_64 code with QEMU, but this is out of scope.*)

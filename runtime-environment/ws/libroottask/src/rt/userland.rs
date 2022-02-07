@@ -34,18 +34,12 @@ pub struct InitialUserland {
     /// Statically compiled Hello World for Linux (C + musl/gcc)
     linux_c_hello_world_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (Rust + musl/LLVM)
-    linux_rust_hello_world_debug_elf: MappedMemory,
-    ///
-    linux_rust_hello_world_release_elf: MappedMemory,
+    linux_rust_hello_world_elf: MappedMemory,
     /// Statically compiled Hello World for Linux (Rust + musl/LLVM) + hybrid part (native Hedron syscalls)
-    linux_rust_hello_world_hybrid_debug_elf: MappedMemory,
-    /// Release-version (=maximum optimized + fancy CPU features) of `linux_rust_hybrid_benchmark_debug_elf`
-    linux_rust_hello_world_hybrid_release_elf: MappedMemory,
+    linux_rust_hello_world_hybrid_elf: MappedMemory,
     /// Statically compiled Linux Application with Hybrid Parts that will act as my Evaluation Benchmark.
     /// It will output all relevant information to serial. (debug)
-    linux_rust_hybrid_benchmark_debug_elf: MappedMemory,
-    /// Release-version (=maximum optimized + fancy CPU features) of `linux_rust_hybrid_benchmark_debug_elf`
-    linux_rust_hybrid_benchmark_release_elf: MappedMemory,
+    linux_rust_hybrid_benchmark_elf: MappedMemory,
     // /// statically compiled Hello World for Linux (Zig)
     // Statically compiled Matrix Multiplication in C that allocates matrices on the heap.
     linux_c_matrix_mult_elf: MappedMemory,
@@ -82,34 +76,19 @@ impl InitialUserland {
                 "linux_c_hello_world_musl",
             )
             .unwrap(),
-            linux_rust_hello_world_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
+            linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "linux_rust_hello_world_musl--debug",
+                "linux_rust_hello_world_musl",
             )
             .unwrap(),
-            linux_rust_hello_world_release_elf: Self::map_tar_entry_to_page_aligned_dest(
+            linux_rust_hello_world_hybrid_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "linux_rust_hello_world_musl--release",
+                "linux_rust_hello_world_hybrid_musl",
             )
             .unwrap(),
-            linux_rust_hello_world_hybrid_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
+            linux_rust_hybrid_benchmark_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "linux_rust_hello_world_hybrid_musl--debug",
-            )
-            .unwrap(),
-            linux_rust_hello_world_hybrid_release_elf: Self::map_tar_entry_to_page_aligned_dest(
-                &tar_file,
-                "linux_rust_hello_world_hybrid_musl--release",
-            )
-            .unwrap(),
-            linux_rust_hybrid_benchmark_debug_elf: Self::map_tar_entry_to_page_aligned_dest(
-                &tar_file,
-                "linux_rust_hybrid_benchmark--debug",
-            )
-            .unwrap(),
-            linux_rust_hybrid_benchmark_release_elf: Self::map_tar_entry_to_page_aligned_dest(
-                &tar_file,
-                "linux_rust_hybrid_benchmark--release",
+                "linux_rust_hybrid_benchmark",
             )
             .unwrap(),
             linux_c_matrix_mult_elf: Self::map_tar_entry_to_page_aligned_dest(
@@ -237,7 +216,7 @@ impl InitialUserland {
         );*/
 
         PROCESS_MNG.lock().start_process(
-            self.linux_rust_hello_world_release_elf.clone(),
+            self.linux_rust_hello_world_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
         );

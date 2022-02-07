@@ -1,5 +1,5 @@
 runtime_environment:
-	cd "ws" && ./build-cargo-fake-workspace.sh
+	cd "ws" && ./build-cargo-fake-workspace.sh || exit 1
 
 .PHONY: clean
 

@@ -31,7 +31,7 @@ microkernel: | $(BUILD_DIR)
 
 # All artifacts of the Runtime Environment
 runtime_environment: | $(BUILD_DIR) cargo_rustup_check
-	cd "runtime-environment" && $(MAKE)
+	cd "runtime-environment" && $(MAKE) || exit 1
 	cp "runtime-environment/ws/roottask-bin/target/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
 	cp "runtime-environment/ws/helloworld-bin/target/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
 # TODO file server

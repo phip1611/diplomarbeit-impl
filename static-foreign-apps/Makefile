@@ -21,12 +21,9 @@ go: | builddir
 
 rust: | builddir
 	cd Rust && $(MAKE)
-	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world           ./build/linux_rust_hello_world_musl--debug.elf
-	cp Rust/target/x86_64-unknown-linux-musl/debug/hello_world_hybrid    ./build/linux_rust_hello_world_hybrid_musl--debug.elf
-	cp Rust/target/x86_64-unknown-linux-musl/debug/hybrid_benchmark      ./build/linux_rust_hybrid_benchmark--debug.elf
-	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world         ./build/linux_rust_hello_world_musl--release.elf
-	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world_hybrid  ./build/linux_rust_hello_world_hybrid_musl--release.elf
-	cp Rust/target/x86_64-unknown-linux-musl/release/hybrid_benchmark    ./build/linux_rust_hybrid_benchmark--release.elf
+	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world         ./build/linux_rust_hello_world_musl.elf
+	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world_hybrid  ./build/linux_rust_hello_world_hybrid_musl.elf
+	cp Rust/target/x86_64-unknown-linux-musl/release/hybrid_benchmark    ./build/linux_rust_hybrid_benchmark.elf
 
 zig: | builddir
 	cd Zig && $(MAKE)
