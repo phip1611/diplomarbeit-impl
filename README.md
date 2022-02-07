@@ -140,3 +140,7 @@ to `qemu_debugcon.txt`.
       base. However, my Makefile supports a workaround which should enable a stable build all the time.
     - just run again `$ make -j $(nproc)` or to be 100% safe `$ make`
     - the error will fix itself on the second build most likely
+- Hedron fails with Error 0x6 (Invalid Opcode) or QEMU fails with unsupported operation: \
+  The compiler target for the roottask and other binaries is
+  [broadwell](https://en.wikipedia.org/wiki/List_of_Intel_CPU_microarchitectures). However, this is not a hard
+  requirement. You can string&replace every "broadwell" with "native" or "skylake" for example in the project.
