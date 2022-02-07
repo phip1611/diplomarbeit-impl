@@ -1,5 +1,0 @@
-# With this file, another toolchain to the currently selected one will be used.
-# https://rust-lang.github.io/rustup/overrides.html
-
-[toolchain]
-channel = "nightly"

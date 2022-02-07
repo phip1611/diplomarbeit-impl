@@ -18,24 +18,28 @@ function fn_main() {
     LIBS=$(find . -maxdepth 1 -type d ! -path . -name "lib*")
     BINS=$(find . -maxdepth 1 -type d ! -path . -name "*-bin")
 
-    for LIB in $LIBS
-    do
-      fn_build_rust_lib "$LIB"
+    # I tried to parallelize this with "&" (put into background), but this
+    # is error prone and breaks much developer convenience. The output
+    # gets so polluted that it doesn't really stop there where it found
+    # a compilation error.
+
+    for LIB in $LIBS; do
+        fn_build_rust_lib "$LIB"
     done
 
-    for BIN in $BINS
-    do
-      fn_build_rust_bin "$BIN"
+    for BIN in $BINS; do
+        fn_build_rust_bin "$BIN"
     done
 
     fn_build_extra_checks
 }
 
-
 function fn_build_rust_lib() {
     (
         cd "$1" || exit
-        cargo build
+        # For a lib "check" is enough.
+        # It will be build anyway by the bins that uses it.
+        cargo check
         cargo test
         cargo fmt # automatically format everything
         # cargo fmt -- --check

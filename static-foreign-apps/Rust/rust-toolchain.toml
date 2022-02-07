@@ -1,0 +1,11 @@
+# With this file, another toolchain to the currently selected one will be used.
+# https://rust-lang.github.io/rustup/overrides.html
+
+[toolchain]
+# I don't need a specific nightly, but if I just use "nightly" build sometimes fails,
+# if for the current day not all build artifacts (like cargo) are available on the server
+channel = "nightly-2022-02-03"
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl"
+]
