@@ -39,8 +39,13 @@ the roottask. This file can be changed very easy in the roottask code.
 My work does not focus on virtualization. However, hybrid foreign apps (and native Hedron apps) are
 capable of creating VMs, because my introduced mechanism is not in constrast to that.
 
-The roottask is defined in `runtime-environment/ws/roottask-bin/`.
-`runtime-environment/ws/roottask-bin/src/main.rs` is a good starting point.
+## Pointers To Interesting Code
+- My modifications to the system call handler at the bottom of `thesis-hedron-fork/src/syscall.cpp`.
+- The roottask is defined in `runtime-environment/ws/roottask-bin/`.
+  `runtime-environment/ws/roottask-bin/src/main.rs` is a good starting point.
+- Handling Foreign Linux System Calls
+  - `runtime-environment/ws/libroottask/src/pt_multiplex.rs`
+  - `runtime-environment/ws/libroottask/src/services/foreign_syscall/mod.rs`
 
 ## Build and Run
 
