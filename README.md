@@ -51,6 +51,7 @@ capable of creating VMs, because my introduced mechanism is not in constrast to 
 
 ### TL;DR
 See below for more details.
+- `git submodule update --init --recursive`
 - `make check`
 - `make -j $(nproc)`
 - `make run`
