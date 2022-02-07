@@ -4,6 +4,7 @@
 
 set -e
 
+ANSI_RED="\e[31m"
 ANSI_GREEN="\e[32m"
 ANSI_BOLD="\e[1m"
 ANSI_RESET="\e[0m"
@@ -41,14 +42,14 @@ fn_check_x86_64() {
 
 fn_check_kvm() {
     set +e
-    lsmod | grep kvm > /dev/null
-    set -e
+    lsmod | grep kkvm > /dev/null
     if [[ $? -eq 0 ]] ; then
         echo -e "  ✅  ${ANSI_GREEN}KVM available.${ANSI_RESET}"
     else
         echo -e "  ❌  ${ANSI_RED}${ANSI_BOLD}KVM NOT available.${ANSI_RESET}"
         EXIT_FAILURE=1
     fi
+    set -e
 }
 
 fn_broadwell_notice() {
