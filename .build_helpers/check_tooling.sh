@@ -5,14 +5,17 @@
 set -e
 
 ANSI_GREEN="\e[32m"
+ANSI_BOLD="\e[1m"
 ANSI_RED="\e[31m"
 ANSI_RESET="\e[0m"
 
 EXIT_FAILURE=0
 
+# MAke sure this script works with "sh" only :D
+# Because it checks if bash is available.
+
 fn_main() {
     echo "Checking relevant tooling:"
-    # make sure this script works with "sh" only :D
     fn_check_tool bash
     fn_check_tool gcc
     # actually ridiculous, because this gets invoked by make :)
@@ -25,7 +28,7 @@ fn_main() {
 
     if [ $EXIT_FAILURE -ne 0 ]; then
         echo "In case cargo is missing and you've just installed it: It isn't immediately"
-        echo " in PATH but only after a re-login."
+        echo "in PATH but only after a re-login. You can also run: \`$ source \$HOME/.cargo/env\`"
         exit 1
     fi
 }
@@ -38,7 +41,7 @@ fn_check_tool() {
     if [ $? -eq 0 ]; then
         echo "  ✅  ${ANSI_GREEN}Tool '$TOOL' is available.${ANSI_RESET}"
     else
-        echo "  ❌  ${ANSI_RED}Tool '$TOOL' is not available.${ANSI_RESET}"
+        echo "  ❌  ${ANSI_RED}${ANSI_BOLD}Tool '$TOOL' is not available!${ANSI_RESET}"
         EXIT_FAILURE=1
     fi
     set -e

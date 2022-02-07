@@ -17,11 +17,8 @@ all: microkernel roottask userland_tarball
 $(BUILD_DIR):
 	mkdir -p $@
 
-check_tooling:
-	.build_helpers/check_tooling.sh
-
 # Hedron Microhypervisor/Microkernel
-microkernel: | $(BUILD_DIR) check_tooling
+microkernel: | $(BUILD_DIR)
     # To execute all in the same sub process I need to
     # concat multiple commands with ";" and remove newlines (\)
     # https://stackoverflow.com/questions/1789594/how-do-i-write-the-cd-command-in-a-makefile
@@ -33,7 +30,7 @@ microkernel: | $(BUILD_DIR) check_tooling
 	cp "src/hypervisor.elf32" "../../$(BUILD_DIR)/hedron.elf32"
 
 # All artifacts of the Runtime Environment
-runtime_environment: | $(BUILD_DIR) cargo_rustup_check check_tooling
+runtime_environment: | $(BUILD_DIR) cargo_rustup_check
 	cd "runtime-environment" && $(MAKE)
 	cp "runtime-environment/ws/roottask-bin/target/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
 	cp "runtime-environment/ws/helloworld-bin/target/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
@@ -41,14 +38,14 @@ runtime_environment: | $(BUILD_DIR) cargo_rustup_check check_tooling
 # cp "runtime-environment/ws/fileserver-bin/target/x86_64-unknown-hedron/release/fileserver-bin" "$(BUILD_DIR)"
 
 # Foreign Apps and Hybrid Foreign Apps in several languages (C, Rust).
-static_foreign_apps: | $(BUILD_DIR) libc_musl cargo_rustup_check check_tooling
+static_foreign_apps: | $(BUILD_DIR) libc_musl cargo_rustup_check
 	# bind environment var MUSL_GCC_DIR
 	cd "static-foreign-apps" && MUSL_GCC_DIR="$(MUSL_GCC_DIR)" $(MAKE)
 	find "static-foreign-apps/build/" -type f -exec cp "{}" "$(BUILD_DIR)" \;
 
 # Installs musl locally in the directory but doesn't require to have it installed
 # in the system. Executable is in "./libc-musl/obj/musl-gcc"
-libc_musl: | check_tooling
+libc_musl:
     # Install it locally with absolute paths. This is important so that during runtime
     # the musl compiler finds all header files etc.
 	cd "libc-musl" && ./configure "--prefix=$(MUSL_BUILD_DIR)"
@@ -74,6 +71,13 @@ run:
 
 run_nogui:
 	.build_helpers/run_qemu_nogui.sh
+
+# Helps the user to check if all relevant stuff is installed on the system
+# and the project is ready to build.
+check:
+	.build_helpers/check_tooling.sh
+	.build_helpers/check_repo.sh
+	.build_helpers/check_machine.sh
 
 # Hack for build stability when using more than one job ($ make -j n). If multiple Rust builds (i.e. of runtime
 # environment and static foreign apps) start in parallel, they might use "rustup" simultaneously to install
