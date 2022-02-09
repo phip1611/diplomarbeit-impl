@@ -42,7 +42,7 @@ fn_check_x86_64() {
 
 fn_check_kvm() {
     set +e
-    lsmod | grep kkvm > /dev/null
+    lsmod | grep kvm > /dev/null
     if [[ $? -eq 0 ]] ; then
         echo -e "  ✅  ${ANSI_GREEN}KVM available.${ANSI_RESET}"
     else
