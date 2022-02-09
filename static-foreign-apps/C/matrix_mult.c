@@ -37,4 +37,7 @@ int main() {
         printf("]\n");
     }
     printf("]\n");
+    free(matrix1);
+    free(matrix2);
+    free(res_matrix);
 }
