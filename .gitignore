@@ -1,5 +1,6 @@
 /build
 /qemu_debugcon.txt
+/target
 
 .idea
 .vscode
