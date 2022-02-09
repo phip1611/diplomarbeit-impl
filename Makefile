@@ -34,7 +34,7 @@ microkernel: | $(BUILD_DIR)
 	mkdir -p "build"; \
 	cd "build"; \
 	cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..; \
-	$(MAKE); \
+	$(MAKE) || exit 1; \
 	cp "src/hypervisor.elf32" "../../$(BUILD_DIR)/hedron.elf32"
 
 # All artifacts of the Runtime Environment
