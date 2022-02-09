@@ -38,13 +38,15 @@ microkernel: | $(BUILD_DIR)
 	cp "src/hypervisor.elf32" "../../$(BUILD_DIR)/hedron.elf32"
 
 # All artifacts of the Runtime Environment
-runtime_environment: | $(BUILD_DIR) cargo_rustup_check
+runtime_environment: | $(BUILD_DIR)
 	cd "runtime-environment" && $(MAKE) || exit 1
 	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
 	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
 
 # Foreign Apps and Hybrid Foreign Apps in several languages (C, Rust).
-static_foreign_apps: | $(BUILD_DIR) libc_musl cargo_rustup_check
+# It depends on the runtime_environment target to prevent the concurrent installation of
+# additional rustup targets/toolchains. Otherwise, this may break the build.
+static_foreign_apps: | $(BUILD_DIR) libc_musl runtime_environment
 	# bind environment var MUSL_GCC_DIR
 	cd "static-foreign-apps" && MUSL_GCC_DIR="$(MUSL_GCC_DIR)" $(MAKE)
 	find "static-foreign-apps/build/" -type f -exec cp "{}" "$(BUILD_DIR)" \;
@@ -84,20 +86,6 @@ check:
 	.build_helpers/check_tooling.sh
 	.build_helpers/check_repo.sh
 	.build_helpers/check_machine.sh
-
-# Hack for build stability when using more than one job ($ make -j n). If multiple Rust builds (i.e. of runtime
-# environment and static foreign apps) start in parallel, they might use "rustup" simultaneously to install
-# new toolchains. This doesn't work as rustup only wants to be used by one component at a time.
-cargo_rustup_check: $(PARALLEL_CARGO_RUSTUP_HACK)
-
-# The marker file in "./build" enables that I can make sure cargo/rustup downloads all relevant
-# additional targets/toolchains before the parallel build starts. Otherwise, multiple cargo
-# instances will use rustup to install desired targets, which leads to build failures. Rustup
-# can't cope with t hat.
-$(PARALLEL_CARGO_RUSTUP_HACK):
-	cd "runtime-environment/ws/libhedron/" && cargo check
-	cd "static-foreign-apps/Rust/" && cargo check
-	touch $@
 
 # Prepares the files for the network-boot. This is special to my
 # local setup on my developer machine, where remote computers are
