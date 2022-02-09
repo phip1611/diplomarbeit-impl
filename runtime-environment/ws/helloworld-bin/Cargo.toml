@@ -1,5 +1,5 @@
 [package]
-name = "helloworld-bin"
+name = "native-hello-world-rust-bin"
 description = "A native Hedron app that runs on top of hrstd and works as testing playground."
 version = "0.1.0"
 authors = ["Philipp Schuster <philipp.schuster@cyberus-technology.de>"]

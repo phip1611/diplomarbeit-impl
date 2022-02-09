@@ -41,7 +41,7 @@ microkernel: | $(BUILD_DIR)
 runtime_environment: | $(BUILD_DIR)
 	cd "runtime-environment" && $(MAKE) || exit 1
 	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
-	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
+	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/native-hello-world-rust-bin" "$(BUILD_DIR)"
 
 # Foreign Apps and Hybrid Foreign Apps in several languages (C, Rust).
 # It depends on the runtime_environment target to prevent the concurrent installation of
