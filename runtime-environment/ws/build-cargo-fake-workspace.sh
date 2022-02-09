@@ -14,6 +14,14 @@ cd "$DIR" || exit
 #########################################################################
 
 function fn_main() {
+    # check ENV var exists
+    if ! [[ $CARGO_TARGET_DIR ]]; then
+        echo "ENV VAR CARGO_TARGET_DIR is missing"
+        exit 1
+    fi
+
+
+
     # find all direct directories without "."
     LIBS=$(find . -maxdepth 1 -type d ! -path . -name "lib*")
     BINS=$(find . -maxdepth 1 -type d ! -path . -name "*-bin")
@@ -37,8 +45,8 @@ function fn_main() {
 function fn_build_rust_lib() {
     (
         cd "$1" || exit
-        # For a lib "check" is enough.
-        # It will be build anyway by the bins that uses it.
+        # Check here is enough (no release build required) because even with a shared cargo target
+        # dir, the build of the binaries compiles the library again.
         cargo check
         cargo test
         cargo fmt # automatically format everything

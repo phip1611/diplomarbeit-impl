@@ -1,2 +1,5 @@
 /build
 /qemu_debugcon.txt
+
+.idea
+.vscode

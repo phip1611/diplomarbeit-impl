@@ -4,4 +4,6 @@ runtime_environment:
 .PHONY: clean
 
 clean:
+	# Probably pointless because I use a shared target dir that gets
+    # already cleaned by the main make clean command.
 	./ws_cargo clean

@@ -21,9 +21,9 @@ go: | builddir
 
 rust: | builddir
 	cd Rust && $(MAKE)
-	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world         ./build/linux_rust_hello_world_musl.elf
-	cp Rust/target/x86_64-unknown-linux-musl/release/hello_world_hybrid  ./build/linux_rust_hello_world_hybrid_musl.elf
-	cp Rust/target/x86_64-unknown-linux-musl/release/hybrid_benchmark    ./build/linux_rust_hybrid_benchmark.elf
+	cp $(CARGO_TARGET_DIR)/x86_64-unknown-linux-musl/release/hello_world         ./build/linux_rust_hello_world_musl.elf
+	cp $(CARGO_TARGET_DIR)/x86_64-unknown-linux-musl/release/hello_world_hybrid  ./build/linux_rust_hello_world_hybrid_musl.elf
+	cp $(CARGO_TARGET_DIR)/x86_64-unknown-linux-musl/release/hybrid_benchmark    ./build/linux_rust_hybrid_benchmark.elf
 
 zig: | builddir
 	cd Zig && $(MAKE)

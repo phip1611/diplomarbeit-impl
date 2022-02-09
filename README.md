@@ -66,10 +66,11 @@ make a special treatment to produce ELF files on other systems
 The compiler target for the roottask and other binaries is
 [broadwell](https://en.wikipedia.org/wiki/List_of_Intel_CPU_microarchitectures). However, this is not a hard
 requirement. You can string&replace every "broadwell" with "native" or "skylake" for example in the project.
+Please note that Hedron requires at least Ivy Bridge.
 
-The final project size after building it is between 3 and 4 GB in size, because the Rust build produces lots of
+The final project size after building it is ~2.2 GB in size, because the Rust build produces lots of
 intermediate compiler output. When you run `make`, the build process will use cargo/rustup to automatically install the
-relevant toolchain into your system. This is the only side-effect to your system, that this project has.
+relevant toolchain into your system. This is the only side effect to your system, that this project has.
 
 To run the project, QEMU is used. This only works, if KVM is available on your Linux system. KVM is only required for
 QEMU and Hedron performs no virtualization tasks in my setup.
@@ -144,3 +145,4 @@ to `qemu_debugcon.txt`.
   The compiler target for the roottask and other binaries is
   [broadwell](https://en.wikipedia.org/wiki/List_of_Intel_CPU_microarchitectures). However, this is not a hard
   requirement. You can string&replace every "broadwell" with "native" or "skylake" for example in the project.
+  Please note that Hedron requires at least Ivy Bridge.

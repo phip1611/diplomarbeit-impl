@@ -1,7 +1,9 @@
 # Builds my runtime environment, the microkernel, and relevant userland components (Apps to run).
+# It copies the relevant files to the "build" directory.
 #
-# "$ make -j 8"
-# "$ make run" (starts QEMU)
+# Usage:
+#   "$ make -j 8"
+#   "$ make run" (starts QEMU)
 
 BUILD_DIR=build
 # needs absolute paths!
@@ -9,6 +11,12 @@ MUSL_BUILD_DIR=$(PWD)/$(BUILD_DIR)/.musl
 MUSL_GCC_DIR=$(MUSL_BUILD_DIR)/bin
 
 PARALLEL_CARGO_RUSTUP_HACK=$(BUILD_DIR)/.cargo_rustup_check
+
+# Use the same target dir for all Rust targets. Cargo is actually intended
+# to be used like this and it should not bring up any problems.
+# Bound to environment variable. Cargo checks this ENV var by default.
+# See https://doc.rust-lang.org/cargo/reference/environment-variables.html
+export CARGO_TARGET_DIR=$(PWD)/target
 
 # "make" builds everything
 # userland tarball itself depends on "runtime_environment static_foreign_apps"
@@ -32,10 +40,8 @@ microkernel: | $(BUILD_DIR)
 # All artifacts of the Runtime Environment
 runtime_environment: | $(BUILD_DIR) cargo_rustup_check
 	cd "runtime-environment" && $(MAKE) || exit 1
-	cp "runtime-environment/ws/roottask-bin/target/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
-	cp "runtime-environment/ws/helloworld-bin/target/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
-# TODO file server
-# cp "runtime-environment/ws/fileserver-bin/target/x86_64-unknown-hedron/release/fileserver-bin" "$(BUILD_DIR)"
+	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/roottask-bin" "$(BUILD_DIR)"
+	cp "$(CARGO_TARGET_DIR)/x86_64-unknown-hedron/release/helloworld-bin" "$(BUILD_DIR)"
 
 # Foreign Apps and Hybrid Foreign Apps in several languages (C, Rust).
 static_foreign_apps: | $(BUILD_DIR) libc_musl cargo_rustup_check
@@ -102,7 +108,7 @@ networkboot:
 .PHONY: clean
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(CARGO_TARGET_DIR)
 	cd "runtime-environment" && $(MAKE) clean
 	cd "static-foreign-apps" && $(MAKE) clean
 	cd "thesis-hedron-fork/build" && $(MAKE) clean

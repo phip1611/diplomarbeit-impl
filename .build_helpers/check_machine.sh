@@ -57,7 +57,8 @@ fn_broadwell_notice() {
     echo -n "     "
     lscpu | grep -i "model name"
     echo -e "     ${ANSI_BOLD}Please make sure you are running a 'broadwell' processor or newer. Otherwise,"
-    echo -e "     please look into the README. Can be easily fixed.${ANSI_RESET}"
+    echo -e "     please look into the README. Can be easily fixed. Please note that Hedron requires at "
+    echo -e "     least Ivy Bridge.${ANSI_RESET}"
     set -e
 }
 
