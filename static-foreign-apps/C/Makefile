@@ -1,4 +1,4 @@
-CFLAGS=-O3 -march=broadwell -ggdb -static
+CFLAGS=-O3 -march=ivybridge -ggdb -static
 
 # Comes as ENV var from main Make file
 MUSL_GCC=$(MUSL_GCC_DIR)/musl-gcc

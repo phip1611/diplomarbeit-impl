@@ -19,7 +19,7 @@ EXIT_FAILURE=0
 fn_main() {
     echo "Checking system:"
     fn_check_x86_64
-    fn_broadwell_notice
+    fn_ivybridge_notice
     fn_check_kvm
 
     if [ $EXIT_FAILURE -ne 0 ]; then
@@ -52,13 +52,12 @@ fn_check_kvm() {
     set -e
 }
 
-fn_broadwell_notice() {
+fn_ivybridge_notice() {
     set +e
     echo -n "     "
     lscpu | grep -i "model name"
-    echo -e "     ${ANSI_BOLD}Please make sure you are running a 'broadwell' processor or newer. Otherwise,"
-    echo -e "     please look into the README. Can be easily fixed. Please note that Hedron requires at "
-    echo -e "     least Ivy Bridge.${ANSI_RESET}"
+    echo -e "     ${ANSI_BOLD}Please make sure you are running a 'ivybridge' processor or newer."
+    echo -e "     Hedron does not run on older hardware.${ANSI_RESET}"
     set -e
 }
 
