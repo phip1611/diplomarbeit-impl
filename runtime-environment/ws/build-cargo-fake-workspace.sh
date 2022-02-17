@@ -59,6 +59,7 @@ function fn_build_rust_lib() {
 function fn_build_rust_bin() {
     (
         cd "$1" || exit
+        cargo check
         cargo build
         cargo build --release
         cargo fmt # automatically format everything
