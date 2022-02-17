@@ -215,11 +215,11 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
-        );
+        );*/
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_hybrid_release_elf.clone(),
@@ -227,11 +227,11 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        /*PROCESS_MNG.lock().start_process(
-            self.linux_rust_hybrid_benchmark_release_elf.clone(),
+        PROCESS_MNG.lock().start_process(
+            self.linux_rust_hybrid_benchmark_elf.clone(),
             String::from("My Diplom thesis evaluation benchmark. [RELEASE]"),
             SyscallAbi::Linux,
-        );*/
+        );
 
         /*PROCESS_MNG.lock().start_process(
             self.linux_c_matrix_mult_elf.clone(),

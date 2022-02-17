@@ -14,7 +14,6 @@ use libhrstd::kobjects::{
 use libhrstd::libhedron::consts::NUM_CPUS;
 use libhrstd::libhedron::Mtd;
 use libhrstd::libhedron::Utcb;
-use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 mod linux;
 
@@ -74,29 +73,26 @@ pub fn create_and_delegate_syscall_handler_pts(process: &Process) {
     let base_sel = RootCapSpace::calc_foreign_syscall_pt_sel_base(process.pid());
 
     // local EC for all service calls
-    let ec = LOCAL_EC.lock().as_ref().unwrap().upgrade().unwrap();
+    let ec_lock = LOCAL_EC.lock();
+    let ec_lock = ec_lock.as_ref().unwrap();
 
     for cpu in 0..NUM_CPUS as u64 {
         let cap_sel = base_sel + cpu;
         let pt = PtObject::create(
             cap_sel,
-            &ec,
+            ec_lock,
             Mtd::all(),
             roottask_generic_portal_callback,
             PtCtx::ForeignSyscall,
         );
-        pt.attach_delegated_to_pd(&process.pd_obj());
-        process.pd_obj().attach_delegated_pt(pt);
+
+        // delegate the foreign system call PT to the PD object of the new process
+        PtObject::delegate(
+            &pt,
+            &process.pd_obj(),
+            ForeignUserAppCapSpace::SyscallBasePt.val() + cpu,
+        )
     }
 
-    CrdDelegateOptimizer::new(
-        base_sel,
-        ForeignUserAppCapSpace::SyscallBasePt.val(),
-        NUM_CPUS,
-    )
-    .pts(
-        process.parent().unwrap().pd_obj().cap_sel(),
-        process.pd_obj().cap_sel(),
-    );
     log::trace!("delegated foreign syscall handler PTs");
 }

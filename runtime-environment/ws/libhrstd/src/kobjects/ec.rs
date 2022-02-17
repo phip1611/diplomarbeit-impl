@@ -63,7 +63,7 @@ impl LocalEcObject {
             pd_obj.cap_sel(),
             stack_top_ptr,
             // 0 is used as event base in all PDs by convention
-            0,
+            UserAppCapSpace::ExceptionEventBase.val(),
             0,
             obj.utcb_page_num(),
         )
@@ -199,7 +199,7 @@ impl GlobalEcObject {
             ec_sel,
             pd_obj.cap_sel(),
             // 0 is used as event base in all PDs by convention
-            0,
+            UserAppCapSpace::ExceptionEventBase.val(),
             0,
             obj.utcb_page_num(),
         )

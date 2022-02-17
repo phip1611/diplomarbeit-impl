@@ -134,6 +134,9 @@ impl PdObject {
     pub fn parent(&self) -> Option<Rc<Self>> {
         self.parent.as_ref().map(|x| x.upgrade()).flatten()
     }
+
+    /// The capability selector of the PD. This is always only valid in the PD that created
+    /// this object. If one shares the memory of this data structure with other PDs, it wont work.
     pub fn cap_sel(&self) -> CapSel {
         self.cap_sel
     }
@@ -174,7 +177,7 @@ impl PdObject {
     }
 
     /// Attaches a delegated PT to this PD.
-    pub fn attach_delegated_pt(&self, pt: Rc<PtObject>) {
+    pub(super) fn attach_delegated_pt(&self, pt: Rc<PtObject>) {
         self.delegated_pts.borrow_mut().insert(pt);
     }
 

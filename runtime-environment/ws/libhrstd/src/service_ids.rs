@@ -8,6 +8,11 @@ pub enum ServiceId {
     StderrService,
     AllocateService,
     FileSystemService,
+    /// Service to measure IPC costs with the portal multiplexing mechanism.
+    EchoService,
+    /// Service to measure IPC costs without the portal multiplexing mechanism
+    /// but a raw call instead.
+    RawEchoService,
     _Count,
 }
 

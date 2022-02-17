@@ -30,6 +30,8 @@ pub enum UserAppCapSpace {
     StderrServicePT = 37,
     /// Service PT that multiplexes all file operations through a single portal.
     FsServicePT = 38,
+    EchoServicePT,
+    RawEchoServicePt,
 }
 
 impl UserAppCapSpace {

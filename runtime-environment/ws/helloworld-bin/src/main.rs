@@ -37,7 +37,6 @@ use libhrstd::kobjects::{
     PtCtx,
     PtObject,
 };
-use libhrstd::libhedron::syscall::sys_pt_ctrl;
 use libhrstd::libhedron::Mtd;
 use libhrstd::mem::UserPtrOrEmbedded;
 use libhrstd::rt::services::fs::{
@@ -173,7 +172,9 @@ fn hedron_bench_native_syscall() {
     let start = Instant::now();
     let iterations = 100_000;
     for i in 0..iterations {
-        sys_pt_ctrl(pt.cap_sel(), i).expect("pt_ctrl must be executed");
+        unsafe {
+            pt.ctrl(i).expect("pt_ctrl must be executed");
+        }
     }
     let dur = Instant::now() - start;
 

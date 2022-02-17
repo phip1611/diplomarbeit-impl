@@ -13,8 +13,17 @@ use core::cell::RefCell;
 use core::cmp::Ordering;
 use core::fmt::Debug;
 use libhedron::mem::PAGE_SIZE;
-use libhedron::CapSel;
+use libhedron::syscall::{
+    sys_pd_ctrl_delegate,
+    DelegateFlags,
+    SyscallResult,
+};
 use libhedron::Utcb;
+use libhedron::{
+    CapSel,
+    CrdObjPT,
+    PTCapPermissions,
+};
 
 /// Type for a function, that is the entry from a function call.
 /// This function should wrap a [`PtObjCallbackFn`].
@@ -184,7 +193,7 @@ impl PtObject {
     }
 
     /// Store the PD object where the PT was delegated to inside the PT.
-    pub fn attach_delegated_to_pd(&self, delegated_to_pd: &Rc<PdObject>) {
+    pub(super) fn attach_delegated_to_pd(&self, delegated_to_pd: &Rc<PdObject>) {
         assert!(
             self.delegated_to_pd.borrow().is_none(),
             "can only delegate a portal once!"
@@ -201,6 +210,67 @@ impl PtObject {
         } else {
             None
         }
+    }
+
+    /// Delegates the PT to a given PD at the given selektor. Creates bidirectional references
+    /// to and from the target PD with this PT.
+    pub fn delegate(this: &Rc<Self>, target: &Rc<PdObject>, sel: CapSel) {
+        assert!(
+            this.delegated_to_pd.borrow().is_none(),
+            "a PT can only be delegated once!"
+        );
+        assert_ne!(
+            this.local_ec().pd().cap_sel(),
+            target.cap_sel(),
+            "can only get delegated to PDs other than the PD where the corresponding EC belongs to"
+        );
+
+        // TODO make it work in hybrid environments...
+
+        sys_pd_ctrl_delegate(
+            this.local_ec().pd().cap_sel(),
+            target.cap_sel(),
+            CrdObjPT::new(this.cap_sel(), 0, PTCapPermissions::CALL),
+            CrdObjPT::new(sel, 0, PTCapPermissions::CALL),
+            DelegateFlags::default(),
+        )
+        .unwrap();
+
+        // create bi-directional references
+        this.attach_delegated_to_pd(&target);
+        target.attach_delegated_pt(this.clone());
+    }
+
+    /// Performs a pt_ctrl syscall.
+    pub unsafe fn ctrl(&self, id: PortalIdentifier) -> SyscallResult {
+        #[cfg(not(feature = "foreign_rust_rt"))]
+        let syscall_fn = libhedron::syscall::sys_pt_ctrl;
+        #[cfg(feature = "foreign_rust_rt")]
+        let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_pt_ctrl;
+
+        syscall_fn(self.cap_sel, id)
+    }
+
+    /// Calls a reply on the portal. Only do this if this is the PT that got called.
+    pub unsafe fn reply(&self) -> ! {
+        //#[cfg(not(feature = "foreign_rust_rt"))]
+        let syscall_fn = libhedron::syscall::sys_reply;
+        //#[cfg(feature = "foreign_rust_rt")]
+        //let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_reply;
+
+        let ec = self.local_ec.upgrade().unwrap();
+
+        syscall_fn(ec.stack_top_ptr())
+    }
+
+    /// Calls the protal.
+    pub fn call(&self) -> SyscallResult {
+        #[cfg(not(feature = "foreign_rust_rt"))]
+        let syscall_fn = libhedron::syscall::sys_call;
+        #[cfg(feature = "foreign_rust_rt")]
+        let syscall_fn = crate::rt::hybrid_rt::syscalls::sys_hybrid_call;
+
+        syscall_fn(self.cap_sel)
     }
 }
 

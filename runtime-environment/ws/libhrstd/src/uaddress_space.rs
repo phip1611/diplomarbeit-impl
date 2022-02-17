@@ -6,6 +6,7 @@ use crate::libhedron::mem::{
 };
 
 /// Virtual page-aligned address of the [`UTCB`] in user processes.
+/// So far this is the UTCB of global EC 1. No further UTCBs supported yet.
 pub const USER_UTCB_ADDR: u64 = (USER_MAX_ADDR - PAGE_SIZE) as u64;
 
 /// Page number of [`VIRT_UTCB_ADDR`].

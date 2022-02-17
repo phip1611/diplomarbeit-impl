@@ -241,19 +241,14 @@ impl Process {
             let roottask_pt_sel = base_cap_sel_in_root + exc_i;
             let pt = roottask_exception::create_exc_pt_for_process(exc_i, roottask_pt_sel);
 
-            pt.attach_delegated_to_pd(&self.pd_obj());
-            self.pd_obj().attach_delegated_pt(pt)
+            // delegate each exception portal to the pd of the new process
+            PtObject::delegate(
+                &pt,
+                &self.pd_obj(),
+                UserAppCapSpace::ExceptionEventBase.val() + exc_i,
+            )
         }
 
-        CrdDelegateOptimizer::new(
-            base_cap_sel_in_root,
-            UserAppCapSpace::ExceptionEventBase.val(),
-            NUM_EXC,
-        )
-        .pts(
-            self.parent().unwrap().pd_obj().cap_sel(),
-            self.pd_obj().cap_sel(),
-        );
         log::trace!("created and mapped exception portals into new PD");
     }
 

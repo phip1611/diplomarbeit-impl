@@ -59,6 +59,15 @@ pub enum RootCapSpace {
     /// The SM object to put the root global EC into sleep, when its done.
     RootSmSleep = 37,
 
+    /// Local EC for the Raw Echo Service.
+    RootRawEchoServiceEc,
+
+    /// The root task can call its own echo service PT for performance measurements.
+    RootEchoServicePt,
+
+    /// The root task can call its own raw echo service PT for performance measurements.
+    RootRawEchoServicePt,
+
     /// Base CapSel for the PD of a process. This + PID => capability index offset
     ProcessPdBase = PROCESS_PD_BASE,
     /// Last inclusive index relative to [`ProcessPdBase`].

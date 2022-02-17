@@ -24,10 +24,6 @@
 #![deny(missing_debug_implementations)]
 #![deny(rustdoc::all)]
 
-use core::arch::global_asm;
-use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::kobjects::SmObject;
-
 // any global definitions required to be in assembly
 global_asm!(include_str!("assembly.S"));
 
@@ -48,11 +44,16 @@ use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
+use core::arch::global_asm;
+use libhrstd::cap_space::root::RootCapSpace;
+use libhrstd::kobjects::SmObject;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
+use libhrstd::time::Instant;
 use libroottask::process_mng::manager;
 use libroottask::rt::userland;
+use libroottask::services::init_roottask_echo_pts;
 use libroottask::static_alloc::GlobalStaticChunkAllocator;
 use libroottask::{
     roottask_exception,
@@ -106,16 +107,10 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
     services::init_services(manager::PROCESS_MNG.lock().root());
 
-    log::info!("Rust Roottask started & bootstrapped");
+    log::info!("Rust Roottask started successfully");
+    do_bench();
 
     // NOW READY TO START PROCESSES
-
-    /* TEST IPC
-    let msg = "hallo welt 123 fooa\n";
-    utcb.store_data(&msg).unwrap();
-    call(RootCapSpace::RoottaskStdoutServicePortal.val()).unwrap();
-    log::info!("done");*/
-
     let userland = userland::InitialUserland::load(hip);
     userland.bootstrap();
     log::info!("Userland bootstrapped");
@@ -126,7 +121,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     let _z = x * y;
     */
 
-    /* test: trigger devided by zero exception */
+    /* test: trigger divided by zero exception */
     /*{
         unsafe { asm!("mov rax, 5", "mov rdi, 0", "div rax, rdi") };
     }*/
@@ -141,4 +136,53 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     // Puts the main thread to sleep nicely; there is no need for a busy loop
     root_sm.sem_down();
     unreachable!();
+}
+
+fn do_bench() {
+    log::info!("benchmarking starts");
+    let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
+    const ITERATIONS: u64 = 10_000_000;
+    // ############################################################################
+    // MEASURE NATIVE SYSTEM CALL PERFORMANCE
+    let begin = Instant::now();
+    for i in 0..ITERATIONS {
+        unsafe {
+            raw_echo_pt.ctrl(i).unwrap();
+        }
+    }
+    let dur_pt_ctrl = Instant::now() - begin;
+    // ############################################################################
+    // MEASURE ECHO SYSCALL PERFORMANCE (PD-internal IPC with my PT multiplexing mechanism)
+    let begin = Instant::now();
+    for _ in 0..ITERATIONS {
+        echo_pt.call().unwrap();
+    }
+    let dur_echo = Instant::now() - begin;
+    // ############################################################################
+    // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
+    let begin = Instant::now();
+    for _ in 0..ITERATIONS {
+        raw_echo_pt.call().unwrap();
+    }
+    let dur_raw_echo = Instant::now() - begin;
+    // ############################################################################
+
+    let native_syscall_costs = dur_pt_ctrl / ITERATIONS;
+    let echo_call_costs = dur_echo / ITERATIONS;
+    let raw_echo_call_costs = dur_raw_echo / ITERATIONS;
+
+    log::info!(
+        "native pt_ctrl syscall costs costs: {} ticks / pt_ctrl syscall",
+        native_syscall_costs
+    );
+    log::info!(
+        "raw echo call costs               : {} ticks / call syscall (PD-internal IPC)",
+        raw_echo_call_costs
+    );
+    log::info!(
+        "echo call costs                   : {} ticks / call syscall (PD-internal IPC)",
+        echo_call_costs
+    );
+
+    log::info!("benchmarking done");
 }
