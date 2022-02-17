@@ -29,6 +29,8 @@ pub const UNTYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<UntypedI
 /// Capacity count for typed items in UTCB Data area.
 pub const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>();
 
+const NATIVE_SYSTEM_CALL_TOGGLE: u64 = 1 << 63;
+
 #[derive(Clone, Debug)]
 pub enum UtcbError {
     /// Indicates that the payload is larger than [`UTCB_DATA_CAPACITY`].
@@ -110,6 +112,16 @@ impl Utcb {
     /// Sets the "thread local storage"-field from the UTCB head.
     pub const fn set_head_tls(&mut self, val: u64) {
         self.head.tls = val;
+    }
+
+    /// Sets the native system call toggle (NSCT).
+    pub const fn enable_nsct(&mut self) {
+        self.head.tls |= NATIVE_SYSTEM_CALL_TOGGLE;
+    }
+
+    /// Unsets the native system call toggle (NSCT).
+    pub const fn disable_nsct(&mut self) {
+        self.head.tls &= !NATIVE_SYSTEM_CALL_TOGGLE;
     }
 
     /// Sets the number of untyped items.

@@ -34,8 +34,6 @@ use libhedron::{
     Crd,
 };
 
-const HEDRON_NATIVE_SYSCALL_MAGIC: u64 = 1 << 63;
-
 /// Wraps a single Hedron syscall. The code inside `actions`
 /// should not do any more than the raw syscall. Things as
 /// unwrapping on an `Err` will already break everything,
@@ -47,9 +45,9 @@ where
     T: Fn() -> R,
 {
     let utcb = user_load_utcb_mut();
-    utcb.set_head_tls(HEDRON_NATIVE_SYSCALL_MAGIC);
+    utcb.enable_nsct();
     let res = actions();
-    utcb.set_head_tls(0);
+    utcb.disable_nsct();
     res
 }
 
