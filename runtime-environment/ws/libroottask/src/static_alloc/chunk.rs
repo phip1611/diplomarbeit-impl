@@ -209,8 +209,12 @@ impl<'a, const CHUNK_SIZE: usize> ChunkAllocator<'a, CHUNK_SIZE> {
             "chunk_num must be greater than 0! Allocating 0 blocks makes no sense"
         );
         let mut begin_chunk_i = self.find_next_free_chunk_aligned(Some(0), alignment)?;
-        let out_of_mem_cond = begin_chunk_i + (chunk_num - 1) >= self.chunk_count();
-        while !out_of_mem_cond {
+        loop {
+            let out_of_mem_cond = begin_chunk_i + (chunk_num - 1) >= self.chunk_count();
+            if out_of_mem_cond {
+                break;
+            }
+
             // this var counts how many coherent chunks we found while iterating the bitmap
             let mut coherent_chunk_count = 1;
             for chunk_chain_i in 1..=chunk_num {
