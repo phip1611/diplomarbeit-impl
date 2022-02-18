@@ -51,6 +51,7 @@ use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
 use libhrstd::time::Instant;
+use libhrstd::util::BenchHelper;
 use libroottask::process_mng::manager;
 use libroottask::rt::userland;
 use libroottask::services::init_roottask_echo_pts;
@@ -140,38 +141,24 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
 /// Performs several PD-internal IPC benchmarks and measures native system call
 /// performance from a Native Hedron App (i.e. the roottask).
-fn do_bench(utcb: &mut Utcb) {
+fn do_bench() {
     log::info!("benchmarking starts");
     let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
-    const ITERATIONS: u64 = 10_000_000;
     // ############################################################################
     // MEASURE NATIVE SYSTEM CALL PERFORMANCE
-    let begin = Instant::now();
-    for i in 0..ITERATIONS {
-        unsafe {
-            raw_echo_pt.ctrl(i).unwrap();
-        }
-    }
-    let dur_pt_ctrl = Instant::now() - begin;
+    let mut bench = BenchHelper::new(|i| unsafe {
+        raw_echo_pt.ctrl(i).unwrap();
+    });
+    let native_syscall_costs = bench.bench();
     // ############################################################################
     // MEASURE ECHO SYSCALL PERFORMANCE (PD-internal IPC with my PT multiplexing mechanism)
-    let begin = Instant::now();
-    for _ in 0..ITERATIONS {
-        echo_pt.call().unwrap();
-    }
-    let dur_echo = Instant::now() - begin;
+    let mut bench = BenchHelper::new(|_| echo_pt.call().unwrap());
+    let echo_call_costs = bench.bench();
     // ############################################################################
     // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
-    let begin = Instant::now();
-    for _ in 0..ITERATIONS {
-        raw_echo_pt.call().unwrap();
-    }
-    let dur_raw_echo = Instant::now() - begin;
+    let mut bench = BenchHelper::new(|_| raw_echo_pt.call().unwrap());
+    let raw_echo_call_costs = bench.bench();
     // ############################################################################
-
-    let native_syscall_costs = dur_pt_ctrl / ITERATIONS;
-    let echo_call_costs = dur_echo / ITERATIONS;
-    let raw_echo_call_costs = dur_raw_echo / ITERATIONS;
 
     log::info!(
         "native pt_ctrl syscall costs costs: {} ticks / pt_ctrl syscall",
