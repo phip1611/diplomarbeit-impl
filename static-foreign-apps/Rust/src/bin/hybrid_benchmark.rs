@@ -43,6 +43,7 @@ fn pt_entry(_id: PortalIdentifier) -> ! {
 /// Executes a Hedron syscall from a foreign app multiple
 /// times and calculates the average clock ticks per call.
 fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
+    println!();
     println!("BENCH: NATIVE SYSCALL FROM HYBRID FOREIGN APP");
     let self_pd = PdObject::self_in_user_cap_space(UserAppCapSpace::Pd.val());
     // I never use the local ec; i.e. call a PT on it; I just need it to attach a PT to it for the
@@ -68,6 +69,7 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 ///
 /// This is a Cross-PD IPC.
 fn hedron_bench_foreign_set_tid_address_syscall() {
+    println!();
     println!("BENCH: FOREIGN SYSCALL FROM FOREIGN APP");
     let iterations = 1_000_000;
     let begin = HedronInstant::now();
@@ -86,6 +88,7 @@ fn hedron_bench_foreign_set_tid_address_syscall() {
 /// Executes a cheap Hedron system call from the Linux App multiple
 /// times and calculates the average clock ticks per call.
 fn linux_bench_read_syscall() {
+    println!();
     // TODO rethink bench
     println!("LINUX BENCH: Raw system call performance");
     let fd = unsafe {
@@ -107,6 +110,7 @@ fn linux_bench_read_syscall() {
 /// Calculates the average time to call the RAW ECHO SERVICE PT. This is the raw cost of
 /// cross-PD IPC.
 fn hedron_bench_raw_echo_pt_call() {
+    println!();
     println!("BENCH: RAW ECHO SERVICE PT");
 
     let iterations = 10_000_000;
@@ -116,12 +120,13 @@ fn hedron_bench_raw_echo_pt_call() {
     }
     let duration_ticks = HedronInstant::now() - begin;
     println!("{}x calling raw echo service took {} ticks", iterations, duration_ticks);
-    println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_ticks / iterations);
+    println!("avg: {} ticks / syscall (raw Cross-PD IPC)", duration_ticks / iterations);
 }
 
 /// Calculates the average time to call the REGULAR ECHO SERVICE PT. This is the cost of
 /// cross-PD IPC including my PT multiplexing mechanism.
 fn hedron_bench_echo_pt_call() {
+    println!();
     println!("BENCH: ECHO SERVICE PT");
 
     let iterations = 10_000_000;
