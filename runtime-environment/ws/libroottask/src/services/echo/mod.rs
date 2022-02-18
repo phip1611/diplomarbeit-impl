@@ -109,6 +109,6 @@ pub fn echo_service_handler(
 
 /// Cheap handler for the raw echo service PT.
 fn raw_echo_pt_cb(_: PortalIdentifier) -> ! {
-    log::trace!("raw echo pt called!");
+    // log::trace!("raw echo pt called!");
     sys_reply(unsafe { RAW_ECHO_SERVICE_STACK.get_stack_top_ptr() } as u64)
 }

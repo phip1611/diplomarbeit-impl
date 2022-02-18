@@ -138,7 +138,9 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     unreachable!();
 }
 
-fn do_bench() {
+/// Performs several PD-internal IPC benchmarks and measures native system call
+/// performance from a Native Hedron App (i.e. the roottask).
+fn do_bench(utcb: &mut Utcb) {
     log::info!("benchmarking starts");
     let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
     const ITERATIONS: u64 = 10_000_000;

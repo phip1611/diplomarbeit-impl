@@ -14,7 +14,7 @@ bitflags! {
     /// the architectural state associated with that bit either to/from the
     /// respective fields of the UTCB data area or directly in architectural registers.
     pub struct Mtd: u64 {
-        // took everything 1:1 from Hedro: mtd.hpp
+        // took everything from Hedron: mtd.hpp
 
         /// Stands for registers `rAx, rBx, rCx, rDx`.
         const GPR_ACDB = 1 << 0;
@@ -51,12 +51,13 @@ bitflags! {
         const TPR = 1 << 28;
 
         const TLB = 1 << 30;
+        /// Attention. Julian said this is 1) inefficient af und 2) about to change. Only
+        /// vCPUs need this currently. Never activate this for regular exception stuff
+        /// (such as the foreign system call portal) because it it soo expensive
         const FPU = 1 << 31;
 
-        const NONE = 0;
-
-        // the first 24 bits are default
-        // I took this from mtd.hpp in supernova-core
+        /// The first 24 bits are default.
+        /// I took this from mtd.hpp in supernova-core.
         const DEFAULT = 0xffffff;
     }
 }

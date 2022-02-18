@@ -140,7 +140,7 @@ pub fn create_exc_pt_for_process(exc_offset: u64, portal_cap_sel: CapSel) -> Rc<
     let pt = PtObject::create(
         portal_cap_sel,
         &ec,
-        Mtd::all(),
+        Mtd::DEFAULT,
         roottask_generic_portal_callback,
         Exception(exc_offset),
     );

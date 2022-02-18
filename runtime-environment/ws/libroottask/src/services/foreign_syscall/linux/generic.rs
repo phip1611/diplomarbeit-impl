@@ -17,8 +17,10 @@ use crate::services::foreign_syscall::linux::signalstack::SignalStackSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
 use crate::services::foreign_syscall::linux::write::WriteSyscall;
 use crate::services::foreign_syscall::linux::write_v::WriteVSyscall;
-use crate::services::foreign_syscall::linux::LinuxSyscallImpl;
-use alloc::boxed::Box;
+use crate::services::foreign_syscall::linux::{
+    LinuxSyscallImpl,
+    LinuxSyscallResult,
+};
 use core::fmt::Debug;
 use libhrstd::libhedron::ipc_serde::__private::Formatter;
 use libhrstd::libhedron::Mtd;
@@ -64,54 +66,36 @@ impl GenericLinuxSyscall {
         // all Linux syscalls put their result in RAX => save general purpose registers
         utcb_exc.mtd |= Mtd::GPR_ACDB;
 
-        /*let mapping_dest = VIRT_MEM_ALLOC
-            .lock()
-            .next_addr(Layout::from_size_align(PAGE_SIZE, PAGE_SIZE).unwrap());
-        CrdDelegateOptimizer::new(
-            utcb_exc.rip / PAGE_SIZE as u64,
-            mapping_dest / PAGE_SIZE as u64,
-            1,
-        )
-        .mmap(101, 32, MemCapPermissions::all());
-        let ptr = mapping_dest as *const u8;
-        let bytes = unsafe { core::slice::from_raw_parts(ptr, PAGE_SIZE) };
-
-        let rip_offset = utcb_exc.rip & 0xfff;
-        let first_16_bytes = &bytes[rip_offset as usize..16 + rip_offset as usize];
-        for byte in first_16_bytes {
-            log::debug!("{:x}", *byte);
-        }*/
-
-        let syscall_impl: Box<dyn LinuxSyscallImpl> = match self.rax {
-            LinuxSyscallNum::Read => Box::new(ReadSyscall::from(self)),
-            LinuxSyscallNum::Write => Box::new(WriteSyscall::from(self)),
-            LinuxSyscallNum::Open => Box::new(OpenSyscall::from(self)),
-            LinuxSyscallNum::Close => Box::new(CloseSyscall::from(self)),
-            LinuxSyscallNum::Fstat => Box::new(FstatSyscall::from(self)),
-            LinuxSyscallNum::Poll => Box::new(PollSyscall::from(self)),
-            LinuxSyscallNum::LSeek => Box::new(LSeekSyscall::from(self)),
-            LinuxSyscallNum::MMap => Box::new(MMapSyscall::from(self)),
+        #[rustfmt::skip]
+        let res: LinuxSyscallResult = match self.rax {
+            LinuxSyscallNum::Read => ReadSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Write => WriteSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Open => OpenSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Close => CloseSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Fstat => FstatSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Poll => PollSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::LSeek => LSeekSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::MMap => MMapSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::MProtect => todo!("LinuxSyscallNum::MProtect"),
             LinuxSyscallNum::MUnmap => todo!("LinuxSyscallNum::MUnmap"),
-            LinuxSyscallNum::Brk => Box::new(BrkSyscall::from(self)),
-            LinuxSyscallNum::RtSigaction => Box::new(RtSigactionSyscall::from(self)),
-            LinuxSyscallNum::RtSigprocmask => Box::new(RtSigProcMaskSyscall::from(self)),
-            LinuxSyscallNum::Ioctl => Box::new(IoctlSyscall::from(self)),
-            LinuxSyscallNum::WriteV => Box::new(WriteVSyscall::from(self)),
+            LinuxSyscallNum::Brk => BrkSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::RtSigaction => RtSigactionSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::RtSigprocmask => RtSigProcMaskSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Ioctl => IoctlSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::WriteV => WriteVSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Clone => todo!("LinuxSyscallNum::Clone"),
-            LinuxSyscallNum::Fcntl => Box::new(FcntlSyscall::from(self)),
-            LinuxSyscallNum::SigAltStack => Box::new(SignalStackSyscall::from(self)),
-            LinuxSyscallNum::ArchPrctl => Box::new(ArchPrctlSyscall::from(self)),
+            LinuxSyscallNum::Fcntl => FcntlSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::SigAltStack => SignalStackSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::ArchPrctl => ArchPrctlSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Gettid => todo!("LinuxSyscallNum::Gettid"),
             LinuxSyscallNum::Futex => todo!("LinuxSyscallNum::Futex"),
             LinuxSyscallNum::SchedGetAffinity => todo!("LinuxSyscallNum::SchedGetAffinity"),
-            LinuxSyscallNum::SetTidAddress => Box::new(SetTidAddressSyscall::from(self)),
+            LinuxSyscallNum::SetTidAddress => SetTidAddressSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::ExitGroup => todo!("LinuxSyscallNum::ExitGroup"),
             LinuxSyscallNum::ReadLinkAt => todo!("LinuxSyscallNum::ReadLinkAt"),
             LinuxSyscallNum::PrLimit64 => todo!("LinuxSyscallNum::PrLimit64"),
         };
-        log::debug!("Linux syscall: {:?}", syscall_impl);
-        utcb_exc.rax = syscall_impl.handle(utcb_exc, process).val();
+        utcb_exc.rax = res.val();
     }
 }
 

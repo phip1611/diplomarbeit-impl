@@ -81,7 +81,8 @@ pub fn create_and_delegate_syscall_handler_pts(process: &Process) {
         let pt = PtObject::create(
             cap_sel,
             ec_lock,
-            Mtd::all(),
+            // Julian: Niemals FPU hier; viel schneller und das wird nur für vCPUs benötigt
+            Mtd::DEFAULT,
             roottask_generic_portal_callback,
             PtCtx::ForeignSyscall,
         );
