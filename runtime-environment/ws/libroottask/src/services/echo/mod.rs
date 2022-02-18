@@ -27,6 +27,8 @@ static mut RAW_ECHO_SERVICE_STACK: StaticStack<4> = StaticStack::new();
 
 static RAW_ECHO_SERVICE_LOCAL_EC: SimpleMutex<Option<Rc<LocalEcObject>>> = SimpleMutex::new(None);
 
+const ECHO_PT_MTD: Mtd = Mtd::BENCH;
+
 /// Creates a local EC
 pub fn init_echo_raw_service(root: &Process) {
     let mut lock = RAW_ECHO_SERVICE_LOCAL_EC.lock();
@@ -55,7 +57,7 @@ pub(super) fn create_service_pts_fot_roottask(
     let echo_service_pt = PtObject::create(
         RootCapSpace::RootEchoServicePt.val(),
         &service_ec,
-        Mtd::empty(),
+        ECHO_PT_MTD,
         roottask_generic_portal_callback,
         PtCtx::Service(ServiceId::EchoService),
     );
@@ -63,7 +65,7 @@ pub(super) fn create_service_pts_fot_roottask(
     let raw_echo_service_pt = PtObject::create(
         RootCapSpace::RootRawEchoServicePt.val(),
         &RAW_ECHO_SERVICE_LOCAL_EC.lock().as_ref().unwrap(),
-        Mtd::empty(),
+        ECHO_PT_MTD,
         raw_echo_pt_cb,
         PtCtx::Service(ServiceId::RawEchoService),
     );
@@ -81,7 +83,7 @@ pub fn create_service_pts(
     let echo_service_pt = PtObject::create(
         base_cap_sel + ServiceId::EchoService.val(),
         &service_ec,
-        Mtd::empty(),
+        ECHO_PT_MTD,
         roottask_generic_portal_callback,
         PtCtx::Service(ServiceId::EchoService),
     );
@@ -89,7 +91,7 @@ pub fn create_service_pts(
     let raw_echo_service_pt = PtObject::create(
         base_cap_sel + ServiceId::RawEchoService.val(),
         &RAW_ECHO_SERVICE_LOCAL_EC.lock().as_ref().unwrap(),
-        Mtd::empty(),
+        ECHO_PT_MTD,
         raw_echo_pt_cb,
         PtCtx::Service(ServiceId::RawEchoService),
     );

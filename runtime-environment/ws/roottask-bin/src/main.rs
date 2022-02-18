@@ -48,8 +48,11 @@ use core::arch::global_asm;
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::SmObject;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
+use libhrstd::libhedron::{
+    Mtd,
+    Utcb,
+};
 use libhrstd::time::Instant;
 use libroottask::process_mng::manager;
 use libroottask::rt::userland;
@@ -63,7 +66,7 @@ use libroottask::{
 #[no_mangle]
 fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     let hip = unsafe { (hip_addr as *const HIP).as_ref().unwrap() };
-    let _utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
+    let utcb = unsafe { (utcb_addr as *mut Utcb).as_mut().unwrap() };
 
     services::init_writers(hip);
     roottask_logger::init();
@@ -108,7 +111,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     services::init_services(manager::PROCESS_MNG.lock().root());
 
     log::info!("Rust Roottask started successfully");
-    do_bench();
+    do_bench(utcb);
 
     // NOW READY TO START PROCESSES
     let userland = userland::InitialUserland::load(hip);
@@ -143,7 +146,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 fn do_bench(utcb: &mut Utcb) {
     log::info!("benchmarking starts");
     let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
-    const ITERATIONS: u64 = 10_000_000;
+    const ITERATIONS: u64 = 100_000;
     // ############################################################################
     // MEASURE NATIVE SYSTEM CALL PERFORMANCE
     let begin = Instant::now();
@@ -161,6 +164,24 @@ fn do_bench(utcb: &mut Utcb) {
     }
     let dur_echo = Instant::now() - begin;
     // ############################################################################
+    // MEASURE RAW EXCEPTION IPC PERFORMANCE (pure PD-internal IPC)
+    // To influence this value you may change the Mtd assigned to the echo raw PT
+    // where it gets created. For example, if FPU is present or not will influence the
+    // performance.
+
+    //utcb.enable_store_ipc_exc();
+    let begin = Instant::now();
+    for _ in 0..ITERATIONS {
+        // for each iteration the kernel should:
+        // 1) load the exception data (CPU state) of the caller into the UTCB of the
+        //    receiver after call()
+        // 2) copy the exception data (CPU state) in the UTCB of the callee into the
+        //    CPU state data structure of the original caller (i.e. the roottask's global EC)
+        raw_echo_pt.call().unwrap();
+    }
+    let dur_exception_ipc = Instant::now() - begin;
+    //utcb.disable_store_ipc_exc();
+    // ############################################################################
     // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
     let begin = Instant::now();
     for _ in 0..ITERATIONS {
@@ -172,17 +193,31 @@ fn do_bench(utcb: &mut Utcb) {
     let native_syscall_costs = dur_pt_ctrl / ITERATIONS;
     let echo_call_costs = dur_echo / ITERATIONS;
     let raw_echo_call_costs = dur_raw_echo / ITERATIONS;
+    let raw_exception_ipc_costs = dur_exception_ipc / ITERATIONS;
 
     log::info!(
-        "native pt_ctrl syscall costs costs: {} ticks / pt_ctrl syscall",
+        "native pt_ctrl syscall costs costs   : {} ticks / pt_ctrl syscall",
         native_syscall_costs
     );
     log::info!(
-        "raw echo call costs               : {} ticks / call syscall (PD-internal IPC)",
+        "raw echo call costs                  : {} ticks / call syscall (PD-internal IPC)",
         raw_echo_call_costs
     );
+    assert!(
+        !raw_echo_pt.mtd().is_empty(),
+        "for the benchmark, Hedron must handle the MTD as expected! Make sure the PT has an appropriate MTD"
+    );
     log::info!(
-        "echo call costs                   : {} ticks / call syscall (PD-internal IPC)",
+        "raw exception ipc costs ({:<11}): {} ticks / call syscall (PD-internal exception IPC)",
+        if utcb.exception_data().mtd.contains(Mtd::FPU) {
+            &"with FPU"
+        } else {
+            &"without FPU"
+        },
+        raw_exception_ipc_costs
+    );
+    log::info!(
+        "echo call costs                      : {} ticks / call syscall (PD-internal IPC)",
         echo_call_costs
     );
 

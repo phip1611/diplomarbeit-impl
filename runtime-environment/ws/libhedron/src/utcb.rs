@@ -31,6 +31,9 @@ pub const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>
 
 const NATIVE_SYSTEM_CALL_TOGGLE: u64 = 1 << 63;
 
+/// Magic flag for [`enable_store_ipc_exc`].
+const STORE_IPC_EXCEPTION_TOGGLE: u64 = 1 << 62;
+
 #[derive(Clone, Debug)]
 pub enum UtcbError {
     /// Indicates that the payload is larger than [`UTCB_DATA_CAPACITY`].
@@ -122,6 +125,18 @@ impl Utcb {
     /// Unsets the native system call toggle (NSCT).
     pub const fn disable_nsct(&mut self) {
         self.head.tls &= !NATIVE_SYSTEM_CALL_TOGGLE;
+    }
+
+    /// Enables that during a regular IPC a full exception message (MTD=max)
+    /// gets saved into the UTCB instead of the regular UTCB payload. This is
+    /// useful for measurements of the "exception IPC" mechanism.
+    pub const fn enable_store_ipc_exc(&mut self) {
+        self.head.tls |= STORE_IPC_EXCEPTION_TOGGLE;
+    }
+
+    /// Opposite of [`enable_store_ipc_exc`].
+    pub const fn disable_store_ipc_exc(&mut self) {
+        self.head.tls &= !STORE_IPC_EXCEPTION_TOGGLE;
     }
 
     /// Sets the number of untyped items.

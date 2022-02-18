@@ -59,5 +59,9 @@ bitflags! {
         /// The first 24 bits are default.
         /// I took this from mtd.hpp in supernova-core.
         const DEFAULT = 0xffffff;
+
+        /// The first 24 bits without RIP. Useful for my benchmarking of exception
+        /// IPC together with the changes in Hedron. No set
+        const BENCH = Self::DEFAULT.bits & !Self::RIP_LEN.bits;
     }
 }

@@ -6,6 +6,7 @@ use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use std::env::var;
 use libhrstd::rt::services::echo::{call_echo_service, call_raw_echo_service};
+use libhrstd::rt::user_load_utcb::user_load_utcb_mut;
 
 
 // This executable is what I use for the evaluation of
@@ -30,6 +31,7 @@ fn main() {
         hedron_bench_foreign_set_tid_address_syscall();
         hedron_bench_raw_echo_pt_call();
         hedron_bench_echo_pt_call();
+        hedron_bench_exception_ipc();
     } else {
         println!("This Linux binary executes under native Linux");
         linux_bench_read_syscall();
@@ -137,4 +139,30 @@ fn hedron_bench_echo_pt_call() {
     let duration_ticks = HedronInstant::now() - begin;
     println!("{}x calling regular echo service took {} ticks", iterations, duration_ticks);
     println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_ticks / iterations);
+}
+
+/// Similar to the raw echo pt service bench, but this time Hedron gets instructed to save
+/// a full exception message layout into the UTCB.
+///
+/// The time from this minus the time for the raw echp service time is the time
+/// the save_exc() and load_exc() mechanism in Hedron takes.
+fn hedron_bench_exception_ipc() {
+    println!();
+    println!("BENCH: RAW EXCEPTION IPC");
+    let iterations = 1;
+    let utcb = user_load_utcb_mut();
+    utcb.enable_store_ipc_exc();
+    let begin = HedronInstant::now();
+    for _ in 0..iterations {
+        // for each iteration the kernel should:
+        // 1) load the exception data (CPU state) of the caller into the UTCB of the
+        //    receiver after call()
+        // 2) copy the exception data (CPU state) in the UTCB of the callee into the
+        //    CPU state data structure of the original caller (i.e. the roottask's global EC)
+        call_raw_echo_service();
+    }
+    let duration_ticks = HedronInstant::now() - begin;
+    utcb.disable_store_ipc_exc();
+    println!("{}x raw exception IPC took {} ticks", iterations, duration_ticks);
+    println!("avg: {} ticks / syscall (raw Cross-PD Exception IPC)", duration_ticks / iterations);
 }
