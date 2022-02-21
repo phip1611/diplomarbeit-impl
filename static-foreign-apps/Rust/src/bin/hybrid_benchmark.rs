@@ -52,11 +52,9 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
     // some PT I never use; I just need it to be created
     let pt = PtObject::create(1001, &local_ec, Mtd::DEFAULT, pt_entry, PtCtx::ForeignSyscall);
 
-    let mut bench = BenchHelper::new(|i|  unsafe {
+    let duration_per_iteration = BenchHelper::bench(|i|  unsafe {
         pt.ctrl(i).expect("pt_ctrl must be executed");
     });
-
-    let duration_per_iteration = bench.bench();
     println!("avg: {} ticks / syscall (Native Syscall from Hybrid App)", duration_per_iteration);
 }
 
@@ -67,12 +65,11 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 fn hedron_bench_foreign_set_tid_address_syscall() {
     println!();
     println!("BENCH: FOREIGN SYSCALL FROM FOREIGN APP");
-    let mut bench = BenchHelper::new(|_|  unsafe {
+    let duration_per_iteration = BenchHelper::bench(|_|  unsafe {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         libc::syscall(libc::SYS_set_tid_address);
     });
-    let duration_per_iteration = bench.bench();
     println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_per_iteration);
 }
 
@@ -98,8 +95,7 @@ fn linux_bench_read_syscall() {
 fn hedron_bench_raw_echo_pt_call() {
     println!();
     println!("BENCH: RAW ECHO SERVICE PT");
-    let mut bench = BenchHelper::new(|_| call_raw_echo_service());
-    let duration_per_iteration = bench.bench();
+    let duration_per_iteration = BenchHelper::bench(|_| call_raw_echo_service());
     println!("avg: {} ticks / syscall (raw Cross-PD IPC)", duration_per_iteration);
 }
 
@@ -108,7 +104,6 @@ fn hedron_bench_raw_echo_pt_call() {
 fn hedron_bench_echo_pt_call() {
     println!();
     println!("BENCH: ECHO SERVICE PT");
-    let mut bench = BenchHelper::new(|_| call_echo_service());
-    let duration_per_iteration = bench.bench();
+    let duration_per_iteration = BenchHelper::bench(|_| call_echo_service());
     println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_per_iteration);
 }

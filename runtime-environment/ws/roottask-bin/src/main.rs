@@ -146,18 +146,15 @@ fn do_bench() {
     let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
     // ############################################################################
     // MEASURE NATIVE SYSTEM CALL PERFORMANCE
-    let mut bench = BenchHelper::new(|i| unsafe {
+    let native_syscall_costs = BenchHelper::bench(|i| unsafe {
         raw_echo_pt.ctrl(i).unwrap();
     });
-    let native_syscall_costs = bench.bench();
     // ############################################################################
     // MEASURE ECHO SYSCALL PERFORMANCE (PD-internal IPC with my PT multiplexing mechanism)
-    let mut bench = BenchHelper::new(|_| echo_pt.call().unwrap());
-    let echo_call_costs = bench.bench();
+    let echo_call_costs = BenchHelper::bench(|_| echo_pt.call().unwrap());
     // ############################################################################
     // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
-    let mut bench = BenchHelper::new(|_| raw_echo_pt.call().unwrap());
-    let raw_echo_call_costs = bench.bench();
+    let raw_echo_call_costs = BenchHelper::bench(|_| raw_echo_pt.call().unwrap());
     // ############################################################################
 
     log::info!(

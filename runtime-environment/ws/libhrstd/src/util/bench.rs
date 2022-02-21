@@ -34,10 +34,12 @@ where
 
     /// Performs warm-up iterations and executes the bench afterwards.
     /// Returns the duration per iteration.
-    pub fn bench(&mut self) -> DurationPerIteration {
-        (0..Self::WARMUP_ITERATIONS).for_each(|i| (self.fnc)(i));
+    ///
+    /// Consumes self so that captured mutable references get released.
+    pub fn bench(mut fnc: F) -> DurationPerIteration {
+        (0..Self::WARMUP_ITERATIONS).for_each(|i| fnc(i));
         let begin = Instant::now();
-        (0..Self::BENCH_ITERATIONS).for_each(|i| (self.fnc)(i));
+        (0..Self::BENCH_ITERATIONS).for_each(|i| fnc(i));
         (Instant::now() - begin) / Self::BENCH_ITERATIONS
     }
 }
