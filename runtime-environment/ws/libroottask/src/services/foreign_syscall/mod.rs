@@ -19,7 +19,7 @@ mod linux;
 
 pub fn handle_foreign_syscall(
     _pt: &Rc<PtObject>,
-    process: &Process,
+    process: &Rc<Process>,
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {

@@ -5,6 +5,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use core::mem::size_of;
 use libfileserver::FileStat;
@@ -33,7 +34,11 @@ impl From<&GenericLinuxSyscall> for FstatSyscall {
 }
 
 impl LinuxSyscallImpl for FstatSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         let fstat = libfileserver::fs_fstat(process.pid(), self.fd).unwrap();
 
         let u_page_offset = self.u_ptr_statbuf & 0xfff;

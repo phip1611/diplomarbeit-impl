@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
@@ -21,7 +22,11 @@ impl From<&GenericLinuxSyscall> for CloseSyscall {
 }
 
 impl LinuxSyscallImpl for CloseSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         libfileserver::fs_close(process.pid(), self.fd).unwrap();
 
         LinuxSyscallResult::new_success(0)

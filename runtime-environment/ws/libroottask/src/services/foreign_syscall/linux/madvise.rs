@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use libhrstd::libhedron::UtcbDataException;
 
 #[derive(Debug)]
@@ -24,7 +25,11 @@ impl From<&GenericLinuxSyscall> for MAdviseSyscall {
 }
 
 impl LinuxSyscallImpl for MAdviseSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        _process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // log::info!("{:#?}", self);
         LinuxSyscallResult::new_success(0)
     }

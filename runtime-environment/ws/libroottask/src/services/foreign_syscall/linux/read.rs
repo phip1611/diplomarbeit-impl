@@ -5,6 +5,8 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use crate::services::MAPPED_AREAS;
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use core::cmp::min;
 use libhrstd::libhedron::mem::PAGE_SIZE;
@@ -34,41 +36,24 @@ impl From<&GenericLinuxSyscall> for ReadSyscall {
 }
 
 impl LinuxSyscallImpl for ReadSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         let data = libfileserver::fs_read(process.pid(), self.fd, self.count).unwrap();
 
-        if data.is_empty() {
-            return LinuxSyscallResult::new_success(0);
-        }
-
-        // roottask mapping destination
-        let r_mapping = VIRT_MEM_ALLOC
+        let mapping = MAPPED_AREAS
             .lock()
-            .next_addr(Layout::from_size_align(self.count, PAGE_SIZE).unwrap());
+            .create_get_mapping(process, self.user_buf as u64, self.count as u64)
+            .clone();
 
-        let u_page_offset = self.user_buf as usize & 0xfff;
-        let byte_amount = u_page_offset + self.count;
-        let page_count = calc_page_count(byte_amount);
-        CrdDelegateOptimizer::new(
-            self.user_buf as u64 / PAGE_SIZE as u64,
-            r_mapping / PAGE_SIZE as u64,
-            page_count,
-        )
-        .mmap(
-            // from calling process
-            process.pd_obj().cap_sel(),
-            // to roottask
-            process.parent().unwrap().pd_obj().cap_sel(),
-            MemCapPermissions::READ | MemCapPermissions::WRITE,
-        );
-
-        let bytes_written = min(self.count, data.len());
+        let bytes_read = min(self.count, data.len());
 
         unsafe {
-            let w_ptr = (r_mapping + u_page_offset as u64) as *mut u8;
-            core::ptr::copy(data.as_ptr(), w_ptr, bytes_written);
+            core::ptr::copy(data.as_ptr(), mapping.begin_ptr_mut(), bytes_read);
         }
 
-        LinuxSyscallResult::new_success(bytes_written as u64)
+        LinuxSyscallResult::new_success(bytes_read as u64)
     }
 }

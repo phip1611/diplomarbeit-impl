@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Allocator;
 use core::alloc::Layout;
 use core::ptr::null;
@@ -30,7 +31,11 @@ impl From<&GenericLinuxSyscall> for BrkSyscall {
 }
 
 impl LinuxSyscallImpl for BrkSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         if self.addr == null() {
             LinuxSyscallResult::new_success(process.heap_ptr().load(Ordering::SeqCst))
         } else {

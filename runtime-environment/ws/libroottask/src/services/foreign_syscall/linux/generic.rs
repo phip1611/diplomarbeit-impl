@@ -22,6 +22,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::fmt::Debug;
 use libhrstd::libhedron::ipc_serde::__private::Formatter;
 use libhrstd::libhedron::Mtd;
@@ -63,7 +64,7 @@ impl GenericLinuxSyscall {
         self.r9_arg5
     }
 
-    pub fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) {
+    pub fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Rc<Process>) {
         // all Linux syscalls put their result in RAX => save general purpose registers
         utcb_exc.mtd |= Mtd::GPR_ACDB;
 

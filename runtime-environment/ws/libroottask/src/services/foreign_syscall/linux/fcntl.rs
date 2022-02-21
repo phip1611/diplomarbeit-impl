@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
@@ -27,7 +28,11 @@ impl From<&GenericLinuxSyscall> for FcntlSyscall {
 }
 
 impl LinuxSyscallImpl for FcntlSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        _process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // for now it looks like this is enough to make simple
         // Rust programs work
         LinuxSyscallResult::new_success(0 as u64)

@@ -153,7 +153,7 @@ pub fn create_exc_pt_for_process(exc_offset: u64, portal_cap_sel: CapSel) -> Rc<
 /// Doesn't reply, because this is done a layer above.
 pub fn generic_error_exception_handler(
     pt: &Rc<PtObject>,
-    process: &Process,
+    process: &Rc<Process>,
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {

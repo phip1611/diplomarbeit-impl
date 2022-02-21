@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use libhrstd::libhedron::UtcbDataException;
 
 /// * <https://man7.org/linux/man-pages/man2/set_tid_address.2.html>
@@ -43,7 +44,11 @@ impl From<&GenericLinuxSyscall> for SetTidAddressSyscall {
 }
 
 impl LinuxSyscallImpl for SetTidAddressSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        _process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // do nothing; it's okay for simple Linux programs
 
         // this syscall always succeeds and returns always returns the caller's thread ID

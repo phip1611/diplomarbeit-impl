@@ -6,6 +6,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
@@ -32,7 +33,11 @@ impl From<&GenericLinuxSyscall> for WriteVSyscall {
 }
 
 impl LinuxSyscallImpl for WriteVSyscall {
-    fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // first: map the iovec itself
         let u_iovec_page_offset = self.usr_ptr as usize & 0xfff;
         let u_iovec_total_len = core::mem::size_of::<LinuxIoVec>() * self.count;

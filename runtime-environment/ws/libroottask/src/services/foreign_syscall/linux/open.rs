@@ -5,6 +5,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use alloc::string::String;
 use core::alloc::Layout;
 use libhrstd::cstr::CStr;
@@ -40,7 +41,11 @@ impl From<&GenericLinuxSyscall> for OpenSyscall {
 }
 
 impl LinuxSyscallImpl for OpenSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         let u_page_offset = self.filename as usize & 0xfff;
         let byte_amount = u_page_offset + MAX_FILE_NAME_LEN;
         let page_count = calc_page_count(byte_amount);

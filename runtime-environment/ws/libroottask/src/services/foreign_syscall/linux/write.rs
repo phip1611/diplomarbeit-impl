@@ -5,6 +5,8 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use crate::services::MAPPED_AREAS;
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use core::fmt::Write;
 use libhrstd::libhedron::mem::PAGE_SIZE;
@@ -44,55 +46,39 @@ impl WriteSyscall {
 }
 
 impl LinuxSyscallImpl for WriteSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
-        let cstr_mapping_dest = VIRT_MEM_ALLOC
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
+        // either create mapping or re-use if the page is already mapped
+        let mapping = MAPPED_AREAS
             .lock()
-            .next_addr(Layout::from_size_align(self.count, PAGE_SIZE).unwrap());
-
+            .create_get_mapping(process, self.usr_ptr as u64, self.count as u64)
+            .clone();
         let u_page_offset = self.usr_ptr as usize & 0xfff;
-        let byte_amount = u_page_offset + self.count;
-        let page_count = calc_page_count(byte_amount);
-        CrdDelegateOptimizer::new(
-            self.usr_ptr as u64 / PAGE_SIZE as u64,
-            cstr_mapping_dest / PAGE_SIZE as u64,
-            page_count,
-        )
-        .mmap(
-            process.pd_obj().cap_sel(),
-            process.parent().unwrap().pd_obj().cap_sel(),
-            MemCapPermissions::READ,
-        );
-
-        let r_bytes = unsafe {
-            core::slice::from_raw_parts(cstr_mapping_dest as *const u8, PAGE_SIZE * page_count)
-        };
-        let r_cstr_bytes = &r_bytes[u_page_offset..u_page_offset + self.count];
+        let u_write_data = mapping.mem_with_offset_as_slice::<u8>(self.count, Some(u_page_offset));
 
         match self.fd {
             0 => panic!("write to stdin currently not supported"),
-            1 => {
-                let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
-                crate::services::stdout::writer_mut()
-                    .write_str(r_cstr)
-                    .unwrap();
-                LinuxSyscallResult::new_success(self.count as u64)
-            }
-            2 => {
-                let r_cstr = unsafe { core::str::from_utf8_unchecked(r_cstr_bytes) };
-                crate::services::stderr::writer_mut()
-                    .write_str(r_cstr)
-                    .unwrap();
+            1 | 2 => {
+                let r_cstr = core::str::from_utf8(u_write_data).unwrap();
+                if self.fd == 1 {
+                    crate::services::stdout::writer_mut()
+                        .write_str(r_cstr)
+                        .unwrap();
+                } else {
+                    crate::services::stderr::writer_mut()
+                        .write_str(r_cstr)
+                        .unwrap();
+                }
+
                 LinuxSyscallResult::new_success(self.count as u64)
             }
             fd => {
-                let written_bytes = libfileserver::fs_write(
-                    process.pid(),
-                    FD::new(fd as i32),
-                    // currently don't support user ptr read
-                    r_cstr_bytes,
-                )
-                .unwrap();
-
+                let written_bytes =
+                    libfileserver::fs_write(process.pid(), FD::new(fd as i32), u_write_data)
+                        .unwrap();
                 LinuxSyscallResult::new_success(written_bytes as u64)
             }
         }
