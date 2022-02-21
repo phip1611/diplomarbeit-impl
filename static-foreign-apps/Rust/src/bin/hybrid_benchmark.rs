@@ -91,7 +91,9 @@ fn linux_bench_read_syscall() {
 
     let bytes_4096 = [0; 4096];
     let bytes_16384 = [0; 16384];
+    //let bytes_1mb = [0; 1 * 1024 * 1024];
 
+    //let mut read_vec = Vec::with_capacity(bytes_1mb.len() + 1);
     let mut read_vec = Vec::with_capacity(bytes_16384.len() + 1);
     let mut write_read = |bytes| {
         read_vec.clear();
@@ -112,6 +114,12 @@ fn linux_bench_read_syscall() {
     );
     println!("avg write + read 16384 bytes: {:6} ticks / (write and read)", duration_per_iteration_read_write_16384);
     println!("                            : {:.2} bytes / 1000 ticks", 16384.0 * 1000.0 / (duration_per_iteration_read_write_16384 as f64));
+
+    /*let duration_per_iteration_read_write_1mb  = BenchHelper::bench(|_|
+        write_read(&bytes_1mb)
+    );
+    println!("avg write + read 1 mb       : {:6} ticks / (write and read)", duration_per_iteration_read_write_1mb);
+    println!("                            : {:.2} bytes / 1000 ticks", bytes_1mb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_1mb as f64));*/
 }
 
 /// Calculates the average time to call the RAW ECHO SERVICE PT. This is the raw cost of
