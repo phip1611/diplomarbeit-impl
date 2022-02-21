@@ -50,7 +50,6 @@ use libhrstd::kobjects::SmObject;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
-use libhrstd::time::Instant;
 use libhrstd::util::BenchHelper;
 use libroottask::process_mng::manager;
 use libroottask::rt::userland;

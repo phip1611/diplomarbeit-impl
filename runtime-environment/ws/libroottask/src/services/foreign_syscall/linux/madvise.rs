@@ -8,30 +8,31 @@ use libhrstd::libhedron::UtcbDataException;
 
 #[derive(Debug)]
 pub struct MAdviseSyscall {
-    addr: *const u8,
-    length: u64,
-    advice: MAdvise,
+    _addr: *const u8,
+    _length: u64,
+    _advice: MAdvise,
 }
 
 impl From<&GenericLinuxSyscall> for MAdviseSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            addr: syscall.arg0() as *const _,
-            length: syscall.arg1(),
-            advice: unsafe { core::mem::transmute(syscall.arg2()) },
+            _addr: syscall.arg0() as *const _,
+            _length: syscall.arg1(),
+            _advice: unsafe { core::mem::transmute(syscall.arg2()) },
         }
     }
 }
 
 impl LinuxSyscallImpl for MAdviseSyscall {
     fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
-        log::info!("{:#?}", self);
+        // log::info!("{:#?}", self);
         LinuxSyscallResult::new_success(0)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u64)]
+#[allow(unused)]
 pub enum MAdvise {
     /// no further special treatment
     Normal = 0,

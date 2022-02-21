@@ -98,7 +98,7 @@ fn linux_bench_read_syscall() {
         file.seek(SeekFrom::Start(0)).unwrap();
         file.write_all(bytes).unwrap();
         file.seek(SeekFrom::Start(0)).unwrap();
-        file.read_to_end(&mut read_vec);
+        file.read_to_end(&mut read_vec).unwrap();
     };
 
     let duration_per_iteration_read_write_4096  = BenchHelper::bench(|_|
