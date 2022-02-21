@@ -57,7 +57,7 @@ pub fn handle_foreign_syscall(
     utcb.exception_data_mut().rsp = original_rsp;
     // ####################################################
 
-    log::debug!("outgoing MTD: {:?}", utcb.exception_data().mtd);
+    log::trace!("outgoing MTD: {:?}", utcb.exception_data().mtd);
 
     *do_reply = true;
 }

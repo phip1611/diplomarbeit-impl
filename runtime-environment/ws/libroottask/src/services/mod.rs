@@ -77,7 +77,7 @@ pub fn handle_service_call(
     utcb: &mut Utcb,
     do_reply: &mut bool,
 ) {
-    log::debug!(
+    log::trace!(
         "got service call for service {:?} from Process({}, {})",
         pt.ctx().service_id(),
         process.pid(),

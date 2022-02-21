@@ -4,6 +4,8 @@ use libhrstd::libhedron::Mtd;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use std::env::var;
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom, Write};
 use libhrstd::rt::services::echo::{call_echo_service, call_raw_echo_service};
 use libhrstd::util::BenchHelper;
 
@@ -32,8 +34,9 @@ fn main() {
         hedron_bench_echo_pt_call();
     } else {
         println!("This Linux binary executes under native Linux");
-        linux_bench_read_syscall();
     }
+
+    linux_bench_read_syscall();
 }
 
 fn pt_entry(_id: PortalIdentifier) -> ! {
@@ -77,17 +80,38 @@ fn hedron_bench_foreign_set_tid_address_syscall() {
 /// times and calculates the average clock ticks per call.
 fn linux_bench_read_syscall() {
     println!();
-    // TODO rethink bench
-    println!("LINUX BENCH: Raw system call performance");
-    let fd = unsafe {
-        libc::open("/dev/zero".as_ptr().cast(), libc::O_RDONLY)
+    println!("LINUX BENCH: File throughput performance");
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .read(true)
+        .write(true)
+        .open("/tmp/foobar")
+        .unwrap();
+
+    let bytes_4096 = [0; 4096];
+    let bytes_16384 = [0; 16384];
+
+    let mut read_vec = Vec::with_capacity(bytes_16384.len() + 1);
+    let mut write_read = |bytes| {
+        read_vec.clear();
+        file.seek(SeekFrom::Start(0)).unwrap();
+        file.write_all(bytes).unwrap();
+        file.seek(SeekFrom::Start(0)).unwrap();
+        file.read_to_end(&mut read_vec);
     };
-    let mut buf = [0_u8];
-    let mut bench = BenchHelper::new(|_| unsafe {
-        libc::read(fd, buf.as_mut_ptr().cast(), 1);
-    });
-    let duration_per_iteration = bench.bench();
-    println!("avg: {} ticks / syscall", duration_per_iteration);
+
+    let duration_per_iteration_read_write_4096  = BenchHelper::bench(|_|
+        write_read(&bytes_4096)
+    );
+    println!("avg write + read 4096 bytes : {:6} ticks / (write and read)", duration_per_iteration_read_write_4096);
+    println!("                            : {:.2} bytes / 1000 ticks", 4096.0 * 1000.0 / (duration_per_iteration_read_write_4096 as f64));
+
+    let duration_per_iteration_read_write_16384  = BenchHelper::bench(|_|
+        write_read(&bytes_16384)
+    );
+    println!("avg write + read 16384 bytes: {:6} ticks / (write and read)", duration_per_iteration_read_write_16384);
+    println!("                            : {:.2} bytes / 1000 ticks", 16384.0 * 1000.0 / (duration_per_iteration_read_write_16384 as f64));
 }
 
 /// Calculates the average time to call the RAW ECHO SERVICE PT. This is the raw cost of

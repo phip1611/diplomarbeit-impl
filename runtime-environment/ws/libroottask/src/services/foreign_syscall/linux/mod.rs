@@ -7,6 +7,7 @@ mod fstat;
 mod generic;
 mod ioctl;
 mod lseek;
+mod madvise;
 mod mmap;
 mod open;
 mod poll;
