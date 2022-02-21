@@ -1,56 +1,81 @@
 use crate::mem::VIRT_MEM_ALLOC;
+use crate::process_mng::process::Process;
+use alloc::rc::{
+    Rc,
+    Weak,
+};
 use core::alloc::Layout;
 use core::mem::size_of;
 use libhrstd::cap_space::root::RootCapSpace;
+use libhrstd::kobjects::PdObject;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
+/// Public instance of the root task memory mapper.
 pub static ROOT_MEM_MAPPER: SimpleMutex<RootMemMapper> = SimpleMutex::new(RootMemMapper);
 
-type VirtAddr = u64;
-type PhysAddr = u64;
+type Address = u64;
 
 /// Type constructed by [`RootMemMapper`] that describes mapped memory by the roottask.
-/// The begin addr is guaranteed to be page-aligned.
+/// Mappings always begin at a page-aligned address.
 ///
 /// See [`RootMemMapper`] for more details.
 ///
-/// Current fast and pragmatic approach: can never be dropped/invalidated
-#[derive(Debug, Copy, Clone)]
+/// Current Q&D approach: can never be dropped/invalidated.
+/// TODO: remove Clone; add drop trait
+#[derive(Debug, Clone)]
 pub struct MappedMemory {
-    /// The original address that we mapped somewhere.
-    original_addr: VirtAddr,
-    /// The new mapping-destination address.
-    new_addr: VirtAddr,
-    size_in_pages: usize,
+    /// The origin of the mapping.
+    origin_process: Weak<Process>,
+    /// The destination process of the mapping.
+    to_process: Weak<Process>,
+    /// The original address in the address space of the origin that we mapped to the target.
+    original_addr: Address,
+    /// The new mapping-destination address in the address space of the target.
+    mapped_addr: Address,
+    /// Size of the mapping in pages.
+    size_in_pages: u64,
+    /// Rights of the memory mapping.
     perm: MemCapPermissions,
 }
 
 impl MappedMemory {
-    pub fn size(&self) -> usize {
-        self.size_in_pages * PAGE_SIZE
+    /// Size of the mapping in bytes.
+    pub fn size(&self) -> u64 {
+        self.size_in_pages * PAGE_SIZE as u64
     }
+    /// Permissions of the mapping.
     pub fn perm(&self) -> MemCapPermissions {
         self.perm
     }
-    pub fn original_addr(&self) -> VirtAddr {
+    /// The original address in the address space of the origin.
+    pub fn original_addr(&self) -> Address {
         self.original_addr
     }
-    pub fn new_addr(&self) -> VirtAddr {
-        self.new_addr
+    /// The new address in the address space of the code that executes this.
+    pub fn mapped_addr(&self) -> Address {
+        self.mapped_addr
     }
-    pub fn size_in_pages(&self) -> usize {
+    /// Size of the mapping in pages.
+    pub fn size_in_pages(&self) -> u64 {
         self.size_in_pages
     }
-    /// Returns a pointer to the mapped memory.
+    /// Returns a pointer to the mapped memory in the address space of the caller.
     pub fn begin_ptr(&self) -> *const u8 {
-        self.new_addr as _
+        self.mapped_addr as _
     }
-    /// Returns a pointer to the mapped memory.
+    /// Returns a mut pointer to the mapped memory in the address space of the caller.
     pub fn begin_ptr_mut(&self) -> *mut u8 {
-        self.new_addr as _
+        self.mapped_addr as _
+    }
+
+    pub fn origin_process(&self) -> &Weak<Process> {
+        &self.origin_process
+    }
+    pub fn to_process(&self) -> &Weak<Process> {
+        &self.to_process
     }
 
     /// Returns the corresponding address of a old address in the new, mapped region.
@@ -70,7 +95,7 @@ impl MappedMemory {
             old_addr as *const usize,
         );
 
-        let new_addr = self.new_addr + offset;
+        let new_addr = self.mapped_addr + offset;
 
         log::debug!(
             "old address {:#?} => new {:#?}",
@@ -79,6 +104,16 @@ impl MappedMemory {
         );
 
         new_addr
+    }
+
+    /// Like [`Self::old_to_new_addr`] but with pointers.
+    pub fn old_to_new_ptr(&self, old_ptr: *const u8) -> *const u8 {
+        self.old_to_new_addr(old_ptr as u64) as *const u8
+    }
+
+    /// Like [`Self::old_to_new_addr`] but mutable pointers.
+    pub fn old_to_new_ptr_mut(&self, old_ptr: *mut u8) -> *mut u8 {
+        self.old_to_new_addr(old_ptr as u64) as *mut u8
     }
 
     /// Creates a slice of data from the underlying memory of Type T.
@@ -154,9 +189,9 @@ impl MappedMemory {
     fn assert_mem_as<T: Sized>(&self, offset: Option<usize>) {
         let total_size = size_of::<T>();
         let offset = offset.unwrap_or(0);
-        if total_size + offset > self.size() {
+        if total_size + offset > self.size() as usize {
             panic!("the memory region is not big enough for the given type T with size {} at offset {}. Needs {} more bytes",
-                   total_size, offset, total_size + offset - self.size());
+                   total_size, offset, total_size + offset - self.size() as usize);
         }
     }
 
@@ -164,12 +199,19 @@ impl MappedMemory {
     fn assert_mem_as_slice<T: Sized>(&self, offset: Option<usize>, length: usize) {
         let total_size = size_of::<T>() * length;
         let offset = offset.unwrap_or(0);
-        if total_size + offset > self.size() {
+        if total_size + offset > self.size() as usize {
             panic!("the memory region is not big enough for the given type T as slice with size {} at offset {}. Needs {} more bytes",
-                   total_size, offset, total_size + offset - self.size());
+                   total_size, offset, total_size + offset - self.size() as usize);
         }
     }
 }
+
+// TODO remove "Clone"; add drop
+/*impl Drop for MappedMemory {
+    fn drop(&mut self) {
+        log::debug!("Drop not implemented for MappedMemory yet");
+    }
+}*/
 
 /// Helps the roottask to map memory to a specific location and set the rights in the page-table
 /// as desired. Under Hedron, rights never can be upgraded. The work-a-round is that the roottask,
@@ -182,27 +224,50 @@ impl MappedMemory {
 pub struct RootMemMapper;
 
 impl RootMemMapper {
-    /// Maps the pages from src to a free virtual address inside the roottask. SRC and DEST must be page aligned!
-    /// SRC can be VIRT or PHYS addr, because the Hypervisor-flag will be true, which means all
-    /// memory is identity mapped!
+    /// High level wrapper around [`CrdDelegateOptimizer::mmap`]. Maps memory from the origin
+    /// process to the caller process. If origin==to==Roottask, then the Hypervisor
+    /// flag will be set and all addresses will be treated as physical addresses, because
+    /// the memory will be identity mapped.
     #[track_caller]
     pub fn mmap(
+        // Required to force the use of a lock when this is used in a static variable.
         &mut self,
-        src: PhysAddr,
+        origin: &Rc<Process>,
+        to: &Rc<Process>,
+        src_addr: Address,
+        preferred_dest_addr: Option<Address>,
         page_count: u64,
         perm: MemCapPermissions,
     ) -> MappedMemory {
-        let dest = VIRT_MEM_ALLOC.lock().next_addr(
-            Layout::from_size_align(page_count as usize * PAGE_SIZE, PAGE_SIZE).unwrap(),
-        );
-
-        assert_eq!(src % PAGE_SIZE as u64, 0, "src addr must be page-aligned");
-        assert_eq!(dest % PAGE_SIZE as u64, 0, "dest addr must be page-aligned");
-        assert_ne!(src, dest, "src == dest, not allowed! can't upgrade rights");
         assert!(page_count > 0, "page_count must be not null");
+        assert_eq!(
+            src_addr % PAGE_SIZE as u64,
+            0,
+            "src addr must be page-aligned"
+        );
+        if let Some(preferred_dest_addr) = preferred_dest_addr {
+            assert_eq!(
+                preferred_dest_addr % PAGE_SIZE as u64,
+                0,
+                "dest addr must be page-aligned"
+            );
+        }
 
-        let src_page_num = (src / PAGE_SIZE as u64) as u64;
-        let dest_page_num = (dest / PAGE_SIZE as u64) as u64;
+        let dest_addr = preferred_dest_addr.unwrap_or_else(|| {
+            VIRT_MEM_ALLOC.lock().next_addr(
+                Layout::from_size_align(page_count as usize * PAGE_SIZE, PAGE_SIZE).unwrap(),
+            )
+        });
+
+        if origin == to {
+            assert_ne!(
+                src_addr, dest_addr,
+                "src == dest, not allowed! can't upgrade rights in Hedron this way"
+            );
+        }
+
+        let src_page_num = (src_addr / PAGE_SIZE as u64) as u64;
+        let dest_page_num = (dest_addr / PAGE_SIZE as u64) as u64;
 
         CrdDelegateOptimizer::new(src_page_num, dest_page_num, page_count as usize).mmap(
             RootCapSpace::RootPd.val(),
@@ -211,9 +276,11 @@ impl RootMemMapper {
         );
 
         MappedMemory {
-            original_addr: src,
-            new_addr: dest,
-            size_in_pages: page_count as usize,
+            origin_process: Rc::downgrade(origin),
+            to_process: Rc::downgrade(to),
+            original_addr: src_addr,
+            mapped_addr: dest_addr,
+            size_in_pages: page_count,
             perm,
         }
     }
@@ -222,12 +289,20 @@ impl RootMemMapper {
 #[cfg(test)]
 mod tests {
     use crate::mem::MappedMemory;
+    use crate::process_mng::process::Process;
+    use alloc::rc::Rc;
 
     #[test]
     fn test_mapped_memory() {
+        // some arbitrary values juts to create the object
+        let root = Process::root(4096, 4096, 4096, 4096);
+        let root = Rc::from(root);
+
         let mapped_memory = MappedMemory {
+            origin_process: Rc::downgrade(&root),
+            to_process: Rc::downgrade(&root),
             original_addr: 0x1000,
-            new_addr: 0x2000,
+            mapped_addr: 0x2000,
             size_in_pages: 1,
             perm: Default::default(),
         };
@@ -238,8 +313,10 @@ mod tests {
         let bytes = [0_u8, 1_u8, 3_u8, 3_u8, 7_u8];
 
         let mapped_memory = MappedMemory {
+            origin_process: Rc::downgrade(&root),
+            to_process: Rc::downgrade(&root),
             original_addr: 0x1000,
-            new_addr: bytes.as_ptr() as u64,
+            mapped_addr: bytes.as_ptr() as u64,
             size_in_pages: 1,
             perm: Default::default(),
         };

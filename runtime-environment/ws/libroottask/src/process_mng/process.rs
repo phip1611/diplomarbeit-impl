@@ -506,7 +506,7 @@ impl Process {
     /// Gets the bytes of the page-aligned ELF file.
     pub fn elf_file_bytes(&self) -> &[u8] {
         let elf = self.elf_file.as_ref().unwrap();
-        elf.mem_as_slice(elf.size())
+        elf.mem_as_slice(elf.size() as usize)
     }
 
     pub fn heap_ptr(&self) -> &AtomicU64 {

@@ -102,8 +102,8 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     roottask_exception::init(manager::PROCESS_MNG.lock().root());
     manager::PROCESS_MNG.lock().register_startup_exc_callback();
 
-    let root_pd = manager::PROCESS_MNG.lock().root().clone();
-    let root_sm = SmObject::create(RootCapSpace::RootSmSleep.val(), &root_pd.pd_obj());
+    let root_process = manager::PROCESS_MNG.lock().root().clone();
+    let root_sm = SmObject::create(RootCapSpace::RootSmSleep.val(), &root_process.pd_obj());
 
     services::init_services(manager::PROCESS_MNG.lock().root());
 
@@ -111,7 +111,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     do_bench();
 
     // NOW READY TO START PROCESSES
-    let userland = userland::InitialUserland::load(hip);
+    let userland = userland::InitialUserland::load(hip, &root_process);
     userland.bootstrap();
     log::info!("Userland bootstrapped");
 

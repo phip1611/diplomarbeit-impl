@@ -7,7 +7,9 @@ use crate::mem::{
     VIRT_MEM_ALLOC,
 };
 use crate::process_mng::manager::PROCESS_MNG;
+use crate::process_mng::process::Process;
 use crate::process_mng::syscall_abi::SyscallAbi;
+use alloc::rc::Rc;
 use alloc::string::String;
 use core::alloc::Layout;
 use libhrstd::cstr::CStr;
@@ -48,13 +50,19 @@ pub struct InitialUserland {
 }
 
 impl InitialUserland {
-    pub fn load(hip: &HIP) -> Self {
-        let hip_mem = Self::find_userland_tar_mem_desc(hip)
+    pub fn load(hip: &HIP, root: &Rc<Process>) -> Self {
+        let hip_mem = Self::find_userland_tar_mem_desc(hip, root)
             .ok_or(HedronUserlandError::FileNotFound)
             .unwrap();
-        // all permissions; I reduce the permissions to the minimum when I start the dedicated processes
+
+        // Mep mem with full permissions; I reduce the permissions to the minimum when I start the
+        // dedicated processes because rights can't be upgraded when I map them from
+        // A to B and A!=B!=ROOTTASK.
         let mapped_mem = ROOT_MEM_MAPPER.lock().mmap(
+            root,
+            root,
             hip_mem.addr(),
+            None,
             calc_page_count(hip_mem.size() as usize) as u64,
             MemCapPermissions::all(),
         );
@@ -69,45 +77,52 @@ impl InitialUserland {
             hedron_native_hello_world_rust_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "helloworld-bin",
+                root,
             )
             .unwrap(),
             linux_c_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_c_hello_world_musl",
+                root,
             )
             .unwrap(),
             linux_rust_hello_world_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_rust_hello_world_musl",
+                root,
             )
             .unwrap(),
             linux_rust_hello_world_hybrid_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_rust_hello_world_hybrid_musl",
+                root,
             )
             .unwrap(),
             linux_rust_hybrid_benchmark_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_rust_hybrid_benchmark",
+                root,
             )
             .unwrap(),
             linux_c_matrix_mult_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_c_matrix_mult_musl",
+                root,
             )
             .unwrap(),
             linux_c_aux_dump_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_c_dump_aux_musl",
+                root,
             )
             .unwrap(),
         }
     }
 
     /// Finds the HipMem descriptor that holds the Tar file with the userland.
-    fn find_userland_tar_mem_desc(hip: &HIP) -> Option<&HipMem> {
+    fn find_userland_tar_mem_desc<'a>(hip: &'a HIP, root: &Rc<Process>) -> Option<&'a HipMem> {
         hip.mem_desc_iterator()
-            .map(|hipmem| (hipmem, Self::hip_mem_mb_cmd_str(hipmem)))
+            .map(|hipmem| (hipmem, Self::hip_mem_mb_cmd_str(hipmem, root)))
             .filter(|(_, cmdline)| cmdline.is_some())
             .map(|(hipmem, cmdline)| (hipmem, cmdline.unwrap()))
             .filter(|(_, cmdline)| *cmdline == USERLAND_MB_CMDLINE_ARGUMENT)
@@ -117,7 +132,7 @@ impl InitialUserland {
 
     /// Takes a hip mem object of type multiboot and returns the cmdline string
     /// if available.
-    fn hip_mem_mb_cmd_str(hip_mem_mb: &HipMem) -> Option<&str> {
+    fn hip_mem_mb_cmd_str<'a>(hip_mem_mb: &'a HipMem, root: &Rc<Process>) -> Option<&'a str> {
         if hip_mem_mb.typ() != HipMemType::MbModule {
             return None;
         }
@@ -128,9 +143,10 @@ impl InitialUserland {
 
         let cmdline_page = cmdline_ptr & !0xfff;
         log::debug!("mapping memory for MB mod cmdline ptr");
-        let mem = ROOT_MEM_MAPPER
-            .lock()
-            .mmap(cmdline_page, 1, MemCapPermissions::READ);
+        let mem =
+            ROOT_MEM_MAPPER
+                .lock()
+                .mmap(root, root, cmdline_page, None, 1, MemCapPermissions::READ);
         let cmdline = mem.old_to_new_addr(cmdline_ptr);
 
         let cmdline = CStr::try_from(cmdline as *const u8).expect("must be valid c string");
@@ -166,6 +182,7 @@ impl InitialUserland {
     fn map_tar_entry_to_page_aligned_dest(
         tar: &TarArchiveRef,
         filename: &str,
+        root: &Rc<Process>,
     ) -> Option<MappedMemory> {
         let entry = tar.entries().find(|e| e.filename().contains(filename))?;
         // looks a bit weird, but is fine for a quick & dirty solution. I need some destination, where I can map the new memory too!
@@ -175,7 +192,10 @@ impl InitialUserland {
 
         log::debug!("mapping memory for Userland file: {}", filename);
         let mut mapped_mem = ROOT_MEM_MAPPER.lock().mmap(
+            root,
+            root,
             phys_src,
+            None,
             calc_page_count(entry.size()) as u64,
             MemCapPermissions::all(),
         );
