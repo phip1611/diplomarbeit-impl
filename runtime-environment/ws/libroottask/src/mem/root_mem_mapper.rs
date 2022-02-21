@@ -126,7 +126,7 @@ impl MappedMemory {
     pub fn mem_with_offset_as_slice<T: Sized>(&self, length: usize, offset: Option<usize>) -> &[T] {
         self.assert_mem_as_slice::<T>(offset, length);
         unsafe {
-            let ptr = self.begin_ptr() as *const _;
+            let ptr = self.begin_ptr().add(offset.unwrap_or(0)).cast();
             core::slice::from_raw_parts(ptr, length)
         }
     }
@@ -232,8 +232,8 @@ impl RootMemMapper {
     pub fn mmap(
         // Required to force the use of a lock when this is used in a static variable.
         &mut self,
-        origin: &Rc<Process>,
-        to: &Rc<Process>,
+        src_process: &Rc<Process>,
+        dest_process: &Rc<Process>,
         src_addr: Address,
         preferred_dest_addr: Option<Address>,
         page_count: u64,
@@ -245,6 +245,7 @@ impl RootMemMapper {
             0,
             "src addr must be page-aligned"
         );
+
         if let Some(preferred_dest_addr) = preferred_dest_addr {
             assert_eq!(
                 preferred_dest_addr % PAGE_SIZE as u64,
@@ -259,7 +260,7 @@ impl RootMemMapper {
             )
         });
 
-        if origin == to {
+        if src_process == dest_process {
             assert_ne!(
                 src_addr, dest_addr,
                 "src == dest, not allowed! can't upgrade rights in Hedron this way"
@@ -270,14 +271,14 @@ impl RootMemMapper {
         let dest_page_num = (dest_addr / PAGE_SIZE as u64) as u64;
 
         CrdDelegateOptimizer::new(src_page_num, dest_page_num, page_count as usize).mmap(
-            RootCapSpace::RootPd.val(),
-            RootCapSpace::RootPd.val(),
+            src_process.pd_obj().cap_sel(),
+            dest_process.pd_obj().cap_sel(),
             perm,
         );
 
         MappedMemory {
-            origin_process: Rc::downgrade(origin),
-            to_process: Rc::downgrade(to),
+            origin_process: Rc::downgrade(src_process),
+            to_process: Rc::downgrade(dest_process),
             original_addr: src_addr,
             mapped_addr: dest_addr,
             size_in_pages: page_count,
