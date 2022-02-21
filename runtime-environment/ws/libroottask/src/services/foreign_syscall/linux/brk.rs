@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Allocator;
 use core::alloc::Layout;
 use core::ptr::null;
@@ -12,6 +13,7 @@ use core::sync::atomic::Ordering;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::calc_page_count;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/brk.2.html>.
@@ -29,7 +31,11 @@ impl From<&GenericLinuxSyscall> for BrkSyscall {
 }
 
 impl LinuxSyscallImpl for BrkSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         if self.addr == null() {
             LinuxSyscallResult::new_success(process.heap_ptr().load(Ordering::SeqCst))
         } else {
@@ -44,11 +50,7 @@ impl LinuxSyscallImpl for BrkSyscall {
             let page_num = ptr.as_ptr() as *const u8 as usize / PAGE_SIZE;
 
             // map the right amount of pages
-            let page_count = if layout.size() % PAGE_SIZE == 0 {
-                layout.size() / PAGE_SIZE
-            } else {
-                (layout.size() / PAGE_SIZE) + 1
-            };
+            let page_count = calc_page_count(layout.size());
 
             CrdDelegateOptimizer::new(
                 page_num as u64,

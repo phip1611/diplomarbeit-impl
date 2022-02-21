@@ -5,10 +5,12 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::calc_page_count;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// * <https://man7.org/linux/man-pages/man2/mmap.2.html>
@@ -37,7 +39,11 @@ impl From<&GenericLinuxSyscall> for MMapSyscall {
 }
 
 impl LinuxSyscallImpl for MMapSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // two most popular combinations
         let mut ptr = None;
         if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {
@@ -60,11 +66,7 @@ impl LinuxSyscallImpl for MMapSyscall {
         //  ptr is and don't map to static location
         let dest_page_num = 0x1234567;
 
-        let page_num = if self.len as usize % PAGE_SIZE == 0 {
-            self.len as usize / PAGE_SIZE
-        } else {
-            (self.len as usize / PAGE_SIZE) + 1
-        };
+        let page_num = calc_page_count(self.len as usize);
 
         // map into PD
         CrdDelegateOptimizer::new(src_page_num as u64, dest_page_num, page_num).mmap(

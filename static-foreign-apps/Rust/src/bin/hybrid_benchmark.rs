@@ -4,6 +4,8 @@ use libhrstd::libhedron::Mtd;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use std::env::var;
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom, Write};
 use libhrstd::rt::services::echo::{call_echo_service, call_raw_echo_service};
 use libhrstd::util::BenchHelper;
 
@@ -32,8 +34,9 @@ fn main() {
         hedron_bench_echo_pt_call();
     } else {
         println!("This Linux binary executes under native Linux");
-        linux_bench_read_syscall();
     }
+
+    linux_bench_read_syscall();
 }
 
 fn pt_entry(_id: PortalIdentifier) -> ! {
@@ -52,11 +55,9 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
     // some PT I never use; I just need it to be created
     let pt = PtObject::create(1001, &local_ec, Mtd::DEFAULT, pt_entry, PtCtx::ForeignSyscall);
 
-    let mut bench = BenchHelper::new(|i|  unsafe {
+    let duration_per_iteration = BenchHelper::bench(|i|  unsafe {
         pt.ctrl(i).expect("pt_ctrl must be executed");
     });
-
-    let duration_per_iteration = bench.bench();
     println!("avg: {} ticks / syscall (Native Syscall from Hybrid App)", duration_per_iteration);
 }
 
@@ -67,12 +68,11 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 fn hedron_bench_foreign_set_tid_address_syscall() {
     println!();
     println!("BENCH: FOREIGN SYSCALL FROM FOREIGN APP");
-    let mut bench = BenchHelper::new(|_|  unsafe {
+    let duration_per_iteration = BenchHelper::bench(|_|  unsafe {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         libc::syscall(libc::SYS_set_tid_address);
     });
-    let duration_per_iteration = bench.bench();
     println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_per_iteration);
 }
 
@@ -80,17 +80,52 @@ fn hedron_bench_foreign_set_tid_address_syscall() {
 /// times and calculates the average clock ticks per call.
 fn linux_bench_read_syscall() {
     println!();
-    // TODO rethink bench
-    println!("LINUX BENCH: Raw system call performance");
-    let fd = unsafe {
-        libc::open("/dev/zero".as_ptr().cast(), libc::O_RDONLY)
+    println!("LINUX BENCH: File throughput performance");
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .read(true)
+        .write(true)
+        .open("/tmp/foobar")
+        .unwrap();
+
+    let bytes_4096 = [0_u8; 4096];
+    let bytes_16384 = [0_u8; 16384];
+    let bytes_128kb = [0_u8; 0x20000];
+    let bytes_1mb = [0_u8; 1 * 1024 * 1024];
+
+    let mut read_vec = Vec::with_capacity(bytes_1mb.len() + 1);
+    let mut write_read = |bytes| {
+        read_vec.clear();
+        file.seek(SeekFrom::Start(0)).unwrap();
+        file.write_all(bytes).unwrap();
+        file.seek(SeekFrom::Start(0)).unwrap();
+        file.read_to_end(&mut read_vec).unwrap();
     };
-    let mut buf = [0_u8];
-    let mut bench = BenchHelper::new(|_| unsafe {
-        libc::read(fd, buf.as_mut_ptr().cast(), 1);
-    });
-    let duration_per_iteration = bench.bench();
-    println!("avg: {} ticks / syscall", duration_per_iteration);
+
+    let duration_per_iteration_read_write_4096  = BenchHelper::bench(|_|
+        write_read(&bytes_4096)
+    );
+    println!("avg write + read 4096 bytes : {:6} ticks / (write and read)", duration_per_iteration_read_write_4096);
+    println!("                            : {:.2} bytes / 1000 ticks", 4096.0 * 1000.0 / (duration_per_iteration_read_write_4096 as f64));
+
+    let duration_per_iteration_read_write_16384  = BenchHelper::bench(|_|
+        write_read(&bytes_16384)
+    );
+    println!("avg write + read 16384 bytes: {:6} ticks / (write and read)", duration_per_iteration_read_write_16384);
+    println!("                            : {:.2} bytes / 1000 ticks", 16384.0 * 1000.0 / (duration_per_iteration_read_write_16384 as f64));
+
+    let duration_per_iteration_read_write_128kib  = BenchHelper::bench(|_|
+        write_read(&bytes_128kb)
+    );
+    println!("avg write + read 128kib     : {:6} ticks / (write and read)", duration_per_iteration_read_write_128kib);
+    println!("                            : {:.2} bytes / 1000 ticks", bytes_128kb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_128kib as f64));
+
+    let duration_per_iteration_read_write_1mb  = BenchHelper::bench(|_|
+        write_read(&bytes_1mb)
+    );
+    println!("avg write + read 1 mb       : {:6} ticks / (write and read)", duration_per_iteration_read_write_1mb);
+    println!("                            : {:.2} bytes / 1000 ticks", bytes_1mb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_1mb as f64));
 }
 
 /// Calculates the average time to call the RAW ECHO SERVICE PT. This is the raw cost of
@@ -98,8 +133,7 @@ fn linux_bench_read_syscall() {
 fn hedron_bench_raw_echo_pt_call() {
     println!();
     println!("BENCH: RAW ECHO SERVICE PT");
-    let mut bench = BenchHelper::new(|_| call_raw_echo_service());
-    let duration_per_iteration = bench.bench();
+    let duration_per_iteration = BenchHelper::bench(|_| call_raw_echo_service());
     println!("avg: {} ticks / syscall (raw Cross-PD IPC)", duration_per_iteration);
 }
 
@@ -108,7 +142,6 @@ fn hedron_bench_raw_echo_pt_call() {
 fn hedron_bench_echo_pt_call() {
     println!();
     println!("BENCH: ECHO SERVICE PT");
-    let mut bench = BenchHelper::new(|_| call_echo_service());
-    let duration_per_iteration = bench.bench();
+    let duration_per_iteration = BenchHelper::bench(|_| call_echo_service());
     println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_per_iteration);
 }

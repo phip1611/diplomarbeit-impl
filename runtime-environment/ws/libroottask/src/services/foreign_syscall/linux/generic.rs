@@ -6,6 +6,7 @@ use crate::services::foreign_syscall::linux::fcntl::FcntlSyscall;
 use crate::services::foreign_syscall::linux::fstat::FstatSyscall;
 use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
 use crate::services::foreign_syscall::linux::lseek::LSeekSyscall;
+use crate::services::foreign_syscall::linux::madvise::MAdviseSyscall;
 use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
 use crate::services::foreign_syscall::linux::open::OpenSyscall;
 use crate::services::foreign_syscall::linux::poll::PollSyscall;
@@ -21,6 +22,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::fmt::Debug;
 use libhrstd::libhedron::ipc_serde::__private::Formatter;
 use libhrstd::libhedron::Mtd;
@@ -62,7 +64,7 @@ impl GenericLinuxSyscall {
         self.r9_arg5
     }
 
-    pub fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) {
+    pub fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Rc<Process>) {
         // all Linux syscalls put their result in RAX => save general purpose registers
         utcb_exc.mtd |= Mtd::GPR_ACDB;
 
@@ -82,6 +84,7 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::RtSigaction => RtSigactionSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::RtSigprocmask => RtSigProcMaskSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Ioctl => IoctlSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::MAdvise => MAdviseSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::WriteV => WriteVSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Clone => todo!("LinuxSyscallNum::Clone"),
             LinuxSyscallNum::Fcntl => FcntlSyscall::from(self).handle(utcb_exc, process),

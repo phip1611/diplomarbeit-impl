@@ -5,6 +5,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use core::mem::size_of;
 use libfileserver::FileStat;
@@ -13,6 +14,7 @@ use libhrstd::libhedron::{
     MemCapPermissions,
     UtcbDataException,
 };
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FD;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -32,17 +34,17 @@ impl From<&GenericLinuxSyscall> for FstatSyscall {
 }
 
 impl LinuxSyscallImpl for FstatSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         let fstat = libfileserver::fs_fstat(process.pid(), self.fd).unwrap();
 
         let u_page_offset = self.u_ptr_statbuf & 0xfff;
         let mapping_bytes = u_page_offset + size_of::<FileStat>() as u64;
 
-        let page_count = if mapping_bytes % PAGE_SIZE as u64 == 0 {
-            mapping_bytes / PAGE_SIZE as u64
-        } else {
-            (mapping_bytes / PAGE_SIZE as u64) + 1
-        };
+        let page_count = calc_page_count(mapping_bytes as usize);
 
         let r_mapping = VIRT_MEM_ALLOC
             .lock()

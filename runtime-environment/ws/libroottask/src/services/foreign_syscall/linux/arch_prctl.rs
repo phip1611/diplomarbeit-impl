@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use enum_iterator::IntoEnumIterator;
 use libhrstd::libhedron::Mtd;
 use libhrstd::libhedron::UtcbDataException;
@@ -32,7 +33,11 @@ impl From<&GenericLinuxSyscall> for ArchPrctlSyscall {
 }
 
 impl LinuxSyscallImpl for ArchPrctlSyscall {
-    fn handle(&self, utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        utcb_exc: &mut UtcbDataException,
+        _process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         utcb_exc.mtd |= Mtd::FS_GS;
 
         match self.subfunction {

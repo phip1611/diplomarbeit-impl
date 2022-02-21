@@ -17,7 +17,7 @@ use libhrstd::libhedron::Utcb;
 /// * `utcb` The [`Utcb`] of the portal
 /// * `do_reply` If a `reply` should be made when the handler finishes, otherwise the code panics.
 pub type PTCallHandler =
-    fn(pt: &Rc<PtObject>, process: &Process, utcb: &mut Utcb, do_reply: &mut bool);
+    fn(pt: &Rc<PtObject>, process: &Rc<Process>, utcb: &mut Utcb, do_reply: &mut bool);
 
 /// Common entry for all portals of the roottask. Multiplexes all portal calls through this function.
 /// A call can either be a service all or an exception call.
@@ -44,6 +44,10 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
         let calling_process = mng
             .lookup_process(calling_pd.pid())
             .expect("unknown process!");
+
+        // works if the calling process gets cloned; don't know if this is a better solution
+        // drop(mng);
+
         // stack_top of the local EC that handles the call. Important for reply() syscall
         stack_top = pt.stack_top();
         // +++++++++++++++++++++++++++++++++++
@@ -61,7 +65,7 @@ pub fn roottask_generic_portal_callback(id: PortalIdentifier) -> ! {
 
         cb(
             &pt,
-            calling_process,
+            &calling_process,
             pt.local_ec().utcb_mut(),
             &mut do_reply,
         );

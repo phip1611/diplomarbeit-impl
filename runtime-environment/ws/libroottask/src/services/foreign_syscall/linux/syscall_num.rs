@@ -17,6 +17,7 @@ pub enum LinuxSyscallNum {
     RtSigaction = 13,
     RtSigprocmask = 14,
     Ioctl = 16,
+    MAdvise = 28,
     WriteV = 20,
     Clone = 56,
     Fcntl = 72,

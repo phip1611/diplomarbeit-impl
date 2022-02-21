@@ -6,6 +6,7 @@ use libhrstd::libhedron::{
     MemCapPermissions,
     Utcb,
 };
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FsReadRequest;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -25,11 +26,7 @@ pub(super) fn fs_service_impl_read(request: &FsReadRequest, utcb: &mut Utcb, pro
     let u_addr_page_offset = u_addr & 0xfff;
     let u_page_num = u_addr / PAGE_SIZE;
     let required_bytes = u_addr_page_offset + request.count();
-    let page_count = if required_bytes % PAGE_SIZE == 0 {
-        required_bytes / PAGE_SIZE
-    } else {
-        required_bytes / PAGE_SIZE + 1
-    };
+    let page_count = calc_page_count(required_bytes);
 
     // get virt address to map the user memory into the roottask
     let r_mapping_addr = VIRT_MEM_ALLOC

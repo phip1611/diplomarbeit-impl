@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use libhrstd::libhedron::UtcbDataException;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/sigaction.2.html>.
@@ -26,7 +27,11 @@ impl From<&GenericLinuxSyscall> for RtSigactionSyscall {
 }
 
 impl LinuxSyscallImpl for RtSigactionSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, _process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        _process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // do nothing; it's okay for simple Linux programs
 
         LinuxSyscallResult::new_success(0)

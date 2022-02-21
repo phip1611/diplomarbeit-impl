@@ -10,3 +10,4 @@ publish = false # prevent accidentaly publishing
 
 [dependencies]
 libhrstd = { path = "../libhrstd", default-features = false } # for mutex; libhedron is transitive dep
+log = "0.4"

@@ -6,10 +6,12 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::calc_page_count;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]
@@ -31,16 +33,16 @@ impl From<&GenericLinuxSyscall> for WriteVSyscall {
 }
 
 impl LinuxSyscallImpl for WriteVSyscall {
-    fn handle(&self, utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // first: map the iovec itself
         let u_iovec_page_offset = self.usr_ptr as usize & 0xfff;
         let u_iovec_total_len = core::mem::size_of::<LinuxIoVec>() * self.count;
         let r_mapping_size = u_iovec_page_offset + u_iovec_total_len;
-        let r_mapping_pages = if r_mapping_size % PAGE_SIZE == 0 {
-            r_mapping_size / PAGE_SIZE
-        } else {
-            (r_mapping_size / PAGE_SIZE) + 1
-        };
+        let r_mapping_pages = calc_page_count(r_mapping_size);
 
         let r_iovec_mapping_dest = VIRT_MEM_ALLOC
             .lock()

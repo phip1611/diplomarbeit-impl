@@ -2,7 +2,7 @@
 //! file system server. The public interface (exported via Portals) must be build around
 //! these interfaces.
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![deny(
     clippy::all,
     clippy::cargo,
@@ -306,6 +306,7 @@ pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<usize, ()>
 
     let file = in_mem_fs_lock.file_mut(handle.file_path()).ok_or(())?;
 
+    // get offset; i.e.: the point where we start to append data
     // on UNIX, APPEND always appends; independent from the file offset
     let offset = if handle.flags().is_append() {
         file.data.len() - 1
@@ -313,10 +314,20 @@ pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<usize, ()>
         handle.file_offset()
     };
 
-    // update file offset
-    handle.file_offset = offset + new_data.len();
+    // the final file offset, after the new data got written.
+    let final_file_offset = offset + new_data.len();
+    handle.file_offset = final_file_offset;
 
-    // currently I only support append..
+    // Q&D: increase capacity
+    // Make sure the vector allocates enough memory, before I start to write data.
+    for i in file.data.capacity()..final_file_offset {
+        file.data_mut().push(0);
+    }
+
+    // Make sure "extend" starts at the right length
+    unsafe {
+        file.data_mut().set_len(offset);
+    }
     file.data_mut().extend_from_slice(new_data);
 
     let written_bytes = new_data.len();
@@ -336,6 +347,10 @@ pub fn fs_lseek(caller: ProcessId, fd: FD, offset: usize) -> Result<(), ()> {
     let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
     let fs_lock = IN_MEM_FS.lock();
     let file = fs_lock.file(handle.file_path()).ok_or(())?;
+    if offset > file.data().len() {
+        log::warn!("offset > file.data.len()");
+        // TODO not sure how UNIX handles this
+    }
     let offset = min(offset, file.data().len());
     handle.file_offset = offset;
     Ok(())
@@ -463,16 +478,17 @@ impl From<&InMemFile> for FileStat {
     }
 }
 
+// caution: tests will share the state from the globally shared variables
 #[cfg(test)]
 mod tests {
 
     use super::*;
 
     #[test]
-    fn test_fs() {
+    fn test_fs_basic() {
         let fd = fs_open(
             1,
-            String::from("/foo/bar"),
+            String::from("/foo/test1"),
             FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
             0o777,
         );
@@ -480,11 +496,33 @@ mod tests {
         fs_lseek(1, fd, "Hallo ".len()).unwrap();
         let read = fs_read(1, fd, 100).unwrap();
         let read = String::from_utf8(read).unwrap();
+        // get rid of additional zeroes
+        let read = read.trim_matches('\0');
         assert_eq!(read, "Welt!");
 
         fs_lseek(1, fd, 0).unwrap();
         let read = fs_read(1, fd, 100).unwrap();
         let read = String::from_utf8(read).unwrap();
+        // get rid of additional zeroes
+        let read = read.trim_matches('\0');
         assert_eq!(read, "Hallo Welt!")
+    }
+
+    #[test]
+    fn test_fs_lseek_write_size() {
+        let payload = [0; 16384];
+        let fd = fs_open(
+            1,
+            String::from("/foo/test2"),
+            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+            0o777,
+        );
+        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 0);
+        fs_write(1, fd, &payload).unwrap();
+        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
+        fs_lseek(1, fd, 0).unwrap();
+        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
+        fs_write(1, fd, &payload).unwrap();
+        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
     }
 }

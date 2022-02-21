@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use alloc::rc::Rc;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
@@ -25,7 +26,11 @@ impl From<&GenericLinuxSyscall> for LSeekSyscall {
 }
 
 impl LinuxSyscallImpl for LSeekSyscall {
-    fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
+    fn handle(
+        &self,
+        _utcb_exc: &mut UtcbDataException,
+        process: &Rc<Process>,
+    ) -> LinuxSyscallResult {
         // TODO whence not considered yet
         libfileserver::fs_lseek(process.pid(), self.fd, self.offset as usize).unwrap();
 

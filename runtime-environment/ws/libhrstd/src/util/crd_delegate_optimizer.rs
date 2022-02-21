@@ -39,7 +39,7 @@ use libhedron::{
 ///
 /// # Notes
 /// For Multiboot-Modules the optimization is not applicable from my observations, because
-/// they are only page-aligned but not more. Therefore a delegate syscall for each page.
+/// they are only page-aligned but often not more. Therefore a delegate syscall for each page.
 #[derive(Debug)]
 pub struct CrdDelegateOptimizer {
     /// Describes the amount of items/capabilities.
@@ -78,7 +78,7 @@ impl CrdDelegateOptimizer {
     }
 
     /// Iterates over all elements of [`Self`] and delegates memory capabilites
-    /// from the src Pd to the dest Pd. If SRC_PD = DEST_PD and SRC:PD == ROOTTASK_PD,
+    /// from the src Pd to the dest Pd. If SRC_PD = DEST_PD and SRC_PD == ROOTTASK_PD,
     /// the Hypervisor-flag in the DelegateFlags gets true.
     pub fn mmap(self, src_pd: CapSel, dest_pd: CapSel, perm: MemCapPermissions) {
         let is_roottask = src_pd == RootCapSpace::RootPd.val();

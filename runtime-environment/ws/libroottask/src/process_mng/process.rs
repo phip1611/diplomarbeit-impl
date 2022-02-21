@@ -50,7 +50,10 @@ use libhrstd::libhedron::{
     CapSel,
     MemCapPermissions,
 };
-use libhrstd::mem::PinnedPageAlignedHeapArray;
+use libhrstd::mem::{
+    calc_page_count,
+    PinnedPageAlignedHeapArray,
+};
 use libhrstd::process::consts::{
     ProcessId,
     ROOTTASK_PROCESS_PID,
@@ -314,11 +317,7 @@ impl Process {
                     let load_segment_dest_page_num = pr_hdr.vaddr() as usize / PAGE_SIZE;
 
                     // number of pages to map
-                    let num_pages = if pr_hdr.filesz() as usize % PAGE_SIZE == 0 {
-                        pr_hdr.filesz() as usize / PAGE_SIZE
-                    } else {
-                        (pr_hdr.filesz() as usize / PAGE_SIZE) + 1
-                    };
+                    let num_pages = calc_page_count(pr_hdr.filesz() as usize);
 
                     CrdDelegateOptimizer::new(
                         load_segment_src_page_num as u64,
@@ -340,14 +339,11 @@ impl Process {
                     // the total number we need in bytes (we always need to start at a page)
                     let total_size = first_page_offset + pr_hdr.memsz();
                     // how many pages we need
-                    let page_count = if total_size as usize % PAGE_SIZE == 0 {
-                        total_size as usize / PAGE_SIZE
-                    } else {
-                        (total_size as usize / PAGE_SIZE) + 1
-                    };
+                    let page_count = calc_page_count(total_size as usize);
 
                     // TODO this will never be freed.. Q&D
-                    let heap_ptr = unsafe {
+                    // roottask pointer that holds the elf segment (page aligned)
+                    let r_elf_segment_ptr = unsafe {
                         alloc::alloc::alloc_zeroed(
                             Layout::from_size_align(page_count as usize * PAGE_SIZE, PAGE_SIZE)
                                 .unwrap(),
@@ -358,13 +354,13 @@ impl Process {
                     unsafe {
                         core::ptr::copy_nonoverlapping(
                             pr_hdr.content().as_ptr(),
-                            heap_ptr.add(first_page_offset as usize),
+                            r_elf_segment_ptr.add(first_page_offset as usize),
                             pr_hdr.filesz() as usize,
                         );
                     }
 
                     // mem in roottask: pointer/page into address space of the roottask
-                    let load_segment_src_page_num = heap_ptr as usize / PAGE_SIZE;
+                    let load_segment_src_page_num = r_elf_segment_ptr as usize / PAGE_SIZE;
                     // virt mem in dest PD / address space
                     let load_segment_dest_page_num = pr_hdr.vaddr() as usize / PAGE_SIZE;
 
@@ -510,7 +506,7 @@ impl Process {
     /// Gets the bytes of the page-aligned ELF file.
     pub fn elf_file_bytes(&self) -> &[u8] {
         let elf = self.elf_file.as_ref().unwrap();
-        elf.mem_as_slice(elf.size())
+        elf.mem_as_slice(elf.size() as usize)
     }
 
     pub fn heap_ptr(&self) -> &AtomicU64 {

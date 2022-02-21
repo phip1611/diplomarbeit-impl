@@ -135,7 +135,7 @@ impl ProcessManager {
     /// the thread.
     pub fn startup_exception_handler(
         _pt: &Rc<PtObject>,
-        process: &Process,
+        process: &Rc<Process>,
         utcb: &mut Utcb,
         do_reply: &mut bool,
     ) {

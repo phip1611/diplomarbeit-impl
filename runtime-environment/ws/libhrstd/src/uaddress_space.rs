@@ -27,8 +27,10 @@ pub const USER_STACK_BOTTOM_ADDR: u64 = USER_UTCB_ADDR - USER_STACK_SIZE as u64;
 /// The page number of [`USER_STACK_BOTTOM_ADDR`].
 pub const USER_STACK_BOTTOM_PAGE_NUM: u64 = USER_STACK_BOTTOM_ADDR / PAGE_SIZE as u64;
 
-/// 128KiB stack size for all Hedron user apps. A multiple of [`PAGE_SIZE`].
-pub const USER_STACK_SIZE: usize = 64 * PAGE_SIZE;
+/// 2 MiB stack size for all Hedron user apps. A multiple of [`PAGE_SIZE`].
+/// Linux default is 10MB, Windows default is 1MB. That big because I need to write large
+/// amounts of data in my FS micro benchmark.
+pub const USER_STACK_SIZE: usize = 512 * PAGE_SIZE;
 
 /// Some libc implementation, such as musl, need to read the program headers of their
 /// ELF file. This is the user address where the ELF file program headers shall be

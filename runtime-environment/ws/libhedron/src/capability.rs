@@ -578,6 +578,9 @@ bitflags::bitflags! {
         const READ = bit!(0);
         const WRITE = bit!(1);
         const EXECUTE = bit!(2);
+        const RW = Self::READ.bits | Self::WRITE.bits;
+        const RX = Self::READ.bits | Self::EXECUTE.bits;
+        const RWX = Self::READ.bits | Self::WRITE.bits | Self::EXECUTE.bits;
     }
 }
 
