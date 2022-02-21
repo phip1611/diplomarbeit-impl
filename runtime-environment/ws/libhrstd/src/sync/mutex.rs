@@ -20,6 +20,7 @@ pub struct SimpleMutex<T> {
     lock: AtomicBool,
 }
 
+// TODO fix: <T: Send>  instead of <T>, otherwise Rc can be shared
 unsafe impl<T> Send for SimpleMutex<T> {}
 unsafe impl<T> Sync for SimpleMutex<T> {}
 
