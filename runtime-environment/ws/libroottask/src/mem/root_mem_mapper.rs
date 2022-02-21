@@ -255,8 +255,12 @@ impl RootMemMapper {
         }
 
         let dest_addr = preferred_dest_addr.unwrap_or_else(|| {
+            // next power of two; this will accelerate memory delegations because the
+            // Crd order optimization is applicable
+            let align = (page_count as usize * PAGE_SIZE).next_power_of_two();
             VIRT_MEM_ALLOC.lock().next_addr(
-                Layout::from_size_align(page_count as usize * PAGE_SIZE, PAGE_SIZE).unwrap(),
+                // optimize alignment for faster delegate calls (use Crd order optimization)
+                Layout::from_size_align(page_count as usize * PAGE_SIZE, align).unwrap(),
             )
         });
 
