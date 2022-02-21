@@ -13,6 +13,7 @@ use libhrstd::libhedron::{
     MemCapPermissions,
     UtcbDataException,
 };
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FD;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -38,11 +39,7 @@ impl LinuxSyscallImpl for FstatSyscall {
         let u_page_offset = self.u_ptr_statbuf & 0xfff;
         let mapping_bytes = u_page_offset + size_of::<FileStat>() as u64;
 
-        let page_count = if mapping_bytes % PAGE_SIZE as u64 == 0 {
-            mapping_bytes / PAGE_SIZE as u64
-        } else {
-            (mapping_bytes / PAGE_SIZE as u64) + 1
-        };
+        let page_count = calc_page_count(mapping_bytes as usize);
 
         let r_mapping = VIRT_MEM_ALLOC
             .lock()

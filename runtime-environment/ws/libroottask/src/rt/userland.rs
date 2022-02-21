@@ -55,7 +55,7 @@ impl InitialUserland {
         // all permissions; I reduce the permissions to the minimum when I start the dedicated processes
         let mapped_mem = ROOT_MEM_MAPPER.lock().mmap(
             hip_mem.addr(),
-            calc_page_count(hip_mem.size()),
+            calc_page_count(hip_mem.size() as usize) as u64,
             MemCapPermissions::all(),
         );
 
@@ -176,7 +176,7 @@ impl InitialUserland {
         log::debug!("mapping memory for Userland file: {}", filename);
         let mut mapped_mem = ROOT_MEM_MAPPER.lock().mmap(
             phys_src,
-            calc_page_count(entry.size() as u64),
+            calc_page_count(entry.size()) as u64,
             MemCapPermissions::all(),
         );
 

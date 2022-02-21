@@ -10,6 +10,7 @@ use core::fmt::Write;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FD;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -50,11 +51,7 @@ impl LinuxSyscallImpl for WriteSyscall {
 
         let u_page_offset = self.usr_ptr as usize & 0xfff;
         let byte_amount = u_page_offset + self.count;
-        let page_count = if byte_amount % PAGE_SIZE == 0 {
-            byte_amount / PAGE_SIZE + 1
-        } else {
-            (byte_amount / PAGE_SIZE) + 1
-        };
+        let page_count = calc_page_count(byte_amount);
         CrdDelegateOptimizer::new(
             self.usr_ptr as u64 / PAGE_SIZE as u64,
             cstr_mapping_dest / PAGE_SIZE as u64,

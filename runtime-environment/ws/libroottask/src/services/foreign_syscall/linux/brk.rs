@@ -12,6 +12,7 @@ use core::sync::atomic::Ordering;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::calc_page_count;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Implementation of <https://man7.org/linux/man-pages/man2/brk.2.html>.
@@ -44,11 +45,7 @@ impl LinuxSyscallImpl for BrkSyscall {
             let page_num = ptr.as_ptr() as *const u8 as usize / PAGE_SIZE;
 
             // map the right amount of pages
-            let page_count = if layout.size() % PAGE_SIZE == 0 {
-                layout.size() / PAGE_SIZE
-            } else {
-                (layout.size() / PAGE_SIZE) + 1
-            };
+            let page_count = calc_page_count(layout.size());
 
             CrdDelegateOptimizer::new(
                 page_num as u64,

@@ -19,6 +19,7 @@ use libhrstd::libhedron::{
 };
 
 use libhrstd::libhedron::Utcb;
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::allocate::AllocRequest;
 use libhrstd::service_ids::ServiceId;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
@@ -58,11 +59,7 @@ pub fn allocate_service_handler(
     let page_addr = ptr.as_ptr() as *const u8 as usize & !0xfff;
     let page_num = page_addr / PAGE_SIZE;
 
-    let page_count = if layout.size() % PAGE_SIZE == 0 {
-        layout.size() / PAGE_SIZE
-    } else {
-        (layout.size() / PAGE_SIZE) + 1
-    };
+    let page_count = calc_page_count(layout.size());
 
     CrdDelegateOptimizer::new(
         page_num as u64,

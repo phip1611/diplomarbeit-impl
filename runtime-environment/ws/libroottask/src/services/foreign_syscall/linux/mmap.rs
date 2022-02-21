@@ -9,6 +9,7 @@ use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::calc_page_count;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// * <https://man7.org/linux/man-pages/man2/mmap.2.html>
@@ -60,11 +61,7 @@ impl LinuxSyscallImpl for MMapSyscall {
         //  ptr is and don't map to static location
         let dest_page_num = 0x1234567;
 
-        let page_num = if self.len as usize % PAGE_SIZE == 0 {
-            self.len as usize / PAGE_SIZE
-        } else {
-            (self.len as usize / PAGE_SIZE) + 1
-        };
+        let page_num = calc_page_count(self.len as usize);
 
         // map into PD
         CrdDelegateOptimizer::new(src_page_num as u64, dest_page_num, page_num).mmap(

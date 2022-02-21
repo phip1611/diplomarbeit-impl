@@ -12,6 +12,7 @@ use libhrstd::libhedron::{
     MemCapPermissions,
     UtcbDataException,
 };
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FD;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -47,11 +48,7 @@ impl LinuxSyscallImpl for ReadSyscall {
 
         let u_page_offset = self.user_buf as usize & 0xfff;
         let byte_amount = u_page_offset + self.count;
-        let page_count = if byte_amount % PAGE_SIZE == 0 {
-            byte_amount / PAGE_SIZE + 1
-        } else {
-            (byte_amount / PAGE_SIZE) + 1
-        };
+        let page_count = calc_page_count(byte_amount);
         CrdDelegateOptimizer::new(
             self.user_buf as u64 / PAGE_SIZE as u64,
             r_mapping / PAGE_SIZE as u64,

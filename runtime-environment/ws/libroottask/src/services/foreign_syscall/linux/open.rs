@@ -13,6 +13,7 @@ use libhrstd::libhedron::{
     MemCapPermissions,
     UtcbDataException,
 };
+use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FsOpenFlags;
 use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
@@ -42,11 +43,7 @@ impl LinuxSyscallImpl for OpenSyscall {
     fn handle(&self, _utcb_exc: &mut UtcbDataException, process: &Process) -> LinuxSyscallResult {
         let u_page_offset = self.filename as usize & 0xfff;
         let byte_amount = u_page_offset + MAX_FILE_NAME_LEN;
-        let page_count = if byte_amount % PAGE_SIZE == 0 {
-            byte_amount / PAGE_SIZE + 1
-        } else {
-            (byte_amount / PAGE_SIZE) + 1
-        };
+        let page_count = calc_page_count(byte_amount);
 
         let r_mapping = VIRT_MEM_ALLOC
             .lock()
