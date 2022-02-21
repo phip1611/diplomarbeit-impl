@@ -89,10 +89,10 @@ fn linux_bench_read_syscall() {
         .open("/tmp/foobar")
         .unwrap();
 
-    let bytes_4096 = [0; 4096];
-    let bytes_16384 = [0; 16384];
-    let bytes_128kb = [0; 0x20000];
-    let bytes_1mb = [0; 1 * 1024 * 1024];
+    let bytes_4096 = [0_u8; 4096];
+    let bytes_16384 = [0_u8; 16384];
+    let bytes_128kb = [0_u8; 0x20000];
+    let bytes_1mb = [0_u8; 1 * 1024 * 1024];
 
     let mut read_vec = Vec::with_capacity(bytes_1mb.len() + 1);
     let mut write_read = |bytes| {
