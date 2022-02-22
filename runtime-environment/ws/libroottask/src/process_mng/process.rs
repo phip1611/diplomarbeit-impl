@@ -221,7 +221,8 @@ impl Process {
         }
 
         // create SC-Object at the very end! Otherwise Hedron might schedule the new PD too early
-        let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, 333));
+        // (i.e.: before startup exception portal is set)
+        let _ = ScObject::create(sc_cap_in_root, &ec, Qpd::new(1, None));
 
         log::trace!(
             "Init process done: PID={}, name={}, utcb_addr={:x?}",
