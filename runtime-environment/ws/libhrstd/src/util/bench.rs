@@ -11,6 +11,7 @@ pub type DurationPerIteration = Duration;
 
 /// Helper script that benchmarks a workload [`BenchHelper::BENCH_ITERATIONS`] times.
 /// Beforehand, it warms up the caches etc. with [`BenchHelper::WARMUP_ITERATIONS`] iterations.
+#[derive(Debug)]
 pub struct BenchHelper;
 
 impl BenchHelper {
@@ -29,10 +30,3 @@ impl BenchHelper {
     }
 }
 
-impl Debug for BenchHelper {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("BenchHelper")
-            .field("fnc", &"<fnc>")
-            .finish()
-    }
-}
