@@ -119,6 +119,7 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
         file.seek(SeekFrom::Start(0)).unwrap();
         file.write_all(bytes).unwrap();
         file.seek(SeekFrom::Start(0)).unwrap();
+        // will trigger an lstat syscall + read syscall
         file.read_to_end(&mut read_vec).unwrap();
     };
 
