@@ -9,6 +9,8 @@ publish = false # prevent accidentaly publishing
 [dependencies]
 libhrstd = { path = "../libhrstd", default-features = false }
 libroottask = { path = "../libroottask" }
+# required for benchmarking withing the roottask
+libfileserver = { path ="../libfileserver" }
 runs_inside_qemu = "1.1"
 log = { version = "0.4", default-features = false }
 arrayvec = { version = "0.7", default-features = false }

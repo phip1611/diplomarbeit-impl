@@ -44,13 +44,16 @@ use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::arch::global_asm;
+use libfileserver::fs_read;
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::SmObject;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
+use libhrstd::rt::services::fs::FsOpenFlags;
 use libhrstd::util::BenchHelper;
 use libroottask::process_mng::manager;
 use libroottask::rt::userland;
@@ -172,6 +175,26 @@ fn do_bench() {
         }
     });
     // ############################################################################
+    // MEASURE FILE SYSTEM PERFORMANCE WITHIN ROOTTASK: open, write &close
+    let fs_open_write_close_costs = BenchHelper::bench(|_| {
+        let fd = libfileserver::fs_open(
+            0,
+            String::from("/tmp/roottask_bench1"),
+            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+            0o777,
+        );
+        let data = [0xd_u8, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf];
+        libfileserver::fs_write(0, fd, &[0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf]).unwrap();
+        libfileserver::fs_lseek(0, fd, 0).unwrap();
+        let read_data = fs_read(0, fd, data.len()).unwrap();
+        assert_eq!(
+            &data,
+            read_data.as_slice(),
+            "written data must equal to read data"
+        );
+        libfileserver::fs_close(0, fd).unwrap();
+    });
+    // ############################################################################
 
     log::info!(
         "native pt_ctrl syscall costs costs: {} ticks / pt_ctrl syscall",
@@ -192,6 +215,10 @@ fn do_bench() {
     log::info!(
         "roottask 4096 byte mem alloc costs: {} ticks / allocation (no IPC; pure internal)",
         alloc_4096_byte_costs
+    );
+    log::info!(
+        "roottask fs open,w+r&close costs  : {} ticks / (open, write, read & close) (no IPC; pure internal)",
+        fs_open_write_close_costs
     );
 
     log::info!("benchmarking done");

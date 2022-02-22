@@ -373,6 +373,7 @@ name = "roottask-bin"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "libfileserver",
  "libhrstd",
  "libroottask",
  "log",
