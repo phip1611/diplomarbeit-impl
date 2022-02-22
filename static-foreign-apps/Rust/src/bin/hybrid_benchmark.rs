@@ -29,14 +29,15 @@ fn main() {
     if var("LINUX_UNDER_HEDRON").is_ok() {
         println!("This Linux binary runs as a hybrid foreign application under Hedron");
         hedron_hybrid_bench_native_pt_ctrl_syscall();
-        hedron_bench_foreign_set_tid_address_syscall();
         hedron_bench_raw_echo_pt_call();
         hedron_bench_echo_pt_call();
     } else {
         println!("This Linux binary executes under native Linux");
     }
 
-    linux_bench_read_syscall();
+    linux_bench_cheap_foreign_set_tid_address_syscall();
+    linux_bench_expensive_fs_open();
+    linux_bench_expensive_write_read_lseek_syscalls();
 }
 
 fn pt_entry(_id: PortalIdentifier) -> ! {
@@ -65,20 +66,38 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 /// times and calculates the average clock ticks per call.
 ///
 /// This is a Cross-PD IPC.
-fn hedron_bench_foreign_set_tid_address_syscall() {
+fn linux_bench_cheap_foreign_set_tid_address_syscall() {
     println!();
-    println!("BENCH: FOREIGN SYSCALL FROM FOREIGN APP");
+    println!("BENCH: CHEAP FOREIGN SYSCALL FROM FOREIGN APP (set_tid_address)");
     let duration_per_iteration = BenchHelper::bench(|_|  unsafe {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
-        libc::syscall(libc::SYS_set_tid_address);
+        libc::syscall(libc::SYS_set_tid_address, 0);
     });
-    println!("avg: {} ticks / syscall (Cross-PD IPC)", duration_per_iteration);
+    println!("avg: {} ticks / set_tid_address() syscall (foreign syscall Cross-PD IPC)", duration_per_iteration);
+}
+
+/// Executes a cheap Linux system call from the Linux App multiple
+/// times and calculates the average clock ticks per call.
+///
+/// This is a Cross-PD IPC.
+fn linux_bench_expensive_fs_open() {
+    println!();
+    println!("BENCH: EXPENSIVE FOREIGN SYSCALL FROM FOREIGN APP (open)");
+    let duration_per_iteration = BenchHelper::bench(|_|  unsafe {
+        // this is a super cheap syscall and can be used to measure raw
+        // foreign syscall path performance
+        let _ = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open("/tmp/diplom_evaluation_test_rwos8uf9sg").unwrap();
+    });
+    println!("avg: {} ticks / open() syscall (foreign syscall Cross-PD IPC)", duration_per_iteration);
 }
 
 /// Executes a cheap Hedron system call from the Linux App multiple
 /// times and calculates the average clock ticks per call.
-fn linux_bench_read_syscall() {
+fn linux_bench_expensive_write_read_lseek_syscalls() {
     println!();
     println!("LINUX BENCH: File throughput performance");
     let mut file = OpenOptions::new()

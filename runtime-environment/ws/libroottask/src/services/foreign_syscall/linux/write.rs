@@ -51,7 +51,7 @@ impl LinuxSyscallImpl for WriteSyscall {
             .create_get_mapping(process, self.usr_ptr as u64, self.count as u64)
             .clone();
         let u_page_offset = self.usr_ptr as usize & 0xfff;
-        let u_write_data = mapping.mem_with_offset_as_slice::<u8>(self.count, Some(u_page_offset));
+        let u_write_data = mapping.mem_with_offset_as_slice::<u8>(self.count, u_page_offset);
 
         match self.fd {
             0 => panic!("write to stdin currently not supported"),

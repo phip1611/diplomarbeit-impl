@@ -116,27 +116,27 @@ impl MappedMemory {
 
     /// Creates a slice of data from the underlying memory of Type T.
     pub fn mem_as_slice<T: Sized>(&self, length: usize) -> &[T] {
-        self.mem_with_offset_as_slice(length, None)
+        self.mem_with_offset_as_slice(length, 0)
     }
 
     /// Creates a slice of data from the underlying memory of Type T at the
     /// given offset. **The offset is in bytes!**
-    pub fn mem_with_offset_as_slice<T: Sized>(&self, length: usize, offset: Option<usize>) -> &[T] {
-        self.assert_mem_as_slice::<T>(offset, length);
+    pub fn mem_with_offset_as_slice<T: Sized>(&self, length: usize, offset: usize) -> &[T] {
+        self.assert_mem_as_slice::<T>(Some(offset), length);
         unsafe {
-            let ptr = self.begin_ptr().add(offset.unwrap_or(0)).cast();
+            let ptr = self.begin_ptr().add(offset).cast();
             core::slice::from_raw_parts(ptr, length)
         }
     }
 
     /// Wrapper around [`Self::mem_with_offset_as`].
     pub fn mem_as<T: Sized>(&self) -> &T {
-        self.mem_with_offset_as(None)
+        self.mem_with_offset_as(0)
     }
 
     /// Wrapper around [`Self::mem_with_offset_as_mut`].
     pub fn mem_as_mut<T: Sized>(&mut self) -> &mut T {
-        self.mem_with_offset_as_mut(None)
+        self.mem_with_offset_as_mut(0)
     }
 
     /// Wrapper around [`Self::mem_as`].
@@ -150,37 +150,25 @@ impl MappedMemory {
     }
 
     /// Wrapper around [`Self::mem_with_offset_as`].
-    pub fn mem_with_offset_as_ptr<T: Sized>(&self, offset: Option<usize>) -> *const T {
+    pub fn mem_with_offset_as_ptr<T: Sized>(&self, offset: usize) -> *const T {
         self.mem_with_offset_as(offset) as *const T
     }
 
     /// Wrapper around [`Self::mem_with_offset_as_mut`].
-    pub fn mem_with_offset_as_ptr_mut<T: Sized>(&mut self, offset: Option<usize>) -> *mut T {
+    pub fn mem_with_offset_as_ptr_mut<T: Sized>(&mut self, offset: usize) -> *mut T {
         self.mem_with_offset_as_mut(offset) as *mut T
     }
 
     /// Helper to interpret the mapped memory at a given address as a special type.
-    pub fn mem_with_offset_as<T: Sized>(&self, offset: Option<usize>) -> &T {
-        self.assert_mem_as::<T>(offset);
-        unsafe {
-            self.begin_ptr()
-                .add(offset.unwrap_or(0))
-                .cast::<T>()
-                .as_ref()
-        }
-        .unwrap()
+    pub fn mem_with_offset_as<T: Sized>(&self, offset: usize) -> &T {
+        self.assert_mem_as::<T>(Some(offset));
+        unsafe { self.begin_ptr().add(offset).cast::<T>().as_ref() }.unwrap()
     }
 
     /// Helper to interpret the mapped memory at a given address as a special type.
-    pub fn mem_with_offset_as_mut<T: Sized>(&mut self, offset: Option<usize>) -> &mut T {
-        self.assert_mem_as::<T>(offset);
-        unsafe {
-            self.begin_ptr_mut()
-                .add(offset.unwrap_or(0))
-                .cast::<T>()
-                .as_mut()
-        }
-        .unwrap()
+    pub fn mem_with_offset_as_mut<T: Sized>(&mut self, offset: usize) -> &mut T {
+        self.assert_mem_as::<T>(Some(offset));
+        unsafe { self.begin_ptr_mut().add(offset).cast::<T>().as_mut() }.unwrap()
     }
 
     /// Common assertion method for `mem_*_as*`-functions.

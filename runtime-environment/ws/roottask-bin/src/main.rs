@@ -44,6 +44,7 @@ use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
+use alloc::vec::Vec;
 use core::arch::global_asm;
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::SmObject;
@@ -155,6 +156,22 @@ fn do_bench() {
     // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
     let raw_echo_call_costs = BenchHelper::bench(|_| raw_echo_pt.call().unwrap());
     // ############################################################################
+    // MEASURE ROOTTASK ALLOCATION COSTS (1 Byte)
+    let alloc_1_byte_costs = BenchHelper::bench(|_| {
+        let vec = Vec::<u8>::with_capacity(1);
+        unsafe {
+            let _x = core::ptr::read_volatile(vec.as_ptr());
+        }
+    });
+    // ############################################################################
+    // MEASURE ROOTTASK ALLOCATION COSTS (4096 Byte)
+    let alloc_4096_byte_costs = BenchHelper::bench(|_| {
+        let vec = Vec::<u8>::with_capacity(4096);
+        unsafe {
+            let _x = core::ptr::read_volatile(vec.as_ptr());
+        }
+    });
+    // ############################################################################
 
     log::info!(
         "native pt_ctrl syscall costs costs: {} ticks / pt_ctrl syscall",
@@ -167,6 +184,14 @@ fn do_bench() {
     log::info!(
         "echo call costs                   : {} ticks / call syscall (PD-internal IPC)",
         echo_call_costs
+    );
+    log::info!(
+        "roottask 1 bytes mem alloc costs  : {} ticks / allocation (no IPC; pure internal)",
+        alloc_1_byte_costs
+    );
+    log::info!(
+        "roottask 4096 byte mem alloc costs: {} ticks / allocation (no IPC; pure internal)",
+        alloc_4096_byte_costs
     );
 
     log::info!("benchmarking done");
