@@ -126,25 +126,25 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
         write_read(&bytes_4096)
     );
     println!("avg write + read 4096 bytes : {:6} ticks / (write and read)", duration_per_iteration_read_write_4096);
-    println!("                            : {:.2} bytes / 1000 ticks", 4096.0 * 1000.0 / (duration_per_iteration_read_write_4096 as f64));
+    println!("                            : {:>7.2} bytes / 1000 ticks", 4096.0 * 1000.0 / (duration_per_iteration_read_write_4096 as f64));
 
     let duration_per_iteration_read_write_16384  = BenchHelper::bench(|_|
         write_read(&bytes_16384)
     );
     println!("avg write + read 16384 bytes: {:6} ticks / (write and read)", duration_per_iteration_read_write_16384);
-    println!("                            : {:.2} bytes / 1000 ticks", 16384.0 * 1000.0 / (duration_per_iteration_read_write_16384 as f64));
+    println!("                            : {:>7.2} bytes / 1000 ticks", 16384.0 * 1000.0 / (duration_per_iteration_read_write_16384 as f64));
 
     let duration_per_iteration_read_write_128kib  = BenchHelper::bench(|_|
         write_read(&bytes_128kb)
     );
     println!("avg write + read 128kib     : {:6} ticks / (write and read)", duration_per_iteration_read_write_128kib);
-    println!("                            : {:.2} bytes / 1000 ticks", bytes_128kb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_128kib as f64));
+    println!("                            : {:>7.2} bytes / 1000 ticks", bytes_128kb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_128kib as f64));
 
     let duration_per_iteration_read_write_1mb  = BenchHelper::bench(|_|
         write_read(&bytes_1mb)
     );
     println!("avg write + read 1 mb       : {:6} ticks / (write and read)", duration_per_iteration_read_write_1mb);
-    println!("                            : {:.2} bytes / 1000 ticks", bytes_1mb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_1mb as f64));
+    println!("                            : {:>7.2} bytes / 1000 ticks", bytes_1mb.len() as f64 * 1000.0 / (duration_per_iteration_read_write_1mb as f64));
 }
 
 /// Calculates the average time to call the RAW ECHO SERVICE PT. This is the raw cost of
