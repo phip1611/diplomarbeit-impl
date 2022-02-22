@@ -38,6 +38,12 @@ pub fn handle_foreign_syscall(
     match process.syscall_abi() {
         // syscall implementations may not change these values
         SyscallAbi::Linux => {
+            // EMULATE COSTS OF AN ADDITIONAL CHEAP IPC CALL AS DISCUSSED WITH NILS
+            // THIS IS SIMILAR TO A MEDIATOR LIBRARY LINKED NEXT TO FOREIGN APPLICATIONS
+            // DURING RUNTIME.
+            libhrstd::libhedron::syscall::sys_call(RootCapSpace::RootRawEchoServicePt.val())
+                .unwrap();
+            // EMULATE COSTS END.
             let syscall = GenericLinuxSyscall::try_from(utcb.exception_data()).unwrap();
             log::trace!("linux syscall: {:?}", syscall.syscall_num());
             syscall.handle(utcb.exception_data_mut(), process);
