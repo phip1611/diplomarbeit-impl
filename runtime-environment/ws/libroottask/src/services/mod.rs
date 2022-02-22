@@ -5,13 +5,9 @@ use crate::mem::{
     ROOT_MEM_MAPPER,
     VIRT_MEM_ALLOC,
 };
-use crate::process_mng::manager::PROCESS_MNG;
 use crate::process_mng::process::Process;
 use crate::stack::StaticStack;
-use alloc::collections::{
-    BTreeMap,
-    BTreeSet,
-};
+use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
 use core::alloc::Layout;
 use libhrstd::cap_space::root::RootCapSpace;

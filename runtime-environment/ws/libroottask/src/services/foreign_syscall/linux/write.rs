@@ -1,4 +1,3 @@
-use crate::mem::VIRT_MEM_ALLOC;
 use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
@@ -7,14 +6,9 @@ use crate::services::foreign_syscall::linux::{
 };
 use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
-use core::alloc::Layout;
 use core::fmt::Write;
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
-use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FD;
-use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]
 pub struct WriteSyscall {
