@@ -21,6 +21,7 @@ pub enum LinuxSyscallNum {
     WriteV = 20,
     Clone = 56,
     Fcntl = 72,
+    Unlink = 87,
     SigAltStack = 131,
     ArchPrctl = 158,
     Gettid = 186,

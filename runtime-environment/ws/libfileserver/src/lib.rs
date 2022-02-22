@@ -356,7 +356,12 @@ pub fn fs_lseek(caller: ProcessId, fd: FD, offset: usize) -> Result<(), ()> {
     Ok(())
 }
 
-/// Returns stats about a file.
+/// Public interface to the file system management data structures to get the fstat data structure.
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX.
 pub fn fs_fstat(caller: ProcessId, fd: FD) -> Result<FileStat, ()> {
     let key = (caller, fd);
     let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
@@ -376,6 +381,24 @@ pub fn fs_close(caller: ProcessId, fd: FD) -> Result<(), ()> {
     let mut lock = OPEN_FILE_TABLE.lock();
     lock.close(caller, fd)?;
     Ok(())
+}
+
+/// Public interface to the file system management data structures to unlink a file.
+///
+/// This is not the public service API that gets exported via portals but the
+/// public service Portals will wrap around these functions.
+///
+/// The interface is close to UNIX.
+pub fn fs_unlink(caller: ProcessId, file: &String) -> Result<(), ()> {
+    let mut fs_lock = IN_MEM_FS.lock();
+    // TODO don't know yet how this interacts with files opened in the open file table
+    if fs_lock.delete(file) {
+        log::trace!("deletion successful");
+        Ok(())
+    } else {
+        log::trace!("deletion failed");
+        Err(())
+    }
 }
 
 /// This is identical to the UNIX/libc stat type.
@@ -524,5 +547,35 @@ mod tests {
         assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
         fs_write(1, fd, &payload).unwrap();
         assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
+    }
+
+    #[test]
+    fn test_fs_unlink() {
+        let filename = String::from("/foo/test3");
+        let fd = fs_open(
+            1,
+            filename.clone(),
+            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+            0o777,
+        );
+        {
+            let fs_lock = IN_MEM_FS.lock();
+            assert!(fs_lock.file(&filename).is_some());
+        }
+
+        fs_unlink(1, &filename).unwrap();
+        {
+            let fs_lock = IN_MEM_FS.lock();
+            assert!(fs_lock.file(&filename).is_none());
+            // without this, tests get stuck (because some methods lock
+            // the open file table first and then we have a deadlock
+            drop(fs_lock);
+
+            let open_ft_lock = OPEN_FILE_TABLE.lock();
+            assert!(
+                open_ft_lock.data().get(&(1, fd)).is_some(),
+                "file must stay opened in open file table"
+            )
+        }
     }
 }

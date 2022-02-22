@@ -44,6 +44,13 @@ impl LinuxSyscallImpl for MMapSyscall {
         _utcb_exc: &mut UtcbDataException,
         process: &Rc<Process>,
     ) -> LinuxSyscallResult {
+        log::trace!("Mmap: addr={:?}, len={}", self.addr, self.len);
+
+        // TODO !!! CURRENTLY THIS ONLY WORKS ONCE PER APPLICATION! OTHERWISE, UNDEFINED
+        //  BEHAVIOUR MIGHT HAPPEN. THIS APPROACH IS Q&D AND ONLY MAPS A STATIC ADDRESS
+        //  ONCE INTO THE BINARY. THERE IS NO COOL DYNAMIC MECHANISM THAT LOOKS FOR FREE
+        //  SPACE IN THE VIRTUAL MEMORY SPACE OF THE APP.
+
         // two most popular combinations
         let mut ptr = None;
         if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {
@@ -63,7 +70,8 @@ impl LinuxSyscallImpl for MMapSyscall {
 
         let src_page_num = ptr.unwrap() as usize / PAGE_SIZE;
         // TODO look into process object to see where the heap
-        //  ptr is and don't map to static location
+        //  ptr is and don't map to fixed location
+        //  This only works because all my programs only perform a single mmap fortunately
         let dest_page_num = 0x1234567;
 
         let page_num = calc_page_count(self.len as usize);

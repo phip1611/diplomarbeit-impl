@@ -8,6 +8,7 @@ use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
 use crate::services::foreign_syscall::linux::lseek::LSeekSyscall;
 use crate::services::foreign_syscall::linux::madvise::MAdviseSyscall;
 use crate::services::foreign_syscall::linux::mmap::MMapSyscall;
+use crate::services::foreign_syscall::linux::munmap::MUnMapSyscall;
 use crate::services::foreign_syscall::linux::open::OpenSyscall;
 use crate::services::foreign_syscall::linux::poll::PollSyscall;
 use crate::services::foreign_syscall::linux::read::ReadSyscall;
@@ -16,6 +17,7 @@ use crate::services::foreign_syscall::linux::rtsigprocmask::RtSigProcMaskSyscall
 use crate::services::foreign_syscall::linux::set_tid_address::SetTidAddressSyscall;
 use crate::services::foreign_syscall::linux::signalstack::SignalStackSyscall;
 use crate::services::foreign_syscall::linux::syscall_num::LinuxSyscallNum;
+use crate::services::foreign_syscall::linux::unlink::UnlinkSyscall;
 use crate::services::foreign_syscall::linux::write::WriteSyscall;
 use crate::services::foreign_syscall::linux::write_v::WriteVSyscall;
 use crate::services::foreign_syscall::linux::{
@@ -79,7 +81,7 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::LSeek => LSeekSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::MMap => MMapSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::MProtect => todo!("LinuxSyscallNum::MProtect"),
-            LinuxSyscallNum::MUnmap => todo!("LinuxSyscallNum::MUnmap"),
+            LinuxSyscallNum::MUnmap => MUnMapSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Brk => BrkSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::RtSigaction => RtSigactionSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::RtSigprocmask => RtSigProcMaskSyscall::from(self).handle(utcb_exc, process),
@@ -88,6 +90,7 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::WriteV => WriteVSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Clone => todo!("LinuxSyscallNum::Clone"),
             LinuxSyscallNum::Fcntl => FcntlSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::Unlink => UnlinkSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::SigAltStack => SignalStackSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::ArchPrctl => ArchPrctlSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Gettid => todo!("LinuxSyscallNum::Gettid"),

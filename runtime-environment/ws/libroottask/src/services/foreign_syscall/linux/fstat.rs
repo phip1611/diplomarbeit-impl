@@ -8,10 +8,7 @@ use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
 use core::mem::size_of;
 use libfileserver::FileStat;
-use libhrstd::libhedron::{
-    MemCapPermissions,
-    UtcbDataException,
-};
+use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]

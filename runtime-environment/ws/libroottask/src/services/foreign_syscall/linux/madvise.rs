@@ -88,6 +88,7 @@ pub enum MAdvise {
 }
 
 impl MAdvise {
+    #[allow(unused)]
     pub const fn val(self) -> u64 {
         self as _
     }

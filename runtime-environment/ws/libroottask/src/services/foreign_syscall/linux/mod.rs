@@ -1,6 +1,7 @@
 mod arch_prctl;
 mod brk;
 mod close;
+mod consts;
 mod error_code;
 mod fcntl;
 mod fstat;
@@ -9,6 +10,7 @@ mod ioctl;
 mod lseek;
 mod madvise;
 mod mmap;
+mod munmap;
 mod open;
 mod poll;
 mod read;
@@ -17,6 +19,7 @@ mod rtsigprocmask;
 mod set_tid_address;
 mod signalstack;
 mod syscall_num;
+mod unlink;
 mod write;
 mod write_v;
 
