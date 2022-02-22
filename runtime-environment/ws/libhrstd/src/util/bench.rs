@@ -2,10 +2,7 @@ use crate::time::{
     Duration,
     Instant,
 };
-use core::fmt::{
-    Debug,
-    Formatter,
-};
+use core::fmt::Debug;
 
 pub type DurationPerIteration = Duration;
 
@@ -29,4 +26,3 @@ impl BenchHelper {
         (Instant::now() - begin) / Self::BENCH_ITERATIONS
     }
 }
-

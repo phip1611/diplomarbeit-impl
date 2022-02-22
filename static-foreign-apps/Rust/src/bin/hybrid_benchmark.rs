@@ -83,10 +83,14 @@ fn linux_bench_cheap_foreign_set_tid_address_syscall() {
         // foreign syscall path performance
         libc::syscall(libc::SYS_set_tid_address, 0);
     });
-    println!(
-        "avg: {} ticks / set_tid_address() syscall (foreign syscall Cross-PD IPC)",
+    print!(
+        "avg: {} ticks / set_tid_address() syscall",
         duration_per_iteration
     );
+    if var("LINUX_UNDER_HEDRON").is_ok() {
+        print!(" (foreign syscall Cross-PD IPC)");
+    }
+    println!();
 }
 
 /// Executes a cheap Linux system call from the Linux App multiple
@@ -105,26 +109,24 @@ fn linux_bench_expensive_fs_open() {
             .open("/tmp/diplom_evaluation_test_rwos8uf9sg")
             .unwrap();
     });
-    println!(
-        "avg: {} ticks / open() syscall (foreign syscall Cross-PD IPC)",
+    print!(
+        "avg: {} ticks / open() syscall",
         duration_per_iteration
     );
+    if var("LINUX_UNDER_HEDRON").is_ok() {
+        print!(" (foreign syscall Cross-PD IPC)");
+    }
+    println!();
 }
 
-/// Executes a cheap Hedron system call from the Linux App multiple
-/// times and calculates the average clock ticks per call.
+/// Performs the file system microbenchmark that runs under Linux as well as Hedron.
+/// Consists of multiple small sub benchmarks.
 fn linux_bench_expensive_write_read_lseek_syscalls() {
     println!();
     println!("LINUX BENCH: File throughput performance");
     let bench_file_path = "/tmp/foobar";
     // remove file if it already exists (last iteration panic'ed or so)
     let _ = std::fs::remove_file(bench_file_path);
-
-
-    let bytes_4kib = [0_u8; 4096];
-    let bytes_16kib = [0_u8; 16384];
-    let bytes_128kib = [0_u8; 0x20000];
-    let bytes_1mib = [0_u8; 1 * 1024 * 1024];
 
     // Prepares the file for the benchmark. Makes sure it is freshly created
     // and has a length of zero.
@@ -138,11 +140,13 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
             .unwrap()
     };
 
+    // Removes the file after each sub benchmark ran.
     let after_bench_fn = || {
         let _ = std::fs::remove_file(bench_file_path);
     };
 
-    let bench_desc_fn = |desc: &str, bytes: &[u8], duration_per_iteration: u64| {
+    // prints the result of the sub benchmarks in the same format to the screen
+    let bench_print_result_fn = |desc: &str, bytes: &[u8], duration_per_iteration: u64| {
         println!(
             "  Bench {:>30} [{} bytes]: avg {:6} ticks / iteration",
             desc,
@@ -161,6 +165,8 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
         );
     };
 
+    // performs the sub benchmark with the system calls:
+    //  write,lseek,read,lseek
     let do_read_and_print_without_fstat_fn = |desc: &str, bytes: &[u8]| {
         let mut read_vec = Vec::with_capacity(bytes.len() + 1);
         let mut file = before_bench_fn();
@@ -171,9 +177,11 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
             file.seek(SeekFrom::Start(0)).unwrap();
         });
         after_bench_fn();
-        bench_desc_fn(desc, bytes, duration_per_iteration);
+        bench_print_result_fn(desc, bytes, duration_per_iteration);
     };
 
+    // performs the sub benchmark with the system calls:
+    //  write,lseek,fsat,read,lseek
     let do_read_and_print_with_fstat_fn = |desc: &str, bytes: &[u8]| {
         let mut read_vec = Vec::with_capacity(bytes.len() + 1);
         let mut file = before_bench_fn();
@@ -187,8 +195,13 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
             file.seek(SeekFrom::Start(0)).unwrap();
         });
         after_bench_fn();
-        bench_desc_fn(desc, bytes, duration_per_iteration);
+        bench_print_result_fn(desc, bytes, duration_per_iteration);
     };
+
+    let bytes_4kib = [0_u8; 4096];
+    let bytes_16kib = [0_u8; 16384];
+    let bytes_128kib = [0_u8; 0x20000];
+    let bytes_1mib = [0_u8; 1 * 1024 * 1024];
 
     let bench_sizes = [&bytes_4kib[..], &bytes_16kib[..], &bytes_128kib[..], &bytes_1mib[..]];
     bench_sizes.iter().for_each(|bytes| do_read_and_print_without_fstat_fn("write,lseek,read,lseek", bytes));
