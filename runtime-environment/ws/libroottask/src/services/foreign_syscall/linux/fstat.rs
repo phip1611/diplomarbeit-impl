@@ -1,22 +1,18 @@
-use crate::mem::VIRT_MEM_ALLOC;
 use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
+use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
-use core::alloc::Layout;
 use core::mem::size_of;
 use libfileserver::FileStat;
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::{
     MemCapPermissions,
     UtcbDataException,
 };
-use libhrstd::mem::calc_page_count;
 use libhrstd::rt::services::fs::FD;
-use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]
 pub struct FstatSyscall {
@@ -42,26 +38,14 @@ impl LinuxSyscallImpl for FstatSyscall {
         let fstat = libfileserver::fs_fstat(process.pid(), self.fd).unwrap();
 
         let u_page_offset = self.u_ptr_statbuf & 0xfff;
-        let mapping_bytes = u_page_offset + size_of::<FileStat>() as u64;
-
-        let page_count = calc_page_count(mapping_bytes as usize);
-
-        let r_mapping = VIRT_MEM_ALLOC
+        let mut mapping = MAPPED_AREAS
             .lock()
-            .next_addr(Layout::from_size_align(mapping_bytes as usize, PAGE_SIZE).unwrap());
+            .create_get_mapping(process, self.u_ptr_statbuf, size_of::<FileStat>() as u64)
+            .clone();
 
-        let u_page_num = self.u_ptr_statbuf / PAGE_SIZE as u64;
-        let r_page_num = r_mapping / PAGE_SIZE as u64;
-
-        CrdDelegateOptimizer::new(u_page_num, r_page_num, page_count as usize).mmap(
-            process.pd_obj().cap_sel(),
-            process.parent().unwrap().pd_obj().cap_sel(),
-            MemCapPermissions::READ | MemCapPermissions::WRITE,
-        );
-
-        let r_stat_ptr = r_mapping + u_page_offset;
+        let r_write_ptr = mapping.mem_with_offset_as_ptr_mut(u_page_offset as usize);
         unsafe {
-            core::ptr::write(r_stat_ptr as *mut _, fstat);
+            core::ptr::write(r_write_ptr as *mut _, fstat);
         }
 
         LinuxSyscallResult::new_success(0)
