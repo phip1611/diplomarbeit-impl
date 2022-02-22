@@ -49,4 +49,3 @@ pub mod roottask_exception;
 pub mod rt;
 pub mod services;
 pub mod stack;
-pub mod static_alloc;

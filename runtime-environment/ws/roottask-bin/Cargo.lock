@@ -378,6 +378,7 @@ dependencies = [
  "libroottask",
  "log",
  "runs_inside_qemu",
+ "simple-chunk-allocator",
 ]
 
 [[package]]
@@ -438,6 +439,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "simple-chunk-allocator"
+version = "0.1.0"
+source = "git+https://github.com/phip1611/simple-chunk-allocator.git?branch=main#b1d8510019d26a1995588e2e4888f6d716a24d56"
+dependencies = [
+ "libm",
+ "log",
+ "spin",
 ]
 
 [[package]]
