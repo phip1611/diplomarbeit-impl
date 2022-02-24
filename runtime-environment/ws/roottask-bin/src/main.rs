@@ -44,7 +44,6 @@ use crate::roottask_stack::{
     STACK_SIZE,
     STACK_TOP_PTR,
 };
-use alloc::string::String;
 use alloc::vec::Vec;
 use core::arch::global_asm;
 use libfileserver::fs_read;
@@ -112,6 +111,9 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     services::init_services(manager::PROCESS_MNG.lock().root());
 
     log::info!("Rust Roottask started successfully");
+
+    // Check how the allocation costs changes if the heap is already really full.
+    // let _vec = Vec::<u8>::with_capacity(1024 * 1024 * 2); // 2 MebiByte
     do_bench();
 
     // NOW READY TO START PROCESSES
@@ -179,7 +181,7 @@ fn do_bench() {
     let fs_open_write_close_costs = BenchHelper::bench(|_| {
         let fd = libfileserver::fs_open(
             0,
-            String::from("/tmp/roottask_bench1"),
+            "/tmp/roottask_bench1",
             FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
             0o777,
         );

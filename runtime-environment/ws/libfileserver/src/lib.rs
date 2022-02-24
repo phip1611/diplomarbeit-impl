@@ -312,7 +312,7 @@ pub fn fs_read(caller: ProcessId, fd: FD, count: usize) -> Result<Vec<u8>, ()> {
         .get_file_by_inode(handle.i_node())
         .ok_or(())?;
 
-    let mut data = Vec::new();
+    let mut data = Vec::with_capacity(min(file.data().len(), count));
     let new_offset = min(file.data().len(), count + offset);
     handle.file_offset = new_offset;
 

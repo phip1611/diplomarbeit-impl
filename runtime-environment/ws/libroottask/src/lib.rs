@@ -1,6 +1,6 @@
 //! Roottask-lib.
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![deny(
     clippy::all,
     clippy::cargo,

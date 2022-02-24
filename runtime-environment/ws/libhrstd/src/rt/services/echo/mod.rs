@@ -1,3 +1,4 @@
+#[cfg(any(feature = "foreign_rust_rt", feature = "native_rust_rt"))]
 use crate::cap_space::user::UserAppCapSpace;
 #[cfg(feature = "foreign_rust_rt")]
 use crate::rt::hybrid_rt::syscalls::sys_hybrid_call;
