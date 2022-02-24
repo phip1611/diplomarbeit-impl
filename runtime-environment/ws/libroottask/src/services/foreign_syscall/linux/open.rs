@@ -7,7 +7,6 @@ use crate::services::foreign_syscall::linux::{
 };
 use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
-use alloc::string::ToString;
 use libhrstd::cstr::CStr;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FsOpenFlags;
@@ -45,7 +44,7 @@ impl LinuxSyscallImpl for OpenSyscall {
         let filename = mapping.mem_with_offset_as_slice::<u8>(LINUX_PATH_MAX, u_page_offset);
         let filename = CStr::try_from(filename).unwrap();
         // remove null bytes
-        let filename = filename.as_str().trim_matches('\0').to_string();
+        let filename = filename.as_str().trim_matches('\0');
 
         let fd = libfileserver::fs_open(process.pid(), filename, self.flags, self.umode as u16);
 
