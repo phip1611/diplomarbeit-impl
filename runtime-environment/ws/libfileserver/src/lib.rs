@@ -52,12 +52,17 @@ use libhrstd::process::consts::ProcessId;
 use libhrstd::rt::services::fs::FsOpenFlags;
 use libhrstd::rt::services::fs::FD;
 use libhrstd::sync::mutex::SimpleMutex;
+use libhrstd::util::global_counter::GlobalIncrementingCounter;
 
 /// Open file table with open files in [`IN_MEM_FS`].
 static OPEN_FILE_TABLE: SimpleMutex<OpenFileTable> = SimpleMutex::new(OpenFileTable::new());
 
 /// Contains the file system in memory.
 static IN_MEM_FS: SimpleMutex<InMemFilesystem> = SimpleMutex::new(InMemFilesystem::new());
+
+/// Counter to give unique inodes (=identifiers) to files. Currently, this is auto incrementing
+/// for ever.
+static INODE_COUNTER: GlobalIncrementingCounter = GlobalIncrementingCounter::new();
 
 /// Holds information about all files that are currently open inside the system.
 #[derive(Debug)]
@@ -72,30 +77,31 @@ impl OpenFileTable {
     pub fn open(
         &mut self,
         caller: ProcessId,
-        path: String,
+        path: &str,
         flags: FsOpenFlags,
         umode: u16,
     ) -> Result<FD, ()> {
         let fd = self.next_fd(caller);
 
         let mut in_mem_fs = IN_MEM_FS.lock();
-        if in_mem_fs.file(&path).is_none() & flags.can_create() {
+        let maybe_file = in_mem_fs.get_file_by_path(&path);
+        if maybe_file.is_none() & flags.can_create() {
             // create new file
-            in_mem_fs
-                .create(
-                    path.clone(),
-                    InMemFile::new(path.clone(), FileMetaData::new(umode, caller)),
-                )
-                .unwrap();
+            let path = String::from(path);
+            let new_file = InMemFile::new(path.clone(), FileMetaData::new(umode, caller));
+            let i_node = new_file.i_node();
+            in_mem_fs.create_file(path, new_file).unwrap();
             self.data_mut()
-                .insert((caller, fd), OpenFileHandle::new(flags, path));
+                .insert((caller, fd), OpenFileHandle::new(flags, i_node));
             Ok(fd)
-        } else if in_mem_fs.file(&path).is_none() {
+        } else if in_mem_fs.get_file_by_path(&path).is_none() {
+            // file doesn't exist or can't get created
             Err(())
         } else {
+            let file = maybe_file.unwrap();
             // open existing file
             self.data_mut()
-                .insert((caller, fd), OpenFileHandle::new(flags, path));
+                .insert((caller, fd), OpenFileHandle::new(flags, file.i_node()));
             Ok(fd)
         }
     }
@@ -141,18 +147,18 @@ type OpenFileHandleId = (ProcessId, FD);
 /// Describes an opened file.
 #[derive(Debug)]
 struct OpenFileHandle {
+    // used as ID
+    i_node: u64,
     file_offset: usize,
     flags: FsOpenFlags,
-    // used as ID
-    file_path: String,
 }
 
 impl OpenFileHandle {
-    pub fn new(flags: FsOpenFlags, file_id: String) -> Self {
+    pub fn new(flags: FsOpenFlags, i_node: u64) -> Self {
         OpenFileHandle {
             file_offset: 0,
             flags,
-            file_path: file_id,
+            i_node,
         }
     }
 
@@ -162,8 +168,9 @@ impl OpenFileHandle {
     pub fn flags(&self) -> FsOpenFlags {
         self.flags
     }
-    pub fn file_path(&self) -> &String {
-        &self.file_path
+
+    pub fn i_node(&self) -> u64 {
+        self.i_node
     }
 }
 
@@ -190,6 +197,7 @@ impl FileMetaData {
 #[derive(Debug)]
 struct InMemFile {
     // used as ID
+    i_node: u64,
     path: String,
     data: Vec<u8>,
     meta: FileMetaData,
@@ -198,6 +206,7 @@ struct InMemFile {
 impl InMemFile {
     pub fn new(path: String, meta: FileMetaData) -> Self {
         Self {
+            i_node: INODE_COUNTER.next(),
             path,
             data: vec![],
             meta,
@@ -215,6 +224,9 @@ impl InMemFile {
     pub fn meta(&self) -> &FileMetaData {
         &self.meta
     }
+    pub fn i_node(&self) -> u64 {
+        self.i_node
+    }
 }
 
 #[derive(Debug)]
@@ -229,7 +241,7 @@ impl InMemFilesystem {
         }
     }
 
-    fn create(&mut self, filepath: String, file: InMemFile) -> Result<(), ()> {
+    fn create_file(&mut self, filepath: String, file: InMemFile) -> Result<(), ()> {
         if self.files.contains_key(&filepath) {
             Err(())
         } else {
@@ -238,15 +250,29 @@ impl InMemFilesystem {
         }
     }
 
-    fn file(&self, filepath: &String) -> Option<&InMemFile> {
+    fn get_file_by_inode(&self, i_node: u64) -> Option<&InMemFile> {
+        self.files
+            .iter()
+            .map(|(_, file)| file)
+            .find(|file| file.i_node() == i_node)
+    }
+
+    fn get_file_by_inode_mut(&mut self, i_node: u64) -> Option<&mut InMemFile> {
+        self.files
+            .iter_mut()
+            .map(|(_, file)| file)
+            .find(|file| file.i_node() == i_node)
+    }
+
+    fn get_file_by_path(&self, filepath: &str) -> Option<&InMemFile> {
         self.files.get(filepath)
     }
 
-    fn file_mut(&mut self, filepath: &String) -> Option<&mut InMemFile> {
+    fn get_file_by_path_mut(&mut self, filepath: &str) -> Option<&mut InMemFile> {
         self.files.get_mut(filepath)
     }
 
-    fn delete(&mut self, filepath: &String) -> bool {
+    fn delete_file_by_path(&mut self, filepath: &str) -> bool {
         self.files.remove(filepath).is_some()
     }
 }
@@ -257,7 +283,7 @@ impl InMemFilesystem {
 /// public service Portals will wrap around these functions.
 ///
 /// The interface is close to UNIX. On success, a new [`FD`] gets returned.
-pub fn fs_open(caller: ProcessId, path: String, flags: FsOpenFlags, umode: u16) -> FD {
+pub fn fs_open(caller: ProcessId, path: &str, flags: FsOpenFlags, umode: u16) -> FD {
     if flags.is_empty() {
         return FD::error();
     };
@@ -282,9 +308,11 @@ pub fn fs_read(caller: ProcessId, fd: FD, count: usize) -> Result<Vec<u8>, ()> {
     let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
     let in_mem_fs_lock = IN_MEM_FS.lock();
     let offset = handle.file_offset();
-    let file = in_mem_fs_lock.file(handle.file_path()).ok_or(())?;
+    let file = in_mem_fs_lock
+        .get_file_by_inode(handle.i_node())
+        .ok_or(())?;
 
-    let mut data = Vec::new();
+    let mut data = Vec::with_capacity(min(file.data().len(), count));
     let new_offset = min(file.data().len(), count + offset);
     handle.file_offset = new_offset;
 
@@ -304,7 +332,9 @@ pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<usize, ()>
     let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
     let mut in_mem_fs_lock = IN_MEM_FS.lock();
 
-    let file = in_mem_fs_lock.file_mut(handle.file_path()).ok_or(())?;
+    let file = in_mem_fs_lock
+        .get_file_by_inode_mut(handle.i_node())
+        .ok_or(())?;
 
     // get offset; i.e.: the point where we start to append data
     // on UNIX, APPEND always appends; independent from the file offset
@@ -346,7 +376,7 @@ pub fn fs_lseek(caller: ProcessId, fd: FD, offset: usize) -> Result<(), ()> {
     let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
     let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
     let fs_lock = IN_MEM_FS.lock();
-    let file = fs_lock.file(handle.file_path()).ok_or(())?;
+    let file = fs_lock.get_file_by_inode(handle.i_node()).ok_or(())?;
     if offset > file.data().len() {
         log::warn!("offset > file.data.len()");
         // TODO not sure how UNIX handles this
@@ -367,7 +397,7 @@ pub fn fs_fstat(caller: ProcessId, fd: FD) -> Result<FileStat, ()> {
     let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
     let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
     let fs_lock = IN_MEM_FS.lock();
-    let file = fs_lock.file(handle.file_path()).ok_or(())?;
+    let file = fs_lock.get_file_by_inode(handle.i_node()).ok_or(())?;
     Ok(FileStat::from(file))
 }
 
@@ -389,10 +419,10 @@ pub fn fs_close(caller: ProcessId, fd: FD) -> Result<(), ()> {
 /// public service Portals will wrap around these functions.
 ///
 /// The interface is close to UNIX.
-pub fn fs_unlink(caller: ProcessId, file: &String) -> Result<(), ()> {
+pub fn fs_unlink(caller: ProcessId, file: &str) -> Result<(), ()> {
     let mut fs_lock = IN_MEM_FS.lock();
     // TODO don't know yet how this interacts with files opened in the open file table
-    if fs_lock.delete(file) {
+    if fs_lock.delete_file_by_path(file) {
         log::trace!("deletion successful");
         Ok(())
     } else {
@@ -480,9 +510,9 @@ impl From<&InMemFile> for FileStat {
     fn from(file: &InMemFile) -> Self {
         Self {
             st_dev: 0,
-            st_ino: 0,
+            st_ino: file.i_node(),
             st_nlink: 0,
-            st_mode: 0,
+            st_mode: file.meta().umode() as u32,
             st_uid: 0,
             st_gid: 0,
             __pad0: 0,
@@ -511,7 +541,7 @@ mod tests {
     fn test_fs_basic() {
         let fd = fs_open(
             1,
-            String::from("/foo/test1"),
+            "/foo/test1",
             FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
             0o777,
         );
@@ -536,7 +566,7 @@ mod tests {
         let payload = [0; 16384];
         let fd = fs_open(
             1,
-            String::from("/foo/test2"),
+            "/foo/test2",
             FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
             0o777,
         );
@@ -551,7 +581,7 @@ mod tests {
 
     #[test]
     fn test_fs_unlink() {
-        let filename = String::from("/foo/test3");
+        let filename = "/foo/test3";
         let fd = fs_open(
             1,
             filename.clone(),
@@ -560,13 +590,13 @@ mod tests {
         );
         {
             let fs_lock = IN_MEM_FS.lock();
-            assert!(fs_lock.file(&filename).is_some());
+            assert!(fs_lock.get_file_by_path(&filename).is_some());
         }
 
         fs_unlink(1, &filename).unwrap();
         {
             let fs_lock = IN_MEM_FS.lock();
-            assert!(fs_lock.file(&filename).is_none());
+            assert!(fs_lock.get_file_by_path(&filename).is_none());
             // without this, tests get stuck (because some methods lock
             // the open file table first and then we have a deadlock
             drop(fs_lock);

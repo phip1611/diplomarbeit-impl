@@ -1,6 +1,6 @@
 //! Roottask-lib.
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![deny(
     clippy::all,
     clippy::cargo,
@@ -49,4 +49,3 @@ pub mod roottask_exception;
 pub mod rt;
 pub mod services;
 pub mod stack;
-pub mod static_alloc;

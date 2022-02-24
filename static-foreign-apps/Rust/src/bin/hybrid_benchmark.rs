@@ -6,6 +6,7 @@ use libhrstd::util::BenchHelper;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use std::env::var;
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use libhrstd::util::ansi::{AnsiStyle, Color, TextStyle};
@@ -36,6 +37,7 @@ fn main() {
     }
 
     linux_bench_cheap_foreign_set_tid_address_syscall();
+    linux_bench_expensive_fs_fstat();
     linux_bench_expensive_fs_open();
     linux_bench_expensive_write_read_lseek_syscalls();
 }
@@ -77,7 +79,7 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 /// This is a Cross-PD IPC.
 fn linux_bench_cheap_foreign_set_tid_address_syscall() {
     println!();
-    println!("BENCH: CHEAP FOREIGN SYSCALL FROM FOREIGN APP (set_tid_address)");
+    println!("BENCH: CHEAP FOREIGN set_tid_address SYSCALL");
     let duration_per_iteration = BenchHelper::bench(|_| unsafe {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
@@ -99,14 +101,17 @@ fn linux_bench_cheap_foreign_set_tid_address_syscall() {
 /// This is a Cross-PD IPC.
 fn linux_bench_expensive_fs_open() {
     println!();
-    println!("BENCH: EXPENSIVE FOREIGN SYSCALL FROM FOREIGN APP (open)");
+    println!("BENCH: EXPENSIVE FOREIGN open SYSCALL");
+    let path = "/tmp/diplom_evaluation_test_rwos8uf9sg";
+    // remove in case it exists
+    //let _ = fs::remove_file(path);
     let duration_per_iteration = BenchHelper::bench(|_| {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         let _ = OpenOptions::new()
             .create(true)
             .write(true)
-            .open("/tmp/diplom_evaluation_test_rwos8uf9sg")
+            .open(path)
             .unwrap();
     });
     print!(
@@ -117,6 +122,44 @@ fn linux_bench_expensive_fs_open() {
         print!(" (foreign syscall Cross-PD IPC)");
     }
     println!();
+    //fs::remove_file(path).unwrap();
+}
+
+/// Executes a cheap Linux system call from the Linux App multiple
+/// times and calculates the average clock ticks per call.
+///
+/// This is a Cross-PD IPC.
+fn linux_bench_expensive_fs_fstat() {
+    println!();
+    println!("BENCH: EXPENSIVE FOREIGN fstat SYSCALL)");
+    let path = "/tmp/diplom_evaluation_test_r15156sg";
+    // this is a super cheap syscall and can be used to measure raw
+    // foreign syscall path performance
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .unwrap();
+    let duration_per_iteration = BenchHelper::bench(|_| {
+        // performs a fstat system call
+        // Observation: Under GNU/Linux this uses "statx" syscall instead of
+        // fstat but the result/overhead is similar.
+        let metadata = file.metadata().unwrap();
+        unsafe {
+            // prevent compiler optimizations
+            core::ptr::read_volatile(core::ptr::addr_of!(metadata));
+        }
+    });
+    print!(
+        "avg: {} ticks / fstat() syscall",
+        duration_per_iteration
+    );
+    if var("LINUX_UNDER_HEDRON").is_ok() {
+        print!(" (foreign syscall Cross-PD IPC)");
+    }
+    println!();
+    fs::remove_file(path).unwrap();
 }
 
 /// Performs the file system microbenchmark that runs under Linux as well as Hedron.

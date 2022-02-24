@@ -1,5 +1,4 @@
 use crate::process_mng::process::Process;
-use alloc::string::ToString;
 use libhrstd::libhedron::Utcb;
 use libhrstd::rt::services::fs::FsOpenRequest;
 
@@ -7,7 +6,7 @@ use libhrstd::rt::services::fs::FsOpenRequest;
 pub(super) fn fs_service_impl_open(request: &FsOpenRequest, utcb: &mut Utcb, process: &Process) {
     let fd = libfileserver::fs_open(
         process.pid(),
-        request.path().to_string(),
+        request.path(),
         request.flags(),
         request.umode(),
     );
