@@ -47,6 +47,7 @@ pub struct InitialUserland {
     linux_c_matrix_mult_elf: MappedMemory,
     // Statically compiled AUX Vec Dump tool.
     linux_c_aux_dump_elf: MappedMemory,
+    linux_haskell_elf: MappedMemory,
 }
 
 impl InitialUserland {
@@ -113,6 +114,12 @@ impl InitialUserland {
             linux_c_aux_dump_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
                 "linux_c_dump_aux_musl",
+                root,
+            )
+            .unwrap(),
+            linux_haskell_elf: Self::map_tar_entry_to_page_aligned_dest(
+                &tar_file,
+                "linux_haskell",
                 root,
             )
             .unwrap(),
@@ -247,9 +254,15 @@ impl InitialUserland {
             SyscallAbi::Linux,
         );*/
 
-        PROCESS_MNG.lock().start_process(
+        /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hybrid_benchmark_elf.clone(),
             String::from("My Diplom thesis evaluation benchmark. [RELEASE]"),
+            SyscallAbi::Linux,
+        );*/
+
+        PROCESS_MNG.lock().start_process(
+            self.linux_haskell_elf.clone(),
+            String::from("Static Haskell Binary"),
             SyscallAbi::Linux,
         );
 
