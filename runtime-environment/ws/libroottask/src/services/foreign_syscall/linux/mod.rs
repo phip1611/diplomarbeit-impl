@@ -1,5 +1,6 @@
 mod arch_prctl;
 mod brk;
+mod clock_gettime;
 mod close;
 mod consts;
 mod error_code;

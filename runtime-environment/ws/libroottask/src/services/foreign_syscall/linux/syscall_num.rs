@@ -30,6 +30,7 @@ pub enum LinuxSyscallNum {
     SetTidAddress = 218,
     ExitGroup = 231,
     ReadLinkAt = 267,
+    ClockGetTime = 228,
     PrLimit64 = 302,
 }
 

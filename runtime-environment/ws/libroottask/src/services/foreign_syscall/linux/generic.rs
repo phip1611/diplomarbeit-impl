@@ -1,6 +1,7 @@
 use crate::process_mng::process::Process;
 use crate::services::foreign_syscall::linux::arch_prctl::ArchPrctlSyscall;
 use crate::services::foreign_syscall::linux::brk::BrkSyscall;
+use crate::services::foreign_syscall::linux::clock_gettime::ClockGetTimeSyscall;
 use crate::services::foreign_syscall::linux::close::CloseSyscall;
 use crate::services::foreign_syscall::linux::fcntl::FcntlSyscall;
 use crate::services::foreign_syscall::linux::fstat::FstatSyscall;
@@ -99,6 +100,7 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::SetTidAddress => SetTidAddressSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::ExitGroup => todo!("LinuxSyscallNum::ExitGroup"),
             LinuxSyscallNum::ReadLinkAt => todo!("LinuxSyscallNum::ReadLinkAt"),
+            LinuxSyscallNum::ClockGetTime => ClockGetTimeSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::PrLimit64 => todo!("LinuxSyscallNum::PrLimit64"),
         };
         utcb_exc.rax = res.val();
