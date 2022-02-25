@@ -7,35 +7,32 @@ use crate::services::foreign_syscall::linux::{
 use alloc::rc::Rc;
 //use core::alloc::Layout;
 //use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::{
-    MemCapPermissions,
-    UtcbDataException,
-};
+use libhrstd::libhedron::UtcbDataException;
 //use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 #[derive(Debug)]
 pub struct CloneSyscall {
     // poorly documented ... I took this from the musl code
     // maybe this is the right linux code: https://elixir.bootlin.com/linux/v5.16.10/source/kernel/fork.c#L2677
-    fnc_ptr: u64,
-    child_stack: u64,
-    flags: u64,
+    _fnc_ptr: u64,
+    _child_stack: u64,
+    _flags: u64,
     // flags: CloneFlags,
-    args: *const u8,
-    ptid: u64,
-    tls: u64,
+    _args: *const u8,
+    _ptid: u64,
+    _tls: u64,
 }
 
 impl From<&GenericLinuxSyscall> for CloneSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            fnc_ptr: syscall.arg0(),
-            child_stack: syscall.arg1(),
+            _fnc_ptr: syscall.arg0(),
+            _child_stack: syscall.arg1(),
             // flags: CloneFlags::from_bits(syscall.arg2()).unwrap(),
-            flags: syscall.arg2(),
-            args: syscall.arg3() as *const _,
-            ptid: syscall.arg4(),
-            tls: syscall.arg5(),
+            _flags: syscall.arg2(),
+            _args: syscall.arg3() as *const _,
+            _ptid: syscall.arg4(),
+            _tls: syscall.arg5(),
         }
     }
 }
@@ -44,7 +41,7 @@ impl LinuxSyscallImpl for CloneSyscall {
     fn handle(
         &self,
         _utcb_exc: &mut UtcbDataException,
-        process: &Rc<Process>,
+        _process: &Rc<Process>,
     ) -> LinuxSyscallResult {
         log::info!("Clone: {:#?}", self);
 

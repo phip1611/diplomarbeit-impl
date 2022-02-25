@@ -1,27 +1,23 @@
 use crate::process_mng::process::Process;
-use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
 use alloc::rc::Rc;
-use core::alloc::Layout;
 use core::mem::size_of;
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
 
 #[derive(Debug)]
 pub struct ClockGetTimeSyscall {
-    clk_id: ClockId,
+    _clk_id: ClockId,
     timespec: *mut timespec,
 }
 
 impl From<&GenericLinuxSyscall> for ClockGetTimeSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            clk_id: unsafe { core::mem::transmute(syscall.arg0()) },
+            _clk_id: unsafe { core::mem::transmute(syscall.arg0()) },
             timespec: syscall.arg1() as *mut _,
         }
     }

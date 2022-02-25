@@ -5,13 +5,12 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallResult,
 };
 use alloc::rc::Rc;
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::UtcbDataException;
 
 /// set protection on a region of memory
 #[derive(Debug)]
 pub struct MProtectSyscall {
-    addr: u64,
+    _addr: u64,
     _len: u64,
     _prot: MProtect,
 }
@@ -19,7 +18,7 @@ pub struct MProtectSyscall {
 impl From<&GenericLinuxSyscall> for MProtectSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            addr: syscall.arg0(),
+            _addr: syscall.arg0(),
             _len: syscall.arg1(),
             _prot: MProtect::from_bits(syscall.arg2()).unwrap(),
         }
@@ -41,12 +40,12 @@ impl LinuxSyscallImpl for MProtectSyscall {
 bitflags::bitflags! {
     #[allow(unused)]
     struct MProtect: u64 {
-        const None = 0x0;
-        const Read = 0x1;
-        const Write = 0x2;
-        const Exec = 0x4;
-        const Sem = 0x8;
-        const GrowsUp = 0x2000000;
-        const GrowsDown = 0x1000000;
+        const NONE = 0x0;
+        const READ = 0x1;
+        const WRITE = 0x2;
+        const EXEC = 0x4;
+        const SEM = 0x8;
+        const GROWS_UP = 0x2000000;
+        const GROWS_DOWN = 0x1000000;
     }
 }

@@ -1,15 +1,10 @@
 use crate::process_mng::process::Process;
-use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
 use alloc::rc::Rc;
-use core::alloc::Layout;
-use core::mem::size_of;
-use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::process::consts::ProcessId;
 
