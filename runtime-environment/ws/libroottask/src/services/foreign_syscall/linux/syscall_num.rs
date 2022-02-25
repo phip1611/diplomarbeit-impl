@@ -22,6 +22,7 @@ pub enum LinuxSyscallNum {
     Clone = 56,
     Fcntl = 72,
     Unlink = 87,
+    Sysinfo = 99,
     SigAltStack = 131,
     ArchPrctl = 158,
     Gettid = 186,
@@ -30,6 +31,7 @@ pub enum LinuxSyscallNum {
     SetTidAddress = 218,
     ExitGroup = 231,
     ReadLinkAt = 267,
+    ClockGetTime = 228,
     PrLimit64 = 302,
 }
 
