@@ -11,6 +11,7 @@ use core::mem::size_of;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
+
 #[derive(Debug)]
 pub struct ClockGetTimeSyscall {
     clk_id: ClockId,
@@ -47,6 +48,7 @@ struct timespec {
     tv_nsec: u64,
 }
 
+#[allow(unused)]
 #[repr(u64)]
 #[derive(Debug)]
 enum ClockId {
