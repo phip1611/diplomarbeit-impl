@@ -5,6 +5,7 @@ mod clone;
 mod close;
 mod consts;
 mod error_code;
+mod fake_just_return;
 mod fcntl;
 mod fstat;
 mod generic;

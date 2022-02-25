@@ -4,6 +4,7 @@ use crate::services::foreign_syscall::linux::brk::BrkSyscall;
 use crate::services::foreign_syscall::linux::clock_gettime::ClockGetTimeSyscall;
 use crate::services::foreign_syscall::linux::clone::CloneSyscall;
 use crate::services::foreign_syscall::linux::close::CloseSyscall;
+use crate::services::foreign_syscall::linux::fake_just_return::FakeJustReturnSyscall;
 use crate::services::foreign_syscall::linux::fcntl::FcntlSyscall;
 use crate::services::foreign_syscall::linux::fstat::FstatSyscall;
 use crate::services::foreign_syscall::linux::ioctl::IoctlSyscall;
@@ -96,7 +97,12 @@ impl GenericLinuxSyscall {
             LinuxSyscallNum::Clone => CloneSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Fcntl => FcntlSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Unlink => UnlinkSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::FChMod => FakeJustReturnSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Sysinfo => SysinfoSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::GetUid => FakeJustReturnSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::GetGid => FakeJustReturnSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::GetEUid => FakeJustReturnSyscall::from(self).handle(utcb_exc, process),
+            LinuxSyscallNum::GetEGid => FakeJustReturnSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::SigAltStack => SignalStackSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::ArchPrctl => ArchPrctlSyscall::from(self).handle(utcb_exc, process),
             LinuxSyscallNum::Gettid => todo!("LinuxSyscallNum::Gettid"),
