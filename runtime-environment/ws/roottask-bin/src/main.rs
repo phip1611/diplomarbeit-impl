@@ -150,18 +150,18 @@ fn do_bench() {
     let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
     // ############################################################################
     // MEASURE NATIVE SYSTEM CALL PERFORMANCE
-    let native_syscall_costs = BenchHelper::bench(|i| unsafe {
+    let native_syscall_costs = BenchHelper::<_>::bench_direct(|i| unsafe {
         raw_echo_pt.ctrl(i).unwrap();
     });
     // ############################################################################
     // MEASURE ECHO SYSCALL PERFORMANCE (PD-internal IPC with my PT multiplexing mechanism)
-    let echo_call_costs = BenchHelper::bench(|_| echo_pt.call().unwrap());
+    let echo_call_costs = BenchHelper::<_>::bench_direct(|_| echo_pt.call().unwrap());
     // ############################################################################
     // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
-    let raw_echo_call_costs = BenchHelper::bench(|_| raw_echo_pt.call().unwrap());
+    let raw_echo_call_costs = BenchHelper::<_>::bench_direct(|_| raw_echo_pt.call().unwrap());
     // ############################################################################
     // MEASURE ROOTTASK ALLOCATION COSTS (1 Byte)
-    let alloc_1_byte_costs = BenchHelper::bench(|_| {
+    let alloc_1_byte_costs = BenchHelper::<_>::bench_direct(|_| {
         let vec = Vec::<u8>::with_capacity(1);
         unsafe {
             let _x = core::ptr::read_volatile(vec.as_ptr());
@@ -169,7 +169,7 @@ fn do_bench() {
     });
     // ############################################################################
     // MEASURE ROOTTASK ALLOCATION COSTS (4096 Byte)
-    let alloc_4096_byte_costs = BenchHelper::bench(|_| {
+    let alloc_4096_byte_costs = BenchHelper::<_>::bench_direct(|_| {
         let vec = Vec::<u8>::with_capacity(4096);
         unsafe {
             let _x = core::ptr::read_volatile(vec.as_ptr());
@@ -177,7 +177,7 @@ fn do_bench() {
     });
     // ############################################################################
     // MEASURE FILE SYSTEM PERFORMANCE WITHIN ROOTTASK: open, write &close
-    let fs_open_write_close_costs = BenchHelper::bench(|_| {
+    let fs_open_write_close_costs = BenchHelper::<_>::bench_direct(|_| {
         let fd = libfileserver::fs_open(
             0,
             "/tmp/roottask_bench1",

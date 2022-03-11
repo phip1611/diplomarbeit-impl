@@ -80,7 +80,7 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 fn linux_bench_cheap_foreign_set_tid_address_syscall() {
     println!();
     println!("BENCH: CHEAP FOREIGN set_tid_address SYSCALL");
-    let duration_per_iteration = BenchHelper::bench(|_| unsafe {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| unsafe {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         libc::syscall(libc::SYS_set_tid_address, 0);
@@ -105,7 +105,7 @@ fn linux_bench_expensive_fs_open() {
     let path = "/tmp/diplom_evaluation_test_rwos8uf9sg";
     // remove in case it exists
     //let _ = fs::remove_file(path);
-    let duration_per_iteration = BenchHelper::bench(|_| {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         let _ = OpenOptions::new()
@@ -141,7 +141,7 @@ fn linux_bench_expensive_fs_fstat() {
         .truncate(true)
         .open(path)
         .unwrap();
-    let duration_per_iteration = BenchHelper::bench(|_| {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| {
         // performs a fstat system call
         // Observation: Under GNU/Linux this uses "statx" syscall instead of
         // fstat but the result/overhead is similar.
@@ -257,7 +257,7 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
 fn hedron_bench_raw_echo_pt_call() {
     println!();
     println!("BENCH: RAW ECHO SERVICE PT");
-    let duration_per_iteration = BenchHelper::bench(|_| call_raw_echo_service());
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| call_raw_echo_service());
     println!(
         "avg: {} ticks / syscall (raw Cross-PD IPC)",
         duration_per_iteration
@@ -269,7 +269,7 @@ fn hedron_bench_raw_echo_pt_call() {
 fn hedron_bench_echo_pt_call() {
     println!();
     println!("BENCH: ECHO SERVICE PT");
-    let duration_per_iteration = BenchHelper::bench(|_| call_echo_service());
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| call_echo_service());
     println!(
         "avg: {} ticks / syscall (Cross-PD IPC)",
         duration_per_iteration
