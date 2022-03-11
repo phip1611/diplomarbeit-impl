@@ -29,7 +29,6 @@
 #![feature(allocator_api)]
 #![feature(const_btree_new)]
 #![feature(slice_ptr_get)]
-#![allow(unused)]
 
 #[allow(unused)]
 #[cfg_attr(test, macro_use)]
@@ -44,489 +43,259 @@ extern crate alloc;
 #[macro_use]
 extern crate libhrstd;
 
-use alloc::collections::BTreeMap;
+mod file_descriptor;
+mod file_table;
+mod in_mem_fs;
+mod inode;
+mod stat;
+
+use crate::file_table::OpenFileTable;
+use crate::in_mem_fs::{
+    FileMetaData,
+    InMemFile,
+    InMemFilesystem,
+};
 use alloc::string::String;
-use alloc::vec::Vec;
 use core::cmp::min;
+pub use file_descriptor::FileDescriptor;
 use libhrstd::process::consts::ProcessId;
 use libhrstd::rt::services::fs::FsOpenFlags;
-use libhrstd::rt::services::fs::FD;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::global_counter::GlobalIncrementingCounter;
+pub use stat::FileStat;
 
-/// Open file table with open files in [`IN_MEM_FS`].
-static OPEN_FILE_TABLE: SimpleMutex<OpenFileTable> = SimpleMutex::new(OpenFileTable::new());
-
-/// Contains the file system in memory.
-static IN_MEM_FS: SimpleMutex<InMemFilesystem> = SimpleMutex::new(InMemFilesystem::new());
+/// Public facade to the file system. See [`Filesystem`].
+pub static FILESYSTEM: SimpleMutex<Filesystem> = SimpleMutex::new(Filesystem::new());
 
 /// Counter to give unique inodes (=identifiers) to files. Currently, this is auto incrementing
 /// for ever.
 static INODE_COUNTER: GlobalIncrementingCounter = GlobalIncrementingCounter::new();
 
-/// Holds information about all files that are currently open inside the system.
+/// Facade over the virtual file system that contains the in-memory file system and possibly
+/// others in the future.
 #[derive(Debug)]
-struct OpenFileTable(BTreeMap<OpenFileHandleId, OpenFileHandle>);
+pub struct Filesystem {
+    in_mem_fs: InMemFilesystem,
+    open_file_table: OpenFileTable,
+}
 
-impl OpenFileTable {
-    pub const fn new() -> Self {
-        Self(BTreeMap::new())
+impl Filesystem {
+    const fn new() -> Self {
+        Self {
+            in_mem_fs: InMemFilesystem::new(),
+            open_file_table: OpenFileTable::new(),
+        }
     }
 
-    /// Opens a file and returns a [`FD`].
-    pub fn open(
+    /// Public interface to the file system management data structures to open files.
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX. On success, a new [`FD`] gets returned.
+    pub fn open_or_create_file(
         &mut self,
         caller: ProcessId,
         path: &str,
         flags: FsOpenFlags,
         umode: u16,
-    ) -> Result<FD, ()> {
-        let fd = self.next_fd(caller);
+    ) -> Result<FileDescriptor, ()> {
+        if flags.is_empty() {
+            return Err(());
+        };
+        if path.is_empty() {
+            return Err(());
+        }
 
-        let mut in_mem_fs = IN_MEM_FS.lock();
-        let maybe_file = in_mem_fs.get_file_by_path(&path);
+        // the file either:
+        // - does not exist and may be created
+        // - or already exist
+        let maybe_file = self.in_mem_fs.get_file_by_path(&path);
+
         if maybe_file.is_none() & flags.can_create() {
             // create new file
-            let path = String::from(path);
-            let new_file = InMemFile::new(path.clone(), FileMetaData::new(umode, caller));
-            let i_node = new_file.i_node();
-            in_mem_fs.create_file(path, new_file).unwrap();
-            self.data_mut()
-                .insert((caller, fd), OpenFileHandle::new(flags, i_node));
+            let i_node = INODE_COUNTER.next().into();
+            let new_file =
+                InMemFile::new(i_node, String::from(path), FileMetaData::new(umode, caller));
+            self.in_mem_fs.create_file(i_node, new_file)?;
+            let fd = self.open_file_table.open(caller, i_node, flags)?;
+            log::trace!("file creation successful: path={}, flags={:?}", path, flags);
             Ok(fd)
-        } else if in_mem_fs.get_file_by_path(&path).is_none() {
+        } else if maybe_file.is_none() {
             // file doesn't exist or can't get created
+            log::trace!("file open error: path={}, flags={:?}", path, flags);
             Err(())
         } else {
-            let file = maybe_file.unwrap();
+            let file = maybe_file.ok_or(())?;
             // open existing file
-            self.data_mut()
-                .insert((caller, fd), OpenFileHandle::new(flags, file.i_node()));
+            let fd = self.open_file_table.open(caller, file.i_node(), flags)?;
             Ok(fd)
         }
     }
 
-    /// Closes a file.
-    pub fn close(&mut self, caller: ProcessId, fd: FD) -> Result<(), ()> {
-        let key = (caller, fd);
-        self.data_mut().remove(&key).map(|_| ()).ok_or(())
+    /// Public interface to the file system management data structures to read from open files.
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX. On success, a Vector with read bytes gets returned.
+    pub fn read_file(
+        &mut self,
+        caller: ProcessId,
+        fd: FileDescriptor,
+        count: usize,
+    ) -> Result<&[u8], ()> {
+        let open_handle = self
+            .open_file_table
+            .lookup_handle_mut(caller, fd)
+            .ok_or(())?;
+
+        let file = self
+            .in_mem_fs
+            .get_file_by_inode(open_handle.i_node())
+            .ok_or(())?;
+
+        let from_index = open_handle.file_offset();
+        let to_index = min(from_index + count, file.data().len());
+        // update file offset is important! So that next read continues where the
+        // previous read stopped
+        open_handle.file_offset = to_index;
+        let slice = &file.data()[from_index..to_index];
+        Ok(slice)
     }
 
-    fn data(&self) -> &BTreeMap<OpenFileHandleId, OpenFileHandle> {
-        &self.0
-    }
+    /// Public interface to the file system management data structures to write to open files.
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX. On success, the number of written bytes gets returned.
+    pub fn write_file(
+        &mut self,
+        caller: ProcessId,
+        fd: FileDescriptor,
+        new_data: &[u8],
+    ) -> Result<usize, ()> {
+        let open_handle = self
+            .open_file_table
+            .lookup_handle_mut(caller, fd)
+            .ok_or(())?;
 
-    fn data_mut(&mut self) -> &mut BTreeMap<OpenFileHandleId, OpenFileHandle> {
-        &mut self.0
-    }
+        let file = self
+            .in_mem_fs
+            .get_file_by_inode_mut(open_handle.i_node())
+            .ok_or(())?;
 
-    /// Returns the next available file descriptor for a process.
-    fn next_fd(&self, pid: ProcessId) -> FD {
-        let mut i = 3;
-        // all fds that the PID is using
-        let fds_in_use = self
-            .data()
-            .keys()
-            .filter(|(process_id, _)| *process_id == pid)
-            .map(|(_pid, fd)| fd.raw())
-            .collect::<Vec<_>>();
-        loop {
-            if fds_in_use.contains(&i) {
-                i += 1;
-            } else {
-                return FD::new(i);
-            }
-        }
-    }
-}
-
-/// Combines a process ID that has opened a certain file descriptor.
-/// Identifies objects of type [`OpenFileHandle`].
-type OpenFileHandleId = (ProcessId, FD);
-
-/// Describes an opened file.
-#[derive(Debug)]
-struct OpenFileHandle {
-    // used as ID
-    i_node: u64,
-    file_offset: usize,
-    flags: FsOpenFlags,
-}
-
-impl OpenFileHandle {
-    pub fn new(flags: FsOpenFlags, i_node: u64) -> Self {
-        OpenFileHandle {
-            file_offset: 0,
-            flags,
-            i_node,
-        }
-    }
-
-    pub fn file_offset(&self) -> usize {
-        self.file_offset
-    }
-    pub fn flags(&self) -> FsOpenFlags {
-        self.flags
-    }
-
-    pub fn i_node(&self) -> u64 {
-        self.i_node
-    }
-}
-
-#[derive(Debug)]
-struct FileMetaData {
-    umode: u16,
-    owner: ProcessId,
-}
-
-impl FileMetaData {
-    pub fn new(umode: u16, owner: ProcessId) -> Self {
-        FileMetaData { umode, owner }
-    }
-
-    pub fn umode(&self) -> u16 {
-        self.umode
-    }
-    pub fn owner(&self) -> ProcessId {
-        self.owner
-    }
-}
-
-/// An in-memory file.
-#[derive(Debug)]
-struct InMemFile {
-    // used as ID
-    i_node: u64,
-    path: String,
-    data: Vec<u8>,
-    meta: FileMetaData,
-}
-
-impl InMemFile {
-    pub fn new(path: String, meta: FileMetaData) -> Self {
-        Self {
-            i_node: INODE_COUNTER.next(),
-            path,
-            data: vec![],
-            meta,
-        }
-    }
-    pub fn data(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-    pub fn data_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.data
-    }
-    pub fn path(&self) -> &String {
-        &self.path
-    }
-    pub fn meta(&self) -> &FileMetaData {
-        &self.meta
-    }
-    pub fn i_node(&self) -> u64 {
-        self.i_node
-    }
-}
-
-#[derive(Debug)]
-struct InMemFilesystem {
-    files: BTreeMap<String, InMemFile>,
-}
-
-impl InMemFilesystem {
-    const fn new() -> Self {
-        Self {
-            files: BTreeMap::new(),
-        }
-    }
-
-    fn create_file(&mut self, filepath: String, file: InMemFile) -> Result<(), ()> {
-        if self.files.contains_key(&filepath) {
-            Err(())
+        // get offset; i.e.: the point where we start to append data
+        // on UNIX, APPEND always appends; independent from the file offset
+        let write_begin_offset = if open_handle.flags().is_append() {
+            file.data().len()
         } else {
-            self.files.insert(filepath, file);
-            Ok(())
+            open_handle.file_offset()
+        };
+
+        // This may truncate the vector but old data stay in memory unless overwritten.
+        // This is no data-leak because at this point the capacity can never shrink
+        unsafe {
+            file.data_mut().set_len(write_begin_offset);
         }
+
+        // the final file offset, after the new data got written.
+        let new_length = write_begin_offset + new_data.len();
+        open_handle.file_offset = new_length;
+
+        // increase capacity
+        let vec_current_capacity = file.data_mut().capacity();
+        if new_data.len() > vec_current_capacity {
+            file.data_mut()
+                .reserve_exact(new_length - vec_current_capacity);
+        }
+
+        // after compilation and optimization this should be an efficient memcpy
+        for byte in new_data {
+            file.data_mut().push(*byte);
+        }
+
+        let written_bytes = new_data.len();
+        Ok(written_bytes)
     }
 
-    fn get_file_by_inode(&self, i_node: u64) -> Option<&InMemFile> {
-        self.files
-            .iter()
-            .map(|(_, file)| file)
-            .find(|file| file.i_node() == i_node)
-    }
+    /// Public interface to the file system management data structures to set the internal
+    /// files offset of an open file
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX.
+    pub fn lseek_file(
+        &mut self,
+        caller: ProcessId,
+        fd: FileDescriptor,
+        offset: usize,
+    ) -> Result<(), ()> {
+        let open_handle = self
+            .open_file_table
+            .lookup_handle_mut(caller, fd)
+            .ok_or(())?;
 
-    fn get_file_by_inode_mut(&mut self, i_node: u64) -> Option<&mut InMemFile> {
-        self.files
-            .iter_mut()
-            .map(|(_, file)| file)
-            .find(|file| file.i_node() == i_node)
-    }
+        let file = self
+            .in_mem_fs
+            .get_file_by_inode(open_handle.i_node())
+            .ok_or(())?;
 
-    fn get_file_by_path(&self, filepath: &str) -> Option<&InMemFile> {
-        self.files.get(filepath)
-    }
-
-    fn get_file_by_path_mut(&mut self, filepath: &str) -> Option<&mut InMemFile> {
-        self.files.get_mut(filepath)
-    }
-
-    fn delete_file_by_path(&mut self, filepath: &str) -> bool {
-        self.files.remove(filepath).is_some()
-    }
-}
-
-/// Public interface to the file system management data structures to open files.
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX. On success, a new [`FD`] gets returned.
-pub fn fs_open(caller: ProcessId, path: &str, flags: FsOpenFlags, umode: u16) -> FD {
-    if flags.is_empty() {
-        return FD::error();
-    };
-    if path.is_empty() {
-        return FD::error();
-    }
-    OPEN_FILE_TABLE
-        .lock()
-        .open(caller, path, flags, umode)
-        .unwrap_or(FD::error())
-}
-
-/// Public interface to the file system management data structures to read from open files.
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX. On success, a Vector with read bytes gets returned.
-pub fn fs_read(caller: ProcessId, fd: FD, count: usize) -> Result<Vec<u8>, ()> {
-    let key = (caller, fd);
-    let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
-    let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
-    let in_mem_fs_lock = IN_MEM_FS.lock();
-    let offset = handle.file_offset();
-    let file = in_mem_fs_lock
-        .get_file_by_inode(handle.i_node())
-        .ok_or(())?;
-
-    let mut data = Vec::with_capacity(min(file.data().len(), count));
-    let new_offset = min(file.data().len(), count + offset);
-    handle.file_offset = new_offset;
-
-    data.extend_from_slice(&file.data()[offset..new_offset]);
-    Ok(data)
-}
-
-/// Public interface to the file system management data structures to write to open files.
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX. On success, the number of written bytes gets returned.
-pub fn fs_write(caller: ProcessId, fd: FD, new_data: &[u8]) -> Result<usize, ()> {
-    let key = (caller, fd);
-    let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
-    let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
-    let mut in_mem_fs_lock = IN_MEM_FS.lock();
-
-    let file = in_mem_fs_lock
-        .get_file_by_inode_mut(handle.i_node())
-        .ok_or(())?;
-
-    // get offset; i.e.: the point where we start to append data
-    // on UNIX, APPEND always appends; independent from the file offset
-    let offset = if handle.flags().is_append() {
-        file.data.len() - 1
-    } else {
-        handle.file_offset()
-    };
-
-    // the final file offset, after the new data got written.
-    let final_file_offset = offset + new_data.len();
-    handle.file_offset = final_file_offset;
-
-    // Q&D: increase capacity
-    // Make sure the vector allocates enough memory, before I start to write data.
-    for i in file.data.capacity()..final_file_offset {
-        file.data_mut().push(0);
-    }
-
-    // Make sure "extend" starts at the right length
-    unsafe {
-        file.data_mut().set_len(offset);
-    }
-    file.data_mut().extend_from_slice(new_data);
-
-    let written_bytes = new_data.len();
-    Ok(written_bytes)
-}
-
-/// Public interface to the file system management data structures to set the internal
-/// files offset of an open file
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX.
-pub fn fs_lseek(caller: ProcessId, fd: FD, offset: usize) -> Result<(), ()> {
-    let key = (caller, fd);
-    let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
-    let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
-    let fs_lock = IN_MEM_FS.lock();
-    let file = fs_lock.get_file_by_inode(handle.i_node()).ok_or(())?;
-    if offset > file.data().len() {
-        log::warn!("offset > file.data.len()");
-        // TODO not sure how UNIX handles this
-    }
-    let offset = min(offset, file.data().len());
-    handle.file_offset = offset;
-    Ok(())
-}
-
-/// Public interface to the file system management data structures to get the fstat data structure.
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX.
-pub fn fs_fstat(caller: ProcessId, fd: FD) -> Result<FileStat, ()> {
-    let key = (caller, fd);
-    let mut open_file_table_lock = OPEN_FILE_TABLE.lock();
-    let mut handle = open_file_table_lock.data_mut().get_mut(&key).ok_or(())?;
-    let fs_lock = IN_MEM_FS.lock();
-    let file = fs_lock.get_file_by_inode(handle.i_node()).ok_or(())?;
-    Ok(FileStat::from(file))
-}
-
-/// Public interface to the file system management data structures to close open files.
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX.
-pub fn fs_close(caller: ProcessId, fd: FD) -> Result<(), ()> {
-    let mut lock = OPEN_FILE_TABLE.lock();
-    lock.close(caller, fd)?;
-    Ok(())
-}
-
-/// Public interface to the file system management data structures to unlink a file.
-///
-/// This is not the public service API that gets exported via portals but the
-/// public service Portals will wrap around these functions.
-///
-/// The interface is close to UNIX.
-pub fn fs_unlink(caller: ProcessId, file: &str) -> Result<(), ()> {
-    let mut fs_lock = IN_MEM_FS.lock();
-    // TODO don't know yet how this interacts with files opened in the open file table
-    if fs_lock.delete_file_by_path(file) {
-        log::trace!("deletion successful");
+        if offset > file.data().len() {
+            log::warn!("offset >= file.data.len()");
+            // TODO not sure how UNIX handles this
+        }
+        let offset = min(offset, file.data().len());
+        open_handle.file_offset = offset;
         Ok(())
-    } else {
-        log::trace!("deletion failed");
-        Err(())
     }
-}
 
-/// This is identical to the UNIX/libc stat type.
-#[repr(C)]
-#[derive(Debug)]
-pub struct FileStat {
-    st_dev: u64,
-    st_ino: u64,
-    st_nlink: u64,
-    st_mode: u32,
-    st_uid: u32,
-    st_gid: u32,
-    __pad0: u32,
-    st_rdev: u64,
-    st_size: i64,
-    st_blksize: i64,
-    st_blocks: i64,
-    st_atime: i64,
-    st_atime_nsec: i64,
-    st_mtime: i64,
-    st_mtime_nsec: i64,
-    st_ctime: i64,
-    st_ctime_nsec: i64,
-    __unused: [i64; 3],
-}
+    /// Public interface to the file system management data structures to get the fstat data structure.
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX.
+    pub fn fstat(&mut self, caller: ProcessId, fd: FileDescriptor) -> Result<FileStat, ()> {
+        let open_handle = self
+            .open_file_table
+            .lookup_handle_mut(caller, fd)
+            .ok_or(())?;
 
-impl FileStat {
-    pub fn st_dev(&self) -> u64 {
-        self.st_dev
-    }
-    pub fn st_ino(&self) -> u64 {
-        self.st_ino
-    }
-    pub fn st_nlink(&self) -> u64 {
-        self.st_nlink
-    }
-    pub fn st_mode(&self) -> u32 {
-        self.st_mode
-    }
-    pub fn st_uid(&self) -> u32 {
-        self.st_uid
-    }
-    pub fn st_gid(&self) -> u32 {
-        self.st_gid
-    }
-    pub fn st_rdev(&self) -> u64 {
-        self.st_rdev
-    }
-    pub fn st_size(&self) -> i64 {
-        self.st_size
-    }
-    pub fn st_blksize(&self) -> i64 {
-        self.st_blksize
-    }
-    pub fn st_blocks(&self) -> i64 {
-        self.st_blocks
-    }
-    pub fn st_atime(&self) -> i64 {
-        self.st_atime
-    }
-    pub fn st_atime_nsec(&self) -> i64 {
-        self.st_atime_nsec
-    }
-    pub fn st_mtime(&self) -> i64 {
-        self.st_mtime
-    }
-    pub fn st_mtime_nsec(&self) -> i64 {
-        self.st_mtime_nsec
-    }
-    pub fn st_ctime(&self) -> i64 {
-        self.st_ctime
-    }
-    pub fn st_ctime_nsec(&self) -> i64 {
-        self.st_ctime_nsec
-    }
-}
+        let file = self
+            .in_mem_fs
+            .get_file_by_inode(open_handle.i_node())
+            .ok_or(())?;
 
-impl From<&InMemFile> for FileStat {
-    fn from(file: &InMemFile) -> Self {
-        Self {
-            st_dev: 0,
-            st_ino: file.i_node(),
-            st_nlink: 0,
-            st_mode: file.meta().umode() as u32,
-            st_uid: 0,
-            st_gid: 0,
-            __pad0: 0,
-            st_rdev: 0,
-            st_size: file.data().len() as i64,
-            st_blksize: 0,
-            st_blocks: 0,
-            st_atime: 0,
-            st_atime_nsec: 0,
-            st_mtime: 0,
-            st_mtime_nsec: 0,
-            st_ctime: 0,
-            st_ctime_nsec: 0,
-            __unused: [0; 3],
+        Ok(FileStat::from(file))
+    }
+
+    /// Public interface to the file system management data structures to close open files.
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX.
+    pub fn close_file(&mut self, caller: ProcessId, fd: FileDescriptor) -> Result<(), ()> {
+        self.open_file_table.close(caller, fd)
+    }
+
+    /// Public interface to the file system management data structures to unlink a file.
+    ///
+    /// This is not the public service API that gets exported via portals but the
+    /// public service Portals will wrap around these functions.
+    ///
+    /// The interface is close to UNIX.
+    pub fn unlink_file(&mut self, _caller: ProcessId, file: &str) -> Result<(), ()> {
+        // TODO don't know yet how this interacts with files opened in the open file table
+        if self.in_mem_fs.delete_file_by_path(file) {
+            log::trace!("deletion successful");
+            Ok(())
+        } else {
+            log::trace!("deletion failed");
+            Err(())
         }
     }
 }
@@ -534,28 +303,32 @@ impl From<&InMemFile> for FileStat {
 // caution: tests will share the state from the globally shared variables
 #[cfg(test)]
 mod tests {
-
     use super::*;
+    use libhrstd::time::Instant;
+    use std::vec::Vec;
 
     #[test]
     fn test_fs_basic() {
-        let fd = fs_open(
-            1,
-            "/foo/test1",
-            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
-            0o777,
-        );
-        fs_write(1, fd, b"Hallo Welt!").unwrap();
-        fs_lseek(1, fd, "Hallo ".len()).unwrap();
-        let read = fs_read(1, fd, 100).unwrap();
-        let read = String::from_utf8(read).unwrap();
+        let mut fs = FILESYSTEM.lock();
+        let fd = fs
+            .open_or_create_file(
+                1,
+                "/foo/test1",
+                FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+                0o777,
+            )
+            .unwrap();
+        fs.write_file(1, fd, b"Hallo Welt!").unwrap();
+        fs.lseek_file(1, fd, "Hallo ".len()).unwrap();
+        let read = fs.read_file(1, fd, 100).unwrap();
+        let read = String::from_utf8_lossy(read);
         // get rid of additional zeroes
         let read = read.trim_matches('\0');
         assert_eq!(read, "Welt!");
 
-        fs_lseek(1, fd, 0).unwrap();
-        let read = fs_read(1, fd, 100).unwrap();
-        let read = String::from_utf8(read).unwrap();
+        fs.lseek_file(1, fd, 0).unwrap();
+        let read = fs.read_file(1, fd, 100).unwrap();
+        let read = String::from_utf8_lossy(read);
         // get rid of additional zeroes
         let read = read.trim_matches('\0');
         assert_eq!(read, "Hallo Welt!")
@@ -563,49 +336,170 @@ mod tests {
 
     #[test]
     fn test_fs_lseek_write_size() {
+        let mut fs = FILESYSTEM.lock();
         let payload = [0; 16384];
-        let fd = fs_open(
-            1,
-            "/foo/test2",
-            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
-            0o777,
-        );
-        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 0);
-        fs_write(1, fd, &payload).unwrap();
-        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
-        fs_lseek(1, fd, 0).unwrap();
-        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
-        fs_write(1, fd, &payload).unwrap();
-        assert_eq!(fs_fstat(1, fd).unwrap().st_size(), 16384);
+        for i in 0..10 {
+            let fd = fs
+                .open_or_create_file(
+                    1,
+                    "/foo/test2",
+                    FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+                    0o777,
+                )
+                .unwrap();
+
+            // is first iteration
+            if i == 0 {
+                assert_eq!(fs.fstat(1, fd).unwrap().st_size(), 0, "file size must be 0");
+            } else {
+                fs.lseek_file(1, fd, 0).unwrap();
+            }
+
+            fs.write_file(1, fd, &payload).unwrap();
+            assert_eq!(
+                fs.fstat(1, fd).unwrap().st_size(),
+                16384,
+                "the file size must match the previous write"
+            );
+            fs.lseek_file(1, fd, 0).unwrap();
+            assert_eq!(fs.fstat(1, fd).unwrap().st_size(), 16384, "the file size must match the previous write even if the file pointer was reset to the beginning");
+            fs.write_file(1, fd, &payload).unwrap();
+            assert_eq!(fs.fstat(1, fd).unwrap().st_size(), 16384, "the file size must stay the same because the file offset was reset to the beginning.");
+        }
     }
 
     #[test]
     fn test_fs_unlink() {
+        let mut fs = FILESYSTEM.lock();
         let filename = "/foo/test3";
-        let fd = fs_open(
-            1,
-            filename.clone(),
-            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
-            0o777,
-        );
+        let fd = fs
+            .open_or_create_file(
+                1,
+                filename.clone(),
+                FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+                0o777,
+            )
+            .unwrap();
         {
-            let fs_lock = IN_MEM_FS.lock();
-            assert!(fs_lock.get_file_by_path(&filename).is_some());
+            assert!(fs.in_mem_fs.get_file_by_path(&filename).is_some());
         }
 
-        fs_unlink(1, &filename).unwrap();
+        fs.unlink_file(1, &filename).unwrap();
         {
-            let fs_lock = IN_MEM_FS.lock();
-            assert!(fs_lock.get_file_by_path(&filename).is_none());
-            // without this, tests get stuck (because some methods lock
-            // the open file table first and then we have a deadlock
-            drop(fs_lock);
+            assert!(fs.in_mem_fs.get_file_by_path(&filename).is_none());
 
-            let open_ft_lock = OPEN_FILE_TABLE.lock();
             assert!(
-                open_ft_lock.data().get(&(1, fd)).is_some(),
+                fs.open_file_table.lookup_handle(1, fd).is_some(),
                 "file must stay opened in open file table"
             )
+        }
+    }
+
+    /// The tests above do basic functionality of read and write. This test checks with random
+    /// data if the data written is actually the data read. Furthermore, it splits read and
+    /// write operation into multiple chunks.
+    #[test]
+    fn test_fs_correctness() {
+        for outer_iteration in 0..10 {
+            const BYTE_COUNT: usize = 2049;
+            const CHUNK_SIZE: usize = 1024;
+            let random_data_2049 = (0..BYTE_COUNT)
+                .map(|x| Instant::now().val())
+                .flat_map(|x| x.to_ne_bytes())
+                .take(BYTE_COUNT)
+                .collect::<Vec<_>>();
+
+            let bench_file_path = "/tmp_foobar_fs_correctness";
+
+            let mut fs = FILESYSTEM.lock();
+            let fd = fs
+                .open_or_create_file(
+                    1,
+                    bench_file_path,
+                    // make sure that we don't set the "append" flag :)
+                    FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+                    0o777,
+                )
+                .unwrap();
+
+            for inner_iteration in 0..100 {
+                assert_eq!(
+                    fs.in_mem_fs.get_file_by_path(bench_file_path).unwrap().inner_vec().capacity(),
+                    InMemFile::DEFAULT_CAPACITY,
+                    "the capacity should not grow across multiple iterations because the file offset gets resettet every time!"
+                );
+
+                // I execute this test multiple times. However, each iteration should start at
+                // the "raw" state.
+                fs.lseek_file(1, fd, 0).unwrap();
+
+                // ############ BEGIN WRITE IN THREE STEPS ############
+                let bytes_written = fs
+                    .write_file(1, fd, &random_data_2049[..CHUNK_SIZE])
+                    .unwrap();
+                assert_eq!(bytes_written, CHUNK_SIZE, "must write all bytes");
+                assert_eq!(
+                    CHUNK_SIZE,
+                    fs.in_mem_fs.get_file_by_path(bench_file_path).unwrap().inner_vec().len(),
+                    "larger than expected! [inner_iteration={inner_iteration}, outer_iteration={outer_iteration}]"
+                );
+
+                let bytes_written = fs
+                    .write_file(1, fd, &random_data_2049[CHUNK_SIZE..][..CHUNK_SIZE])
+                    .unwrap();
+                assert_eq!(bytes_written, CHUNK_SIZE, "must write all bytes");
+                assert_eq!(
+                    2 * CHUNK_SIZE,
+                    fs.in_mem_fs.get_file_by_path(bench_file_path).unwrap().inner_vec().len(),
+                    "larger than expected! [inner_iteration={inner_iteration}, outer_iteration={outer_iteration}]"
+                );
+
+                let bytes_written = fs
+                    .write_file(1, fd, &random_data_2049[2 * CHUNK_SIZE..])
+                    .unwrap();
+                assert_eq!(bytes_written, 1, "only one byte is left");
+
+                // with the "lseek(0)" at the beginning of each iteration I want to ensure that
+                // the file content gets never longer and always stay the same. Here I check if
+                // that actually works.
+                assert_eq!(
+                    BYTE_COUNT,
+                    fs.fstat(1, fd).unwrap().st_size() as usize,
+                    "the file must be as long as the data that was written to it and no longer\n\
+                    [inner_iteration={inner_iteration}, outer_iteration={outer_iteration}]"
+                );
+                // ############ END WRITE IN THREE STEPS ############
+
+                // ############ BEGIN READ IN THREE STEPS ############
+                // create a readbuffer that is big enough
+                let mut read_buf = Vec::with_capacity(random_data_2049.len());
+
+                // make sure that read now starts at the beginning
+                fs.lseek_file(1, fd, 0).unwrap();
+
+                let read_bytes = fs.read_file(1, fd, CHUNK_SIZE).unwrap();
+                assert_eq!(read_bytes.len(), CHUNK_SIZE, "must read {CHUNK_SIZE} bytes");
+                read_buf.extend_from_slice(read_bytes);
+
+                let read_bytes = fs.read_file(1, fd, CHUNK_SIZE).unwrap();
+                assert_eq!(read_bytes.len(), CHUNK_SIZE, "must read {CHUNK_SIZE} bytes");
+                read_buf.extend_from_slice(read_bytes);
+
+                let read_bytes = fs.read_file(1, fd, CHUNK_SIZE).unwrap();
+                assert_eq!(read_bytes.len(), 1, "must read exactly 1 byte that is left");
+                read_buf.extend_from_slice(read_bytes);
+                // ############ END READ IN THREE STEPS ############
+
+                // make sure read and write data is equal
+                assert_eq!(
+                    read_buf, random_data_2049,
+                    "read and write data must equal!"
+                );
+            }
+
+            // Nope to unlink :) I want to re-use the file in succeeding iterations once it
+            // got created to simulate/test a more realistic layout.
+            // fs.unlink_file(1, bench_file_path).unwrap();
         }
     }
 }
