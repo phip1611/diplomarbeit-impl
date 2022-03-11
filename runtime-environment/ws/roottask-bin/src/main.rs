@@ -75,7 +75,6 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     // log::info!("guard-page inactive");
     roottask_stack::init(hip);
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
-    roottask_heap::init();
 
     #[rustfmt::skip]
     {
