@@ -15,6 +15,7 @@ bitflags::bitflags! {
     /// Most of these information are in the manpage: `$ man open`
     ///
     /// Linux defines each variant using the octal number format.
+    // TODO It feels like this should belong to libfileserver
     #[derive(Serialize, Deserialize)]
     pub struct FsOpenFlags: u32 {
         /// Open for reading only.

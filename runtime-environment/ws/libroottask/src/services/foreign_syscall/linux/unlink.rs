@@ -42,7 +42,11 @@ impl LinuxSyscallImpl for UnlinkSyscall {
         // remove null bytes
         let filename = filename.as_str().trim_matches('\0').to_string();
 
-        if libfileserver::fs_unlink(process.pid(), &filename).is_ok() {
+        if libfileserver::FILESYSTEM
+            .lock()
+            .unlink_file(process.pid(), &filename)
+            .is_ok()
+        {
             LinuxSyscallResult::new_success(0)
         } else {
             LinuxSyscallResult::new_error(LinuxErrorCode::EINVAL)

@@ -5,18 +5,20 @@ use crate::services::foreign_syscall::linux::{
     LinuxSyscallResult,
 };
 use alloc::rc::Rc;
+use libfileserver::FileDescriptor;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]
 pub struct CloseSyscall {
-    fd: FD,
+    // TODO refactor this into a "Linux File Descriptor" that is cldoe to the existing FD type
+    fd: FileDescriptor,
 }
 
 impl From<&GenericLinuxSyscall> for CloseSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            fd: FD::new(syscall.arg0() as i32),
+            fd: FileDescriptor::new(syscall.arg0()),
         }
     }
 }
@@ -27,7 +29,10 @@ impl LinuxSyscallImpl for CloseSyscall {
         _utcb_exc: &mut UtcbDataException,
         process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        libfileserver::fs_close(process.pid(), self.fd).unwrap();
+        libfileserver::FILESYSTEM
+            .lock()
+            .close_file(process.pid(), self.fd)
+            .unwrap();
 
         LinuxSyscallResult::new_success(0)
     }

@@ -46,7 +46,6 @@ use crate::roottask_stack::{
 };
 use alloc::vec::Vec;
 use core::arch::global_asm;
-use libfileserver::fs_read;
 use libhrstd::cap_space::root::RootCapSpace;
 use libhrstd::kobjects::SmObject;
 use libhrstd::libhedron::mem::PAGE_SIZE;
@@ -178,22 +177,30 @@ fn do_bench() {
     // ############################################################################
     // MEASURE FILE SYSTEM PERFORMANCE WITHIN ROOTTASK: open, write &close
     let fs_open_write_close_costs = BenchHelper::<_>::bench_direct(|_| {
-        let fd = libfileserver::fs_open(
-            0,
-            "/tmp/roottask_bench1",
-            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
-            0o777,
-        );
+        // Don't use the same lock to better simulate the costs of a real world scenario.
+        let fd = libfileserver::FILESYSTEM
+            .lock()
+            .open_or_create_file(
+                0,
+                "/tmp/roottask_bench1",
+                FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+                0o777,
+            )
+            .unwrap();
         let data = [0xd_u8, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf];
-        libfileserver::fs_write(0, fd, &[0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf]).unwrap();
-        libfileserver::fs_lseek(0, fd, 0).unwrap();
-        let read_data = fs_read(0, fd, data.len()).unwrap();
-        assert_eq!(
-            &data,
-            read_data.as_slice(),
-            "written data must equal to read data"
-        );
-        libfileserver::fs_close(0, fd).unwrap();
+        libfileserver::FILESYSTEM
+            .lock()
+            .write_file(0, fd, &[0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf])
+            .unwrap();
+        libfileserver::FILESYSTEM
+            .lock()
+            .lseek_file(0, fd, 0)
+            .unwrap();
+        let mut fs_lock = libfileserver::FILESYSTEM.lock();
+        let read_data = fs_lock.read_file(0, fd, data.len()).unwrap();
+        assert_eq!(&data, read_data, "written data must equal to read data");
+        drop(fs_lock);
+        libfileserver::FILESYSTEM.lock().close_file(0, fd).unwrap();
     });
     // ############################################################################
 

@@ -7,20 +7,23 @@ use crate::services::foreign_syscall::linux::{
 use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
 use core::mem::size_of;
-use libfileserver::FileStat;
+use libfileserver::{
+    FileDescriptor,
+    FileStat,
+};
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]
 pub struct FstatSyscall {
-    fd: FD,
+    fd: FileDescriptor,
     u_ptr_statbuf: u64,
 }
 
 impl From<&GenericLinuxSyscall> for FstatSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            fd: FD::new(syscall.arg0() as i32),
+            fd: FileDescriptor::new(syscall.arg0()),
             u_ptr_statbuf: syscall.arg1(),
         }
     }
@@ -32,7 +35,10 @@ impl LinuxSyscallImpl for FstatSyscall {
         _utcb_exc: &mut UtcbDataException,
         process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        let fstat = libfileserver::fs_fstat(process.pid(), self.fd).unwrap();
+        let fstat = libfileserver::FILESYSTEM
+            .lock()
+            .fstat(process.pid(), self.fd)
+            .unwrap();
 
         let u_page_offset = self.u_ptr_statbuf & 0xfff;
         let mut mapping = MAPPED_AREAS

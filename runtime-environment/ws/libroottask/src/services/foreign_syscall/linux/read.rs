@@ -8,12 +8,13 @@ use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
 
 use core::cmp::min;
+use libfileserver::FileDescriptor;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]
 pub struct ReadSyscall {
-    fd: FD,
+    fd: FileDescriptor,
     user_buf: *const u8,
     count: usize,
 }
@@ -21,7 +22,7 @@ pub struct ReadSyscall {
 impl From<&GenericLinuxSyscall> for ReadSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            fd: FD::new(syscall.arg0() as i32),
+            fd: FileDescriptor::new(syscall.arg0()),
             user_buf: syscall.arg1() as *const _,
             count: syscall.arg2() as usize,
         }
@@ -34,7 +35,10 @@ impl LinuxSyscallImpl for ReadSyscall {
         _utcb_exc: &mut UtcbDataException,
         process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        let data = libfileserver::fs_read(process.pid(), self.fd, self.count).unwrap();
+        let mut fs_lock = libfileserver::FILESYSTEM.lock();
+        let data = fs_lock
+            .read_file(process.pid(), self.fd, self.count)
+            .unwrap();
 
         let mapping = MAPPED_AREAS
             .lock()

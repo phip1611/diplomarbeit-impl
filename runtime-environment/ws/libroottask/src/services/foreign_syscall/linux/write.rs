@@ -70,9 +70,10 @@ impl LinuxSyscallImpl for WriteSyscall {
                 LinuxSyscallResult::new_success(self.count as u64)
             }
             fd => {
-                let written_bytes =
-                    libfileserver::fs_write(process.pid(), FD::new(fd as i32), u_write_data)
-                        .unwrap();
+                let written_bytes = libfileserver::FILESYSTEM
+                    .lock()
+                    .write_file(process.pid(), (fd as u64).into(), u_write_data)
+                    .unwrap();
                 LinuxSyscallResult::new_success(written_bytes as u64)
             }
         }
