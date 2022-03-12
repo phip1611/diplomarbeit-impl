@@ -33,7 +33,7 @@ impl LinuxSyscallImpl for UnlinkSyscall {
     ) -> LinuxSyscallResult {
         let mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.u_filename as u64, LINUX_PATH_MAX as u64)
+            .create_or_get_mapping(process, self.u_filename as u64, LINUX_PATH_MAX as u64)
             .clone();
 
         let u_page_offset = self.u_filename as usize & 0xfff;

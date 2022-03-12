@@ -7,6 +7,7 @@ use crate::services::foreign_syscall::linux::{
 use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
 use core::fmt::Write;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::UtcbDataException;
 use libhrstd::rt::services::fs::FD;
 
@@ -48,10 +49,22 @@ impl LinuxSyscallImpl for WriteSyscall {
         // either create mapping or re-use if the page is already mapped
         let mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.usr_ptr as u64, self.count as u64)
+            .create_or_get_mapping(process, self.usr_ptr as u64, self.count as u64)
             .clone();
         let u_page_offset = self.usr_ptr as usize & 0xfff;
         let u_write_data = mapping.mem_with_offset_as_slice::<u8>(self.count, u_page_offset);
+
+        log::trace!(
+            "write: fd={}, u_page_offset={}, count={}, page_count={}",
+            self.fd,
+            u_page_offset,
+            self.count,
+            if self.count % PAGE_SIZE == 0 {
+                self.count / PAGE_SIZE
+            } else {
+                (self.count / PAGE_SIZE) + 1
+            }
+        );
 
         match self.fd {
             0 => panic!("write to stdin currently not supported"),

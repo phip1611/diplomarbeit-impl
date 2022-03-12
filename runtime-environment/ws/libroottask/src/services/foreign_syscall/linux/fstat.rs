@@ -43,7 +43,7 @@ impl LinuxSyscallImpl for FstatSyscall {
         let u_page_offset = self.u_ptr_statbuf & 0xfff;
         let mut mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.u_ptr_statbuf, size_of::<FileStat>() as u64)
+            .create_or_get_mapping(process, self.u_ptr_statbuf, size_of::<FileStat>() as u64)
             .clone();
 
         let r_write_ptr = mapping.mem_with_offset_as_ptr_mut(u_page_offset as usize);

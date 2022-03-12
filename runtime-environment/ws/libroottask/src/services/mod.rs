@@ -61,7 +61,7 @@ impl MappedAreas {
 
     /// Convenient wrapper that service functions should use if they need access to certain
     /// user memory. It creates a mapping with an appropriate size.
-    fn create_get_mapping(
+    fn create_or_get_mapping(
         &mut self,
         process: &Rc<Process>,
         u_addr: u64,

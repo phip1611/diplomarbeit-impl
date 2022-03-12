@@ -38,7 +38,7 @@ impl LinuxSyscallImpl for OpenSyscall {
     ) -> LinuxSyscallResult {
         let mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.filename as u64, LINUX_PATH_MAX as u64)
+            .create_or_get_mapping(process, self.filename as u64, LINUX_PATH_MAX as u64)
             .clone();
 
         let u_page_offset = self.filename as usize & 0xfff;
