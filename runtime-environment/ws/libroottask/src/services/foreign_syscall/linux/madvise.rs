@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -30,7 +30,7 @@ impl LinuxSyscallImpl for MAdviseSyscall {
         _utcb_exc: &mut UtcbDataException,
         _process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        // log::info!("{:#?}", self);
+        log::trace!("{:#?}", self);
         LinuxSyscallResult::new_success(0)
     }
 }

@@ -40,20 +40,19 @@ extern crate alloc;
 #[macro_use]
 extern crate libhrstd;
 
-use crate::roottask_stack::{
-    STACK_SIZE,
-    STACK_TOP_PTR,
-};
 use alloc::vec::Vec;
 use core::arch::global_asm;
 use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::kobjects::SmObject;
+use libhrstd::kobjects::{
+    PtObject,
+    SmObject,
+};
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
 use libhrstd::rt::services::fs::FsOpenFlags;
 use libhrstd::util::BenchHelper;
-use libroottask::process_mng::manager;
+use libroottask::process;
 use libroottask::rt::userland;
 use libroottask::services::init_roottask_echo_pts;
 use libroottask::{
@@ -94,25 +93,21 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
         log::debug!("===========================================================");
     }
 
-    manager::PROCESS_MNG.lock().init(
-        hip_addr,
-        utcb_addr,
-        (STACK_SIZE / PAGE_SIZE) as u64,
-        STACK_TOP_PTR.val(),
-    );
-    roottask_exception::init(manager::PROCESS_MNG.lock().root());
-    manager::PROCESS_MNG.lock().register_startup_exc_callback();
+    process::PROCESS_MNG.lock().init(hip_addr, utcb_addr);
+    roottask_exception::init(process::PROCESS_MNG.lock().root());
+    process::PROCESS_MNG.lock().register_startup_exc_callback();
 
-    let root_process = manager::PROCESS_MNG.lock().root().clone();
+    let root_process = process::PROCESS_MNG.lock().root().clone();
     let root_sm = SmObject::create(RootCapSpace::RootSmSleep.val(), &root_process.pd_obj());
 
-    services::init_services(manager::PROCESS_MNG.lock().root());
+    services::init_services(process::PROCESS_MNG.lock().root());
+    let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
 
     log::info!("Rust Roottask started successfully");
 
     // Check how the allocation costs changes if the heap is already really full.
     // let _vec = Vec::<u8>::with_capacity(1024 * 1024 * 2); // 2 MebiByte
-    do_bench();
+    do_bench(&echo_pt, &raw_echo_pt);
 
     // NOW READY TO START PROCESSES
     let userland = userland::InitialUserland::load(hip, &root_process);
@@ -144,9 +139,8 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
 /// Performs several PD-internal IPC benchmarks and measures native system call
 /// performance from a Native Hedron App (i.e. the roottask).
-fn do_bench() {
+fn do_bench(echo_pt: &PtObject, raw_echo_pt: &PtObject) {
     log::info!("benchmarking starts");
-    let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
     // ############################################################################
     // MEASURE NATIVE SYSTEM CALL PERFORMANCE
     let native_syscall_costs = BenchHelper::<_>::bench_direct(|i| unsafe {

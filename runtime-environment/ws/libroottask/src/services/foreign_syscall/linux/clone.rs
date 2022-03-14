@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::{
     GenericLinuxSyscall,
     LinuxSyscallImpl,
@@ -43,7 +43,7 @@ impl LinuxSyscallImpl for CloneSyscall {
         _utcb_exc: &mut UtcbDataException,
         _process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        log::info!("Clone: {:#?}", self);
+        log::trace!("Clone: {:#?}", self);
 
         // Quick and dirty: afterwards, the Haskell binary wants to access
         // the memory behind the TLS address

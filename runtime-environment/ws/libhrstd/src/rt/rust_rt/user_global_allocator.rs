@@ -1,21 +1,26 @@
-use crate::rt::services::allocate::alloc_service;
+use crate::rt::services::allocate::{
+    alloc_service,
+    dealloc_service,
+};
 use core::alloc::{
     GlobalAlloc,
     Layout,
 };
 
 #[global_allocator]
-static GLOBAL_ALLOC: GlobalAllocator = GlobalAllocator::new();
+static GLOBAL_ALLOC: UserGlobalAllocator = UserGlobalAllocator::new();
 
-struct GlobalAllocator {}
+/// Global Allocator for User Hedron-native User Apps. Currently it is dumb.
+/// It allocates whole portions of pages (minimum allocation). THis is really inefficient.
+struct UserGlobalAllocator {}
 
-impl GlobalAllocator {
+impl UserGlobalAllocator {
     const fn new() -> Self {
         Self {}
     }
 }
 
-unsafe impl GlobalAlloc for GlobalAllocator {
+unsafe impl GlobalAlloc for UserGlobalAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = alloc_service(layout);
         log::trace!("alloc: layout={:?} ptr={:?}", layout, ptr);
@@ -23,11 +28,8 @@ unsafe impl GlobalAlloc for GlobalAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        log::debug!(
-            "dealloc not implemented yet :D; ptr={:?}, layout={:?}",
-            ptr,
-            layout
-        );
+        dealloc_service(ptr as u64, layout);
+        log::trace!("dealloc: layout={:?} ptr={:?}", layout, ptr);
     }
 }
 

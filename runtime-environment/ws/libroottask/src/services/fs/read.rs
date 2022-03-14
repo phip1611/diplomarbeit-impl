@@ -1,5 +1,5 @@
 use crate::mem::VIRT_MEM_ALLOC;
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::{

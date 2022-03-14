@@ -1,5 +1,5 @@
 use crate::mem::VIRT_MEM_ALLOC;
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use alloc::rc::{
     Rc,
     Weak,
@@ -23,6 +23,8 @@ type Address = u64;
 ///
 /// Current Q&D approach: can never be dropped/invalidated.
 /// TODO: remove Clone; add drop trait
+///
+/// TODO unify with the MemoryMapping struct used in the process module
 #[derive(Debug, Clone)]
 pub struct MappedMemory {
     /// The origin of the mapping.
@@ -257,8 +259,8 @@ impl RootMemMapper {
             );
         }
 
-        let src_page_num = (src_addr / PAGE_SIZE as u64) as u64;
-        let dest_page_num = (dest_addr / PAGE_SIZE as u64) as u64;
+        let src_page_num = src_addr / PAGE_SIZE as u64;
+        let dest_page_num = dest_addr / PAGE_SIZE as u64;
 
         CrdDelegateOptimizer::new(src_page_num, dest_page_num, page_count as usize).mmap(
             src_process.pd_obj().cap_sel(),
@@ -280,13 +282,13 @@ impl RootMemMapper {
 #[cfg(test)]
 mod tests {
     use crate::mem::MappedMemory;
-    use crate::process_mng::process::Process;
+    use crate::process::Process;
     use alloc::rc::Rc;
 
     #[test]
     fn test_mapped_memory() {
         // some arbitrary values juts to create the object
-        let root = Process::root(4096, 4096, 4096, 4096);
+        let root = Process::root(4096, 4096);
         let root = Rc::from(root);
 
         let mapped_memory = MappedMemory {
