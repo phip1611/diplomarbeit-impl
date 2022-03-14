@@ -404,7 +404,7 @@ mod tests {
             const BYTE_COUNT: usize = 2049;
             const CHUNK_SIZE: usize = 1024;
             let random_data_2049 = (0..BYTE_COUNT)
-                .map(|x| Instant::now().val())
+                .map(|_| Instant::now().val())
                 .flat_map(|x| x.to_ne_bytes())
                 .take(BYTE_COUNT)
                 .collect::<Vec<_>>();

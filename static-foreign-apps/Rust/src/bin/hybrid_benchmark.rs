@@ -3,10 +3,8 @@ use libhrstd::kobjects::{LocalEcObject, PdObject, PortalIdentifier, PtCtx, PtObj
 use libhrstd::libhedron::Mtd;
 use libhrstd::rt::services::echo::{call_echo_service, call_raw_echo_service};
 use libhrstd::time::Instant;
-use libhrstd::util::ansi::{AnsiStyle, Color, TextStyle};
 use libhrstd::util::BenchHelper;
-use log::{LevelFilter, Metadata, Record};
-use simple_logger::SimpleLogger;
+use log::{Metadata, Record};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::env::var;
@@ -42,7 +40,7 @@ impl log::Log for Logger {
 // - file system micro benchmark
 // - foreign system call performance
 fn main() {
-    log::set_max_level(log::LevelFilter::max());
+    log::set_max_level(log::LevelFilter::Debug);
     log::set_logger(&Logger).unwrap();
     println!("Hello world from Hybrid Foreign Benchmark!");
 
