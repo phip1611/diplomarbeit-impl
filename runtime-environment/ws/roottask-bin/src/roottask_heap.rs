@@ -9,11 +9,14 @@ use simple_chunk_allocator::{
     DEFAULT_CHUNK_SIZE,
 };
 
-// times chunk_size=256 == 8MiB
-const CHUNK_AMOUNT: usize = 32768;
-static mut HEAP: simple_chunk_allocator::PageAligned<[u8; 8388608]> =
+// times chunk_size==256 => 24MiB
+// I need a relatively large heap for the in-mem file system benchmark
+// The benchmark itself requires lots of heap but also the in-mem file system
+// additionally, fragmentation makes this hard .. so yeah.. big heap required
+const CHUNK_AMOUNT: usize = 98304;
+static mut HEAP: simple_chunk_allocator::PageAligned<[u8; 25165824]> =
     simple_chunk_allocator::heap!(DEFAULT_CHUNK_SIZE, CHUNK_AMOUNT);
-static mut BITMAP: simple_chunk_allocator::PageAligned<[u8; 4096]> =
+static mut BITMAP: simple_chunk_allocator::PageAligned<[u8; 12288]> =
     simple_chunk_allocator::heap_bitmap!(CHUNK_AMOUNT);
 
 pub static HEAP_SIZE: usize = unsafe { HEAP.deref_const().len() };
