@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::{
     GenericLinuxSyscall,
     LinuxSyscallImpl,
@@ -31,8 +31,7 @@ impl LinuxSyscallImpl for MProtectSyscall {
         _utcb_exc: &mut UtcbDataException,
         _process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        log::info!("MProtect: {:#?}", self);
-        log::debug!("MUnMap syscall currently doesn't do anything; TODO fix memory leak");
+        log::trace!("MProtect: {:#?}", self);
         LinuxSyscallResult::new_success(0)
     }
 }

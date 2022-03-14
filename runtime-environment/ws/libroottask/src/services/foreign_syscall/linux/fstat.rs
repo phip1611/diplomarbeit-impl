@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -12,7 +12,6 @@ use libfileserver::{
     FileStat,
 };
 use libhrstd::libhedron::UtcbDataException;
-use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]
 pub struct FstatSyscall {

@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -29,7 +29,7 @@ impl LinuxSyscallImpl for ClockGetTimeSyscall {
         _utcb_exc: &mut UtcbDataException,
         _process: &Rc<Process>,
     ) -> LinuxSyscallResult {
-        log::info!("ClockGetTime: {:?}", self);
+        log::trace!("ClockGetTime: {:?}", self);
         unsafe { core::ptr::write_bytes(self.timespec.cast::<u8>(), 0, size_of::<timespec>()) };
         LinuxSyscallResult::new_success(0)
     }

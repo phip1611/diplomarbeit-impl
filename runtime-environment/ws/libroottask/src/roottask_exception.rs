@@ -8,7 +8,7 @@
 //! to delegate the call to an even more specialized handler (e.g. startup exception).
 
 use crate::mem::VIRT_MEM_ALLOC;
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::pt_multiplex::{
     roottask_generic_portal_callback,
     PTCallHandler,

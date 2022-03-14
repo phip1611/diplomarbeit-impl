@@ -1,6 +1,6 @@
 //! Module is responsible for providing the service to handle foreign syscalls.
-use crate::process_mng::process::Process;
-use crate::process_mng::syscall_abi::SyscallAbi;
+use crate::process::Process;
+use crate::process::SyscallAbi;
 use crate::pt_multiplex::roottask_generic_portal_callback;
 use crate::services::foreign_syscall::linux::GenericLinuxSyscall;
 use crate::services::LOCAL_EC;

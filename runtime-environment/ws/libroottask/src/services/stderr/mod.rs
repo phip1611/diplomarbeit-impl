@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::pt_multiplex::roottask_generic_portal_callback;
 use alloc::rc::Rc;
 use core::fmt::Write;

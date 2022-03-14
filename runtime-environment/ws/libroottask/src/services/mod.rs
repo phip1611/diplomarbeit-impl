@@ -5,7 +5,7 @@ use crate::mem::{
     ROOT_MEM_MAPPER,
     VIRT_MEM_ALLOC,
 };
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::stack::StaticStack;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;

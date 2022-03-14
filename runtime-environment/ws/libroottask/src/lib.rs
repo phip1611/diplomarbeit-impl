@@ -43,7 +43,7 @@ extern crate libhrstd;
 
 pub mod io_port;
 pub mod mem;
-pub mod process_mng;
+pub mod process;
 pub mod pt_multiplex;
 pub mod roottask_exception;
 pub mod rt;

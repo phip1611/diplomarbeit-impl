@@ -11,7 +11,7 @@ use libhedron::syscall::sys_call;
 #[cfg(any(feature = "foreign_rust_rt", feature = "native_rust_rt"))]
 pub fn alloc_service(layout: Layout) -> *mut u8 {
     let utcb = user_load_utcb_mut();
-    utcb.store_data(&AllocRequest::from(layout)).unwrap();
+    utcb.store_data(&AllocRequest::new_alloc(layout)).unwrap();
 
     #[cfg(feature = "native_rust_rt")]
     sys_call(UserAppCapSpace::AllocatorServicePT.val()).unwrap();
@@ -19,4 +19,17 @@ pub fn alloc_service(layout: Layout) -> *mut u8 {
     sys_hybrid_call(UserAppCapSpace::AllocatorServicePT.val()).unwrap();
 
     utcb.load_data::<u64>().unwrap() as *mut u8
+}
+
+/// Allocates memory from the roottask allocator.
+#[cfg(any(feature = "foreign_rust_rt", feature = "native_rust_rt"))]
+pub unsafe fn dealloc_service(ptr: u64, layout: Layout) {
+    let utcb = user_load_utcb_mut();
+    utcb.store_data(&AllocRequest::new_delloc(ptr, layout))
+        .unwrap();
+
+    #[cfg(feature = "native_rust_rt")]
+    sys_call(UserAppCapSpace::AllocatorServicePT.val()).unwrap();
+    #[cfg(feature = "foreign_rust_rt")]
+    sys_hybrid_call(UserAppCapSpace::AllocatorServicePT.val()).unwrap();
 }

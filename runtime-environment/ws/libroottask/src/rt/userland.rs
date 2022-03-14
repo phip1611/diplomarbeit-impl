@@ -6,9 +6,9 @@ use crate::mem::{
     ROOT_MEM_MAPPER,
     VIRT_MEM_ALLOC,
 };
-use crate::process_mng::manager::PROCESS_MNG;
-use crate::process_mng::process::Process;
-use crate::process_mng::syscall_abi::SyscallAbi;
+use crate::process::Process;
+use crate::process::SyscallAbi;
+use crate::process::PROCESS_MNG;
 use alloc::rc::Rc;
 use alloc::string::String;
 use core::alloc::Layout;
