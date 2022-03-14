@@ -1,16 +1,16 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
     LinuxSyscallResult,
 };
 use alloc::rc::Rc;
+use libfileserver::FileDescriptor;
 use libhrstd::libhedron::UtcbDataException;
-use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]
 pub struct LSeekSyscall {
-    fd: FD,
+    fd: FileDescriptor,
     offset: u64,
     _whence: LSeekWhence,
 }
@@ -18,7 +18,7 @@ pub struct LSeekSyscall {
 impl From<&GenericLinuxSyscall> for LSeekSyscall {
     fn from(syscall: &GenericLinuxSyscall) -> Self {
         Self {
-            fd: FD::new(syscall.arg0() as i32),
+            fd: FileDescriptor::new(syscall.arg0()),
             offset: syscall.arg1(),
             _whence: LSeekWhence::from(syscall.arg2()),
         }
@@ -32,7 +32,10 @@ impl LinuxSyscallImpl for LSeekSyscall {
         process: &Rc<Process>,
     ) -> LinuxSyscallResult {
         // TODO whence not considered yet
-        libfileserver::fs_lseek(process.pid(), self.fd, self.offset as usize).unwrap();
+        libfileserver::FILESYSTEM
+            .lock()
+            .lseek_file(process.pid(), self.fd, self.offset as usize)
+            .unwrap();
 
         LinuxSyscallResult::new_success(0)
     }

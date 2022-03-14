@@ -2,14 +2,35 @@ use libhrstd::cap_space::user::UserAppCapSpace;
 use libhrstd::kobjects::{LocalEcObject, PdObject, PortalIdentifier, PtCtx, PtObject};
 use libhrstd::libhedron::Mtd;
 use libhrstd::rt::services::echo::{call_echo_service, call_raw_echo_service};
+use libhrstd::time::Instant;
 use libhrstd::util::BenchHelper;
-use log::LevelFilter;
-use simple_logger::SimpleLogger;
+use log::{Metadata, Record};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::env::var;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
-use libhrstd::util::ansi::{AnsiStyle, Color, TextStyle};
+use std::rc::Rc;
+
+struct Logger;
+
+impl log::Log for Logger {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record) {
+        println!(
+            "[{level:>5}@{line}]: {msg}",
+            level = record.level(),
+            line = record.line().unwrap_or(0),
+            msg = record.args()
+        );
+    }
+
+    fn flush(&self) {}
+}
 
 // This executable is what I use for the evaluation of
 // my diplom thesis. It measures all relevant properties:
@@ -17,14 +38,8 @@ use libhrstd::util::ansi::{AnsiStyle, Color, TextStyle};
 // - file system micro benchmark
 // - foreign system call performance
 fn main() {
-    // to get log messages from libhrstd
-    SimpleLogger::new()
-        // prevent not supported "clock_gettime"
-        // syscall on Hedron :)
-        .without_timestamps()
-        .with_level(LevelFilter::Debug)
-        .init()
-        .unwrap();
+    log::set_max_level(log::LevelFilter::Debug);
+    log::set_logger(&Logger).unwrap();
     println!("Hello world from Hybrid Foreign Benchmark!");
 
     if var("LINUX_UNDER_HEDRON").is_ok() {
@@ -39,7 +54,7 @@ fn main() {
     linux_bench_cheap_foreign_set_tid_address_syscall();
     linux_bench_expensive_fs_fstat();
     linux_bench_expensive_fs_open();
-    linux_bench_expensive_write_read_lseek_syscalls();
+    linux_bench_file_system_microbenchmark();
 }
 
 fn pt_entry(_id: PortalIdentifier) -> ! {
@@ -64,7 +79,7 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
         PtCtx::ForeignSyscall,
     );
 
-    let duration_per_iteration = BenchHelper::bench(|i| unsafe {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|i| unsafe {
         pt.ctrl(i).expect("pt_ctrl must be executed");
     });
     println!(
@@ -80,7 +95,7 @@ fn hedron_hybrid_bench_native_pt_ctrl_syscall() {
 fn linux_bench_cheap_foreign_set_tid_address_syscall() {
     println!();
     println!("BENCH: CHEAP FOREIGN set_tid_address SYSCALL");
-    let duration_per_iteration = BenchHelper::bench(|_| unsafe {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| unsafe {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         libc::syscall(libc::SYS_set_tid_address, 0);
@@ -105,7 +120,7 @@ fn linux_bench_expensive_fs_open() {
     let path = "/tmp/diplom_evaluation_test_rwos8uf9sg";
     // remove in case it exists
     //let _ = fs::remove_file(path);
-    let duration_per_iteration = BenchHelper::bench(|_| {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| {
         // this is a super cheap syscall and can be used to measure raw
         // foreign syscall path performance
         let _ = OpenOptions::new()
@@ -114,10 +129,7 @@ fn linux_bench_expensive_fs_open() {
             .open(path)
             .unwrap();
     });
-    print!(
-        "avg: {} ticks / open() syscall",
-        duration_per_iteration
-    );
+    print!("avg: {} ticks / open() syscall", duration_per_iteration);
     if var("LINUX_UNDER_HEDRON").is_ok() {
         print!(" (foreign syscall Cross-PD IPC)");
     }
@@ -141,7 +153,7 @@ fn linux_bench_expensive_fs_fstat() {
         .truncate(true)
         .open(path)
         .unwrap();
-    let duration_per_iteration = BenchHelper::bench(|_| {
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| {
         // performs a fstat system call
         // Observation: Under GNU/Linux this uses "statx" syscall instead of
         // fstat but the result/overhead is similar.
@@ -151,10 +163,7 @@ fn linux_bench_expensive_fs_fstat() {
             core::ptr::read_volatile(core::ptr::addr_of!(metadata));
         }
     });
-    print!(
-        "avg: {} ticks / fstat() syscall",
-        duration_per_iteration
-    );
+    print!("avg: {} ticks / fstat() syscall", duration_per_iteration);
     if var("LINUX_UNDER_HEDRON").is_ok() {
         print!(" (foreign syscall Cross-PD IPC)");
     }
@@ -164,92 +173,147 @@ fn linux_bench_expensive_fs_fstat() {
 
 /// Performs the file system microbenchmark that runs under Linux as well as Hedron.
 /// Consists of multiple small sub benchmarks.
-fn linux_bench_expensive_write_read_lseek_syscalls() {
+fn linux_bench_file_system_microbenchmark() {
     println!();
-    println!("LINUX BENCH: File throughput performance");
+    println!("LINUX BENCH: File System Microbenchmark");
     let bench_file_path = "/tmp/foobar";
     // remove file if it already exists (last iteration panic'ed or so)
     let _ = std::fs::remove_file(bench_file_path);
 
-    // Prepares the file for the benchmark. Makes sure it is freshly created
-    // and has a length of zero.
-    let before_bench_fn = || {
-        OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .read(true)
-            .write(true)
-            .open(bench_file_path)
-            .unwrap()
-    };
+    let mut bench_results = BTreeMap::new();
 
-    // Removes the file after each sub benchmark ran.
-    let after_bench_fn = || {
-        let _ = std::fs::remove_file(bench_file_path);
-    };
+    let buffer_sizes = [
+        0x4000,  // 16KiB
+        0x8000,  // 32 KiB
+        0x10000, // 64 KiB
+        0x20000, // 128 KiB
+        0x40000, // 256 KiB
+    ];
+    let file_sizes = [
+        0x4000,   // 16 KiB
+        0x10000,  // 64 KiB
+        0x40000,  // 256 KiB
+        0x100000, // 1 MiB
+    ];
 
-    // prints the result of the sub benchmarks in the same format to the screen
-    let bench_print_result_fn = |desc: &str, bytes: &[u8], duration_per_iteration: u64| {
-        println!(
-            "  Bench {:>30} [{} bytes]: avg {:6} ticks / iteration",
-            desc,
-            AnsiStyle::new()
-                .text_style(TextStyle::Bold)
-                .msg(&format!("{:>8}", bytes.len())),
-            duration_per_iteration
-        );
-        println!(
-            "{:>55}: {} bytes / 1000 ticks",
-            "",
-            AnsiStyle::new()
-                .text_style(TextStyle::Bold)
-                .foreground_color(Color::Red)
-                .msg(&format!("{:>7.2}", bytes.len() as f64 * 1000.0 / (duration_per_iteration as f64)))
-        );
-    };
+    for file_size in file_sizes {
+        for buffer_size in buffer_sizes {
+            let file = OpenOptions::new()
+                .create(true)
+                .truncate(true)
+                .read(true)
+                .write(true)
+                .append(false)
+                .open(bench_file_path)
+                .unwrap();
 
-    // performs the sub benchmark with the system calls:
-    //  write,lseek,read,lseek
-    let do_read_and_print_without_fstat_fn = |desc: &str, bytes: &[u8]| {
-        let mut read_vec = Vec::with_capacity(bytes.len() + 1);
-        let mut file = before_bench_fn();
-        let duration_per_iteration = BenchHelper::bench(|_| {
-            file.write_all(bytes).unwrap();
-            file.seek(SeekFrom::Start(0)).unwrap();
-            file.read(read_vec.as_mut_slice()).unwrap();
-            file.seek(SeekFrom::Start(0)).unwrap();
-        });
-        after_bench_fn();
-        bench_print_result_fn(desc, bytes, duration_per_iteration);
-    };
+            // fast workaround: I need a mutable reference in multiple callbacks.
+            let file = Rc::new(RefCell::new(file));
 
-    // performs the sub benchmark with the system calls:
-    //  write,lseek,fsat,read,lseek
-    let do_read_and_print_with_fstat_fn = |desc: &str, bytes: &[u8]| {
-        let mut read_vec = Vec::with_capacity(bytes.len() + 1);
-        let mut file = before_bench_fn();
-        let duration_per_iteration = BenchHelper::bench(|_| {
-            read_vec.clear();
-            file.write_all(bytes).unwrap();
-            file.seek(SeekFrom::Start(0)).unwrap();
-            // will trigger an lstat syscall + read syscall
-            // (to find out size of file)
-            file.read_to_end(&mut read_vec).unwrap();
-            file.seek(SeekFrom::Start(0)).unwrap();
-        });
-        after_bench_fn();
-        bench_print_result_fn(desc, bytes, duration_per_iteration);
-    };
+            // allocate a buffer with "random" data. I use this to ensure that the read and the write
+            // operation operate on the same data (to detect possible bugs in my in-mem file system)
+            let mut data_to_write = Vec::with_capacity(file_size);
+            (0..file_size)
+                .map(|_| get_random_u64())
+                .flat_map(|val| val.to_ne_bytes())
+                .take(file_size)
+                .for_each(|val| data_to_write.push(val));
 
-    let bytes_4kib = [0_u8; 4096];
-    let bytes_16kib = [0_u8; 16384];
-    let bytes_128kib = [0_u8; 0x20000];
-    let bytes_1mib = [0_u8; 1 * 1024 * 1024];
+            let write_bench_result = {
+                let mut write_bench_after_each_fnc = || {
+                    file.borrow_mut().seek(SeekFrom::Start(0)).unwrap();
+                };
+                let mut write_bench = BenchHelper::<_, 100, 1000>::new(|_| {
+                    let mut file = file.borrow_mut();
+                    let total_bytes_written = data_to_write
+                        .as_slice()
+                        .chunks(buffer_size)
+                        .map(|bytes| file.write(bytes))
+                        .map(|res| res.expect("must work in the benchmark"))
+                        .sum::<usize>();
+                    assert_eq!(
+                        total_bytes_written, file_size,
+                        "written bytes must match the file size! all bytes must be written!"
+                    );
+                });
+                write_bench.with_after_each(&mut write_bench_after_each_fnc);
+                write_bench.bench()
+            };
 
-    let bench_sizes = [&bytes_4kib[..], &bytes_16kib[..], &bytes_128kib[..], &bytes_1mib[..]];
-    bench_sizes.iter().for_each(|bytes| do_read_and_print_without_fstat_fn("write,lseek,read,lseek", bytes));
-    println!("-----------------------------------------------------------------------");
-    bench_sizes.iter().for_each(|bytes| do_read_and_print_with_fstat_fn("write,lseek,fstat,read,lseek", bytes));
+            // ################################################################
+
+            let mut read_buffer = Vec::with_capacity(file_size);
+            (0..file_size).for_each(|_| read_buffer.push(0));
+
+            let read_bench_result = {
+                let mut read_bench_after_each_fnc = || {
+                    file.borrow_mut().seek(SeekFrom::Start(0)).unwrap();
+                };
+                let mut read_bench = BenchHelper::<_, 100, 1000>::new(|_| {
+                    let mut file = file.borrow_mut();
+                    let total_bytes_read = read_buffer
+                        .as_mut_slice()
+                        .chunks_mut(buffer_size)
+                        .map(|bytes| file.read(bytes))
+                        .map(|res| res.expect("must work inside the benchmark"))
+                        .sum::<usize>();
+                    assert_eq!(
+                        total_bytes_read, file_size,
+                        "read bytes must match the file size! all bytes must be read!"
+                    );
+                });
+                read_bench.with_after_each(&mut read_bench_after_each_fnc);
+                read_bench.bench()
+            };
+
+            assert_eq!(
+                data_to_write, read_buffer,
+                "written data must match read data! file_size={file_size}, buffer_size={buffer_size}"
+            );
+
+            // insert result into result map
+            let _ = bench_results.insert(
+                (file_size, buffer_size),
+                (write_bench_result, read_bench_result),
+            );
+
+            let _ = std::fs::remove_file(bench_file_path);
+        }
+    }
+
+    // OUTPUT in a CSV-like format so that I can easily copy it to a google sheets
+
+    {
+        println!("heading column:");
+        for ((file_size, buffer_size), _) in &bench_results {
+            println!(
+                "write [file_size={file_size:8}, buf_size={buffer_size:8}]"
+            );
+        }
+        for ((file_size, buffer_size), _) in &bench_results {
+            println!(
+                "read  [file_size={file_size:8}, buf_size={buffer_size:8}]"
+            );
+        }
+
+        println!("data column:");
+        for (_, (write_res, _read_res)) in &bench_results {
+            println!(
+                "{write_res}"
+            );
+        }
+        for (_, (_write_res, read_res)) in &bench_results {
+            println!(
+                "{read_res}"
+            );
+        }
+
+
+    }
+
+
+
+    let _ = std::fs::remove_file(bench_file_path);
 }
 
 /// Calculates the average time to call the RAW ECHO SERVICE PT. This is the raw cost of
@@ -257,7 +321,7 @@ fn linux_bench_expensive_write_read_lseek_syscalls() {
 fn hedron_bench_raw_echo_pt_call() {
     println!();
     println!("BENCH: RAW ECHO SERVICE PT");
-    let duration_per_iteration = BenchHelper::bench(|_| call_raw_echo_service());
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| call_raw_echo_service());
     println!(
         "avg: {} ticks / syscall (raw Cross-PD IPC)",
         duration_per_iteration
@@ -269,9 +333,15 @@ fn hedron_bench_raw_echo_pt_call() {
 fn hedron_bench_echo_pt_call() {
     println!();
     println!("BENCH: ECHO SERVICE PT");
-    let duration_per_iteration = BenchHelper::bench(|_| call_echo_service());
+    let duration_per_iteration = BenchHelper::<_>::bench_direct(|_| call_echo_service());
     println!(
         "avg: {} ticks / syscall (Cross-PD IPC)",
         duration_per_iteration
     );
+}
+
+// when this runs under Hedron I can't use cool and fancy features of the "rand" library.
+// I use the timestamp counter instead.
+fn get_random_u64() -> u64 {
+    Instant::now().val()
 }

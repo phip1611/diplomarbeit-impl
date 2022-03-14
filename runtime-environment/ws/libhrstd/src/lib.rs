@@ -26,7 +26,6 @@
 #![feature(const_ptr_offset)]
 #![feature(const_fmt_arguments_new)]
 #![feature(const_mut_refs)]
-#![feature(const_fn_trait_bound)]
 #![feature(allocator_api)]
 #![feature(nonnull_slice_from_raw_parts)]
 #![feature(alloc_error_handler)]

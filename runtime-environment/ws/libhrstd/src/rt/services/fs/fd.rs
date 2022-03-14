@@ -6,7 +6,9 @@ use libhedron::ipc_serde::{
 /// Either a fd (>=0) or error code (<0)
 ///
 /// TODO remove type; make file descriptor only positive
-///  and use Result<> for errors
+///  and use Result<> for errors: move this to a "Linux File Descriptor" type in the
+///  OS personality of Linux! And replace this in the service with "FileDescriptor" type
+///  from libfileserver
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Hash, Ord, Eq, Serialize, Deserialize)]
 pub struct FD(i32);

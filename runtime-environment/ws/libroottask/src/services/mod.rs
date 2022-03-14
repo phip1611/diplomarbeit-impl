@@ -5,7 +5,7 @@ use crate::mem::{
     ROOT_MEM_MAPPER,
     VIRT_MEM_ALLOC,
 };
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::stack::StaticStack;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
@@ -61,7 +61,7 @@ impl MappedAreas {
 
     /// Convenient wrapper that service functions should use if they need access to certain
     /// user memory. It creates a mapping with an appropriate size.
-    fn create_get_mapping(
+    fn create_or_get_mapping(
         &mut self,
         process: &Rc<Process>,
         u_addr: u64,

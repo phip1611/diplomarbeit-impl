@@ -67,7 +67,7 @@ impl CrdDelegateOptimizer {
 
     /// Finds the highest order for a base (regarding power of 2), where the base
     /// is aligned to. 64 is the maximum value.
-    pub fn find_highest_order_for_base_alignment(base: u64) -> u64 {
+    fn find_highest_order_for_base_alignment(base: u64) -> u64 {
         for order in (1..=Self::MAX_ORDER).rev() {
             let power = libm::pow(2.0, order as f64) as u64;
             if base % power == 0 {

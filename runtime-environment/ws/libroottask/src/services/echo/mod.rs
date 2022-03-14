@@ -1,7 +1,7 @@
 //! Echo service. Replies to messages. Useful to do IPC benchmarking/measure IPC costs.
 
 use crate::mem::VIRT_MEM_ALLOC;
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::pt_multiplex::roottask_generic_portal_callback;
 use crate::stack::StaticStack;
 use alloc::rc::Rc;

@@ -6,9 +6,9 @@ use crate::mem::{
     ROOT_MEM_MAPPER,
     VIRT_MEM_ALLOC,
 };
-use crate::process_mng::manager::PROCESS_MNG;
-use crate::process_mng::process::Process;
-use crate::process_mng::syscall_abi::SyscallAbi;
+use crate::process::Process;
+use crate::process::SyscallAbi;
+use crate::process::PROCESS_MNG;
 use alloc::rc::Rc;
 use alloc::string::String;
 use core::alloc::Layout;
@@ -76,7 +76,7 @@ impl InitialUserland {
         Self {
             hedron_native_hello_world_rust_elf: Self::map_tar_entry_to_page_aligned_dest(
                 &tar_file,
-                "helloworld-bin",
+                "native-hello-world-rust-bin",
                 root,
             )
             .unwrap(),
@@ -212,19 +212,8 @@ impl InitialUserland {
 
     /// Bootstraps the userland. Starts processes in the process manager.
     pub fn bootstrap(&self) {
-        /*let elf_file = if runs_inside_qemu().is_very_likely() {
-            self.linux_rust_hybrid_benchmark_debug_elf
-        } else {
-            self.linux_rust_hybrid_benchmark_release_elf
-        };
-        PROCESS_MNG.lock().start_process(
-            elf_file,
-            String::from("My Diplom thesis evaluation benchmark."),
-            SyscallAbi::Linux,
-        );*/
-
         /*PROCESS_MNG.lock().start_process(
-            self.hedron_native_hello_world_rust_release_elf.clone(),
+            self.hedron_native_hello_world_rust_elf.clone(),
             String::from("Hedron-native Hello World Rust+libhrstd [RELEASE]"),
             SyscallAbi::NativeHedron,
         );*/
@@ -238,12 +227,6 @@ impl InitialUserland {
         /*PROCESS_MNG.lock().start_process(
             self.linux_rust_hello_world_elf.clone(),
             String::from("Linux Hello World Hybrid (Rust + musl) [RELEASE]"),
-            SyscallAbi::Linux,
-        );*/
-
-        /*PROCESS_MNG.lock().start_process(
-            self.linux_rust_hello_world_hybrid_release_elf.clone(),
-            String::from("Linux Hybrid Example (Rust + musl) [RELEASE]"),
             SyscallAbi::Linux,
         );*/
 

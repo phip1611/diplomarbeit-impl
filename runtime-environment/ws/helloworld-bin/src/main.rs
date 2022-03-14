@@ -85,6 +85,8 @@ fn start() {
 
     hedron_bench_native_syscall();
 
+    log::info!("Hedron-native Hello World finished!");
+
     loop {}
 }
 

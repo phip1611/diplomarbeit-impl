@@ -1,6 +1,8 @@
 use crate::mem::MappedMemory;
-use crate::process_mng::process::Process;
-use crate::process_mng::syscall_abi::SyscallAbi;
+use crate::process::{
+    Process,
+    SyscallAbi,
+};
 use crate::roottask_exception;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
@@ -47,16 +49,10 @@ impl ProcessManager {
     }
 
     /// Initializes the process object for the roottask
-    pub fn init(
-        &mut self,
-        utcb_addr: u64,
-        stack_btm_addr: u64,
-        stack_size_pages: u64,
-        stack_top_ptr: u64,
-    ) {
+    pub fn init(&mut self, utcb_addr: u64, stack_btm_addr: u64) {
         assert!(!self.init);
         // only creates the struct, without syscalls or so
-        let process = Process::root(utcb_addr, stack_btm_addr, stack_size_pages, stack_top_ptr);
+        let process = Process::root(utcb_addr, stack_btm_addr);
         self.pid_counter += 1;
         self.processes.insert(process.pid(), process);
         self.init = true;
@@ -68,7 +64,7 @@ impl ProcessManager {
         self.processes.get(&ROOTTASK_PROCESS_PID).unwrap()
     }
 
-    /// Starts a new process.
+    /// Starts a new process. Will trigger a STARTUP exception.
     pub fn start_process(
         &mut self,
         elf_file: MappedMemory,
@@ -84,12 +80,12 @@ impl ProcessManager {
         self.pid_counter += 1;
 
         // the process starts itself. the Mng just keeps track of it.
-        let process = Process::new(pid, elf_file, program_name, self.root(), syscall_abi);
-        let _ = self.processes.insert(pid, process.clone());
-
-        // actually start
+        let mut process = Process::new(pid, elf_file, program_name, self.root(), syscall_abi);
         process.init();
+
         log::debug!("process init done!");
+
+        let _ = self.processes.insert(pid, Rc::new(process));
 
         pid
     }

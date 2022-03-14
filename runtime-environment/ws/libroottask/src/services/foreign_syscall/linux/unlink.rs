@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::consts::LINUX_PATH_MAX;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
@@ -33,7 +33,7 @@ impl LinuxSyscallImpl for UnlinkSyscall {
     ) -> LinuxSyscallResult {
         let mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.u_filename as u64, LINUX_PATH_MAX as u64)
+            .create_or_get_mapping(process, self.u_filename as u64, LINUX_PATH_MAX as u64)
             .clone();
 
         let u_page_offset = self.u_filename as usize & 0xfff;
@@ -42,7 +42,11 @@ impl LinuxSyscallImpl for UnlinkSyscall {
         // remove null bytes
         let filename = filename.as_str().trim_matches('\0').to_string();
 
-        if libfileserver::fs_unlink(process.pid(), &filename).is_ok() {
+        if libfileserver::FILESYSTEM
+            .lock()
+            .unlink_file(process.pid(), &filename)
+            .is_ok()
+        {
             LinuxSyscallResult::new_success(0)
         } else {
             LinuxSyscallResult::new_error(LinuxErrorCode::EINVAL)

@@ -1,5 +1,5 @@
 use crate::mem::VIRT_MEM_ALLOC;
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::{
@@ -12,8 +12,15 @@ use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// Implements the fs read service functionality that is accessible via the FS portal.
 pub(super) fn fs_service_impl_read(request: &FsReadRequest, utcb: &mut Utcb, process: &Process) {
+    let mut fs_lock = libfileserver::FILESYSTEM.lock();
     // data from the file system
-    let read_bytes = libfileserver::fs_read(process.pid(), request.fd(), request.count()).unwrap();
+    let read_bytes = fs_lock
+        .read_file(
+            process.pid(),
+            (request.fd().raw() as u64).into(),
+            request.count(),
+        )
+        .unwrap();
 
     // early return if EOF reached
     if read_bytes.len() == 0 {

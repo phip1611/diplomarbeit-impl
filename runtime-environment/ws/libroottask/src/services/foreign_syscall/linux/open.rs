@@ -1,5 +1,6 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::consts::LINUX_PATH_MAX;
+use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -37,7 +38,7 @@ impl LinuxSyscallImpl for OpenSyscall {
     ) -> LinuxSyscallResult {
         let mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.filename as u64, LINUX_PATH_MAX as u64)
+            .create_or_get_mapping(process, self.filename as u64, LINUX_PATH_MAX as u64)
             .clone();
 
         let u_page_offset = self.filename as usize & 0xfff;
@@ -46,8 +47,17 @@ impl LinuxSyscallImpl for OpenSyscall {
         // remove null bytes
         let filename = filename.as_str().trim_matches('\0');
 
-        let fd = libfileserver::fs_open(process.pid(), filename, self.flags, self.umode as u16);
+        let fd = libfileserver::FILESYSTEM.lock().open_or_create_file(
+            process.pid(),
+            filename,
+            self.flags,
+            self.umode as u16,
+        );
 
-        LinuxSyscallResult::new_success(fd.get().unwrap() as u64)
+        if let Ok(fd) = fd {
+            LinuxSyscallResult::new_success(fd.val())
+        } else {
+            LinuxSyscallResult::new_error(LinuxErrorCode::EINVAL)
+        }
     }
 }

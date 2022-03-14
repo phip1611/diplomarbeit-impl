@@ -28,7 +28,7 @@ mod unlink;
 mod write;
 mod write_v;
 
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use alloc::rc::Rc;
 use core::fmt::Debug;

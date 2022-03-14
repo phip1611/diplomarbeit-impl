@@ -1,7 +1,7 @@
 //! Module for [`roottask_generic_portal_callback`].
 
-use crate::process_mng::manager::PROCESS_MNG;
-use crate::process_mng::process::Process;
+use crate::process::Process;
+use crate::process::PROCESS_MNG;
 use alloc::rc::Rc;
 use libhrstd::kobjects::{
     PortalIdentifier,

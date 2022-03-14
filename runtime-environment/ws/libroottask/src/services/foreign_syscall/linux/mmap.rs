@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::error_code::LinuxErrorCode;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
@@ -8,10 +8,7 @@ use crate::services::foreign_syscall::linux::{
 use alloc::rc::Rc;
 use core::alloc::Layout;
 use libhrstd::libhedron::mem::PAGE_SIZE;
-use libhrstd::libhedron::MemCapPermissions;
 use libhrstd::libhedron::UtcbDataException;
-use libhrstd::mem::calc_page_count;
-use libhrstd::util::crd_delegate_optimizer::CrdDelegateOptimizer;
 
 /// * <https://man7.org/linux/man-pages/man2/mmap.2.html>
 #[derive(Debug)]
@@ -46,47 +43,35 @@ impl LinuxSyscallImpl for MMapSyscall {
     ) -> LinuxSyscallResult {
         log::trace!("Mmap: addr={:?}, len={}", self.addr, self.len);
 
-        // TODO !!! CURRENTLY THIS ONLY WORKS ONCE PER APPLICATION! OTHERWISE, UNDEFINED
-        //  BEHAVIOUR MIGHT HAPPEN. THIS APPROACH IS Q&D AND ONLY MAPS A STATIC ADDRESS
-        //  ONCE INTO THE BINARY. THERE IS NO COOL DYNAMIC MECHANISM THAT LOOKS FOR FREE
-        //  SPACE IN THE VIRTUAL MEMORY SPACE OF THE APP.
+        if self.addr.is_null() {
+            // two most popular combinations
 
-        // two most popular combinations
-        let mut ptr = None;
-        if self.flags.contains(MMapFlags::ANONYMOUS) && self.flags.contains(MMapFlags::PRIVATE) {
-            let layout = Layout::from_size_align(self.len as usize, PAGE_SIZE).unwrap();
-            ptr.replace(unsafe { alloc::alloc::alloc_zeroed(layout) } as u64);
-        } else if self.flags.contains(MMapFlags::ANONYMOUS)
-            && self.flags.contains(MMapFlags::SHARED)
+            if (self.flags.contains(MMapFlags::ANONYMOUS)
+                && self.flags.contains(MMapFlags::PRIVATE))
+                || (self.flags.contains(MMapFlags::ANONYMOUS)
+                    && self.flags.contains(MMapFlags::SHARED))
+            {
+                let ptr = process.memory_manager_mut().mmap(
+                    Layout::from_size_align(self.len as usize, PAGE_SIZE).unwrap(),
+                    process,
+                );
+                log::trace!("Mmap: ptr={:?}", ptr as *const u8);
+                LinuxSyscallResult::new_success(ptr)
+            } else {
+                LinuxSyscallResult::new_error(LinuxErrorCode::ENOMEM)
+            }
+        } else if self.addr as u64 <= process.memory_manager().u_program_break_current().val()
+            && self.addr as u64 >= process.memory_manager().u_program_break_begin().val()
         {
-            // TODO what to do different?
-            let layout = Layout::from_size_align(self.len as usize, PAGE_SIZE).unwrap();
-            ptr.replace(unsafe { alloc::alloc::alloc_zeroed(layout) } as u64);
+            // das hab ich bisher nur beobachtet, dass nach ein erhöhen der Program Break
+            // der Bereich gemappt werden soll. Aber das mache ich ja bereits.. daher muss ich
+            // in dem Fall nichts machen
+
+            LinuxSyscallResult::new_success(self.addr as u64)
         } else {
-            todo!("unimplemented for flag combination: {:?}", self.flags);
+            log::error!("not implemented yet!");
+            LinuxSyscallResult::new_error(LinuxErrorCode::ENOMEM)
         }
-
-        // TODO keep track of memory in process; no dealloc so far
-
-        let src_page_num = ptr.unwrap() as usize / PAGE_SIZE;
-        // TODO look into process object to see where the heap
-        //  ptr is and don't map to fixed location
-        //  This only works because all my programs only perform a single mmap fortunately
-        let dest_page_num = 0x1234567;
-
-        let page_num = calc_page_count(self.len as usize);
-
-        // map into PD
-        CrdDelegateOptimizer::new(src_page_num as u64, dest_page_num, page_num).mmap(
-            process.parent().unwrap().pd_obj().cap_sel(),
-            process.pd_obj().cap_sel(),
-            MemCapPermissions::READ | MemCapPermissions::WRITE,
-        );
-
-        // ptr: roottask mem address
-        ptr.map(|_x| 0x1234567000)
-            .map(LinuxSyscallResult::new_success)
-            .unwrap_or(LinuxSyscallResult::new_error(LinuxErrorCode::ENOMEM))
     }
 }
 

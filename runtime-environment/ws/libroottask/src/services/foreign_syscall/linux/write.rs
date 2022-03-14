@@ -1,4 +1,4 @@
-use crate::process_mng::process::Process;
+use crate::process::Process;
 use crate::services::foreign_syscall::linux::generic::GenericLinuxSyscall;
 use crate::services::foreign_syscall::linux::{
     LinuxSyscallImpl,
@@ -7,8 +7,8 @@ use crate::services::foreign_syscall::linux::{
 use crate::services::MAPPED_AREAS;
 use alloc::rc::Rc;
 use core::fmt::Write;
+use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::UtcbDataException;
-use libhrstd::rt::services::fs::FD;
 
 #[derive(Debug)]
 pub struct WriteSyscall {
@@ -48,10 +48,22 @@ impl LinuxSyscallImpl for WriteSyscall {
         // either create mapping or re-use if the page is already mapped
         let mapping = MAPPED_AREAS
             .lock()
-            .create_get_mapping(process, self.usr_ptr as u64, self.count as u64)
+            .create_or_get_mapping(process, self.usr_ptr as u64, self.count as u64)
             .clone();
         let u_page_offset = self.usr_ptr as usize & 0xfff;
         let u_write_data = mapping.mem_with_offset_as_slice::<u8>(self.count, u_page_offset);
+
+        log::trace!(
+            "write: fd={}, u_page_offset={}, count={}, page_count={}",
+            self.fd,
+            u_page_offset,
+            self.count,
+            if self.count % PAGE_SIZE == 0 {
+                self.count / PAGE_SIZE
+            } else {
+                (self.count / PAGE_SIZE) + 1
+            }
+        );
 
         match self.fd {
             0 => panic!("write to stdin currently not supported"),
@@ -70,9 +82,10 @@ impl LinuxSyscallImpl for WriteSyscall {
                 LinuxSyscallResult::new_success(self.count as u64)
             }
             fd => {
-                let written_bytes =
-                    libfileserver::fs_write(process.pid(), FD::new(fd as i32), u_write_data)
-                        .unwrap();
+                let written_bytes = libfileserver::FILESYSTEM
+                    .lock()
+                    .write_file(process.pid(), (fd as u64).into(), u_write_data)
+                    .unwrap();
                 LinuxSyscallResult::new_success(written_bytes as u64)
             }
         }

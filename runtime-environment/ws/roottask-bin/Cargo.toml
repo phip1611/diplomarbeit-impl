@@ -14,7 +14,7 @@ libfileserver = { path ="../libfileserver" }
 runs_inside_qemu = "1.1"
 log = { version = "0.4", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
-simple-chunk-allocator = { git = "https://github.com/phip1611/simple-chunk-allocator.git", branch = "main" }
+simple-chunk-allocator = "0.1"
 # simple-chunk-allocator = { path = "../../../../dev/simple-chunk-allocator" }
 
 [profile.dev]

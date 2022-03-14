@@ -40,21 +40,19 @@ extern crate alloc;
 #[macro_use]
 extern crate libhrstd;
 
-use crate::roottask_stack::{
-    STACK_SIZE,
-    STACK_TOP_PTR,
-};
 use alloc::vec::Vec;
 use core::arch::global_asm;
-use libfileserver::fs_read;
 use libhrstd::cap_space::root::RootCapSpace;
-use libhrstd::kobjects::SmObject;
+use libhrstd::kobjects::{
+    PtObject,
+    SmObject,
+};
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::Utcb;
 use libhrstd::libhedron::HIP;
 use libhrstd::rt::services::fs::FsOpenFlags;
 use libhrstd::util::BenchHelper;
-use libroottask::process_mng::manager;
+use libroottask::process;
 use libroottask::rt::userland;
 use libroottask::services::init_roottask_echo_pts;
 use libroottask::{
@@ -75,7 +73,6 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
     // log::info!("guard-page inactive");
     roottask_stack::init(hip);
     // unsafe {ROOTTASK_STACK.test_rw_guard_page()};
-    roottask_heap::init();
 
     #[rustfmt::skip]
     {
@@ -96,25 +93,21 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
         log::debug!("===========================================================");
     }
 
-    manager::PROCESS_MNG.lock().init(
-        hip_addr,
-        utcb_addr,
-        (STACK_SIZE / PAGE_SIZE) as u64,
-        STACK_TOP_PTR.val(),
-    );
-    roottask_exception::init(manager::PROCESS_MNG.lock().root());
-    manager::PROCESS_MNG.lock().register_startup_exc_callback();
+    process::PROCESS_MNG.lock().init(hip_addr, utcb_addr);
+    roottask_exception::init(process::PROCESS_MNG.lock().root());
+    process::PROCESS_MNG.lock().register_startup_exc_callback();
 
-    let root_process = manager::PROCESS_MNG.lock().root().clone();
+    let root_process = process::PROCESS_MNG.lock().root().clone();
     let root_sm = SmObject::create(RootCapSpace::RootSmSleep.val(), &root_process.pd_obj());
 
-    services::init_services(manager::PROCESS_MNG.lock().root());
+    services::init_services(process::PROCESS_MNG.lock().root());
+    let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
 
     log::info!("Rust Roottask started successfully");
 
     // Check how the allocation costs changes if the heap is already really full.
     // let _vec = Vec::<u8>::with_capacity(1024 * 1024 * 2); // 2 MebiByte
-    do_bench();
+    do_bench(&echo_pt, &raw_echo_pt);
 
     // NOW READY TO START PROCESSES
     let userland = userland::InitialUserland::load(hip, &root_process);
@@ -146,23 +139,22 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
 /// Performs several PD-internal IPC benchmarks and measures native system call
 /// performance from a Native Hedron App (i.e. the roottask).
-fn do_bench() {
+fn do_bench(echo_pt: &PtObject, raw_echo_pt: &PtObject) {
     log::info!("benchmarking starts");
-    let (echo_pt, raw_echo_pt) = init_roottask_echo_pts();
     // ############################################################################
     // MEASURE NATIVE SYSTEM CALL PERFORMANCE
-    let native_syscall_costs = BenchHelper::bench(|i| unsafe {
+    let native_syscall_costs = BenchHelper::<_>::bench_direct(|i| unsafe {
         raw_echo_pt.ctrl(i).unwrap();
     });
     // ############################################################################
     // MEASURE ECHO SYSCALL PERFORMANCE (PD-internal IPC with my PT multiplexing mechanism)
-    let echo_call_costs = BenchHelper::bench(|_| echo_pt.call().unwrap());
+    let echo_call_costs = BenchHelper::<_>::bench_direct(|_| echo_pt.call().unwrap());
     // ############################################################################
     // MEASURE RAW ECHO SYSCALL PERFORMANCE (pure PD-internal IPC)
-    let raw_echo_call_costs = BenchHelper::bench(|_| raw_echo_pt.call().unwrap());
+    let raw_echo_call_costs = BenchHelper::<_>::bench_direct(|_| raw_echo_pt.call().unwrap());
     // ############################################################################
     // MEASURE ROOTTASK ALLOCATION COSTS (1 Byte)
-    let alloc_1_byte_costs = BenchHelper::bench(|_| {
+    let alloc_1_byte_costs = BenchHelper::<_>::bench_direct(|_| {
         let vec = Vec::<u8>::with_capacity(1);
         unsafe {
             let _x = core::ptr::read_volatile(vec.as_ptr());
@@ -170,7 +162,7 @@ fn do_bench() {
     });
     // ############################################################################
     // MEASURE ROOTTASK ALLOCATION COSTS (4096 Byte)
-    let alloc_4096_byte_costs = BenchHelper::bench(|_| {
+    let alloc_4096_byte_costs = BenchHelper::<_>::bench_direct(|_| {
         let vec = Vec::<u8>::with_capacity(4096);
         unsafe {
             let _x = core::ptr::read_volatile(vec.as_ptr());
@@ -178,23 +170,31 @@ fn do_bench() {
     });
     // ############################################################################
     // MEASURE FILE SYSTEM PERFORMANCE WITHIN ROOTTASK: open, write &close
-    let fs_open_write_close_costs = BenchHelper::bench(|_| {
-        let fd = libfileserver::fs_open(
-            0,
-            "/tmp/roottask_bench1",
-            FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
-            0o777,
-        );
+    let fs_open_write_close_costs = BenchHelper::<_>::bench_direct(|_| {
+        // Don't use the same lock to better simulate the costs of a real world scenario.
+        let fd = libfileserver::FILESYSTEM
+            .lock()
+            .open_or_create_file(
+                0,
+                "/tmp/roottask_bench1",
+                FsOpenFlags::O_CREAT | FsOpenFlags::O_RDWR,
+                0o777,
+            )
+            .unwrap();
         let data = [0xd_u8, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf];
-        libfileserver::fs_write(0, fd, &[0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf]).unwrap();
-        libfileserver::fs_lseek(0, fd, 0).unwrap();
-        let read_data = fs_read(0, fd, data.len()).unwrap();
-        assert_eq!(
-            &data,
-            read_data.as_slice(),
-            "written data must equal to read data"
-        );
-        libfileserver::fs_close(0, fd).unwrap();
+        libfileserver::FILESYSTEM
+            .lock()
+            .write_file(0, fd, &[0xd, 0xe, 0xa, 0xd, 0xb, 0xe, 0xe, 0xf])
+            .unwrap();
+        libfileserver::FILESYSTEM
+            .lock()
+            .lseek_file(0, fd, 0)
+            .unwrap();
+        let mut fs_lock = libfileserver::FILESYSTEM.lock();
+        let read_data = fs_lock.read_file(0, fd, data.len()).unwrap();
+        assert_eq!(&data, read_data, "written data must equal to read data");
+        drop(fs_lock);
+        libfileserver::FILESYSTEM.lock().close_file(0, fd).unwrap();
     });
     // ############################################################################
 

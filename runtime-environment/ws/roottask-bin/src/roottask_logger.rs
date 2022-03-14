@@ -2,13 +2,13 @@
 
 use arrayvec::ArrayString;
 use core::fmt::Write;
-use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::sync::mutex::SimpleMutex;
 use libhrstd::util::ansi::{
     AnsiStyle,
     Color,
     TextStyle,
 };
+use libroottask::services::stderr::StderrWriter;
 use log::{
     Level,
     LevelFilter,
@@ -59,9 +59,7 @@ impl GenericLogger {
     /// Because we don't have nested logging, this is fine and cheap.
     ///
     /// Make sure that stack of roottask is big enough.
-    fn fmt_msg(record: &Record) -> ArrayString<PAGE_SIZE> {
-        let mut buf = ArrayString::new();
-
+    fn fmt_msg(writer: &mut StderrWriter, record: &Record) {
         // "TRACE", " INFO", "ERROR"...
         let mut level = ArrayString::<5>::new();
         write!(&mut level, "{:>5}", record.level().as_str()).unwrap();
@@ -91,7 +89,7 @@ impl GenericLogger {
         write!(&mut line, "{}", record.line().unwrap_or(0)).unwrap();
 
         let res = writeln!(
-            &mut buf,
+            writer,
             "[{level:>5}] {crate_name}:{file:>15}{at_sign}{line}{double_point} {msg}",
             // level is padded to 5 chars and right-aligned
             // style around
@@ -108,13 +106,7 @@ impl GenericLogger {
             msg = record.args(),
         );
 
-        if res.is_err() {
-            let msg_too_long = "<LOG MSG TOO LONG; TRUNCATED>\n";
-            unsafe { buf.set_len(buf.len() - msg_too_long.len()) };
-            let _ = buf.write_str(msg_too_long);
-        }
-
-        buf
+        if res.is_err() {}
     }
 
     /// Gets the style for "DEBUG", "ERROR" etc.
@@ -143,10 +135,8 @@ impl Log for GenericLogger {
         // this is synchronized, because this may be invoked by multiple portals
         // (which are called from other PDs/global ECs).
         self.lock.lock().execute_while_locked(|| {
-            let msg = Self::fmt_msg(record);
-            crate::services::stderr::writer_mut()
-                .write_str(msg.as_str())
-                .unwrap();
+            let mut writer = crate::services::stderr::writer_mut();
+            Self::fmt_msg(&mut writer, record)
         });
     }
 
