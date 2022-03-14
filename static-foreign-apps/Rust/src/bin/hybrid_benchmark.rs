@@ -29,9 +29,7 @@ impl log::Log for Logger {
         );
     }
 
-    fn flush(&self) {
-
-    }
+    fn flush(&self) {}
 }
 
 // This executable is what I use for the evaluation of
@@ -185,19 +183,17 @@ fn linux_bench_file_system_microbenchmark() {
     let mut bench_results = BTreeMap::new();
 
     let buffer_sizes = [
-        0x4000, // 16KiB
-        0x8000, // 32 KiB
+        0x4000,  // 16KiB
+        0x8000,  // 32 KiB
         0x10000, // 64 KiB
         0x20000, // 128 KiB
         0x40000, // 256 KiB
     ];
     let file_sizes = [
-        0x4000, // 16 KiB
-        0x10000, // 64 KiB
-        0x40000, // 256 KiB
+        0x4000,   // 16 KiB
+        0x10000,  // 64 KiB
+        0x40000,  // 256 KiB
         0x100000, // 1 MiB
-        // Nope; too much heap usage in roottask
-        // 0x400000, // 4 Mib
     ];
 
     for file_size in file_sizes {
@@ -227,7 +223,7 @@ fn linux_bench_file_system_microbenchmark() {
                 let mut write_bench_after_each_fnc = || {
                     file.borrow_mut().seek(SeekFrom::Start(0)).unwrap();
                 };
-                let mut write_bench = BenchHelper::<_, 1, 1>::new(|_| {
+                let mut write_bench = BenchHelper::<_, 100, 1000>::new(|_| {
                     let mut file = file.borrow_mut();
                     let total_bytes_written = data_to_write
                         .as_slice()
@@ -253,7 +249,7 @@ fn linux_bench_file_system_microbenchmark() {
                 let mut read_bench_after_each_fnc = || {
                     file.borrow_mut().seek(SeekFrom::Start(0)).unwrap();
                 };
-                let mut read_bench = BenchHelper::<_, 1, 1>::new(|_| {
+                let mut read_bench = BenchHelper::<_, 100, 1000>::new(|_| {
                     let mut file = file.borrow_mut();
                     let total_bytes_read = read_buffer
                         .as_mut_slice()
@@ -285,12 +281,37 @@ fn linux_bench_file_system_microbenchmark() {
         }
     }
 
-    for ((file_size, buffer_size), (write_duration, read_duration)) in bench_results {
-        println!(
-            "file_size = {file_size:8}, buffer_size = {buffer_size:8}, \
-        write_duration={write_duration:8}, read_duration={read_duration:8}"
-        );
+    // OUTPUT in a CSV-like format so that I can easily copy it to a google sheets
+
+    {
+        println!("heading column:");
+        for ((file_size, buffer_size), _) in &bench_results {
+            println!(
+                "write [file_size={file_size:8}, buf_size={buffer_size:8}]"
+            );
+        }
+        for ((file_size, buffer_size), _) in &bench_results {
+            println!(
+                "read  [file_size={file_size:8}, buf_size={buffer_size:8}]"
+            );
+        }
+
+        println!("data column:");
+        for (_, (write_res, _read_res)) in &bench_results {
+            println!(
+                "{write_res}"
+            );
+        }
+        for (_, (_write_res, read_res)) in &bench_results {
+            println!(
+                "{read_res}"
+            );
+        }
+
+
     }
+
+
 
     let _ = std::fs::remove_file(bench_file_path);
 }
