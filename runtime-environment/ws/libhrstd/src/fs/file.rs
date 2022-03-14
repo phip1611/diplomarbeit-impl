@@ -58,7 +58,7 @@ impl File {
                 tmp_data.as_mut_ptr() as usize,
                 data.capacity(),
             ));
-            log::info!("read_bytes = {}", read_bytes);
+            log::trace!("read_bytes = {}", read_bytes);
             if read_bytes == 0 {
                 break;
             } else {
