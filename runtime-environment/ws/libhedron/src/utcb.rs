@@ -29,8 +29,6 @@ pub const UNTYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<UntypedI
 /// Capacity count for typed items in UTCB Data area.
 pub const TYPED_ITEM_CAPACITY: usize = UTCB_DATA_CAPACITY / size_of::<TypedItem>();
 
-const NATIVE_SYSTEM_CALL_TOGGLE: u64 = 1 << 63;
-
 #[derive(Clone, Debug)]
 pub enum UtcbError {
     /// Indicates that the payload is larger than [`UTCB_DATA_CAPACITY`].
@@ -115,13 +113,17 @@ impl Utcb {
     }
 
     /// Sets the native system call toggle (NSCT).
-    pub const fn enable_nsct(&mut self) {
-        self.head.tls |= NATIVE_SYSTEM_CALL_TOGGLE;
+    pub fn enable_nsct(&mut self) {
+        self.head
+            .flags_mut()
+            .insert(SystemCallFlags::NATIVE_SYSTEM_CALL_TOGGLE);
     }
 
     /// Unsets the native system call toggle (NSCT).
-    pub const fn disable_nsct(&mut self) {
-        self.head.tls &= !NATIVE_SYSTEM_CALL_TOGGLE;
+    pub fn disable_nsct(&mut self) {
+        self.head
+            .flags_mut()
+            .remove(SystemCallFlags::NATIVE_SYSTEM_CALL_TOGGLE);
     }
 
     /// Sets the number of untyped items.
@@ -129,8 +131,8 @@ impl Utcb {
         if count as usize > UNTYPED_ITEM_CAPACITY {
             Err(UtcbError::TooManyUntypedItems)
         } else {
-            let typed_items = self.typed_items_count() as u64;
-            self.head.items = (typed_items << 16) | count as u64;
+            let typed_items = self.typed_items_count() as u32;
+            self.head.items = (typed_items << 16) | count as u32;
             Ok(())
         }
     }
@@ -140,8 +142,8 @@ impl Utcb {
         if count as usize > UNTYPED_ITEM_CAPACITY {
             Err(UtcbError::TooManyTypedItems)
         } else {
-            let untyped_items = self.untyped_items_count() as u64;
-            self.head.items = (count as u64) << 16 | untyped_items;
+            let untyped_items = self.untyped_items_count() as u32;
+            self.head.items = (count as u32) << 16 | untyped_items;
             Ok(())
         }
     }
@@ -454,12 +456,23 @@ impl Debug for UtcbDataException {
     }
 }
 
+bitflags::bitflags! {
+    /// Flags that alter system call handling by Hedron.
+    pub struct SystemCallFlags: u32 {
+        /// The Native System Call Toggle (NSCT) flag.
+        /// If a foreign application, which get stored inside the PD-object in Hedron, performs
+        /// a system call then this flag marks this system call as (Hedron-)native. Used by
+        /// hybrid foreign applications.
+        const NATIVE_SYSTEM_CALL_TOGGLE = 1 << 0;
+    }
+}
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct UtcbHead {
-    /// Number of typed items. The IPC sender
-    /// fills this value.
-    pub items: u64,
+    flags: SystemCallFlags,
+    /// Number of typed items. The IPC sender fills this value.
+    pub items: u32,
     /// CRD for capability translation. NOVA-feature that we don't use.
     _xlt: u64,
     /// CRD for capability delegation. NOVA-feature that we don't use (see dedicated delegate syscall)
@@ -472,11 +485,20 @@ impl UtcbHead {
     /// Constructor.
     pub const fn new() -> Self {
         Self {
+            flags: SystemCallFlags::empty(),
             items: 0,
             _xlt: 0,
             _dlt: 0,
             tls: 0,
         }
+    }
+
+    pub fn flags(&self) -> &SystemCallFlags {
+        &self.flags
+    }
+
+    pub fn flags_mut(&mut self) -> &mut SystemCallFlags {
+        &mut self.flags
     }
 }
 
