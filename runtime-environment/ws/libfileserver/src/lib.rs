@@ -204,17 +204,14 @@ impl Filesystem {
         let new_length = write_begin_offset + new_data.len();
         open_handle.file_offset = new_length;
 
-        // increase capacity
+        // increase capacity if necessary
         let vec_current_capacity = file.data_mut().capacity();
         if new_data.len() > vec_current_capacity {
             file.data_mut()
                 .reserve_exact(new_length - vec_current_capacity);
         }
 
-        // after compilation and optimization this should be an efficient memcpy
-        for byte in new_data {
-            file.data_mut().push(*byte);
-        }
+        file.data_mut().extend_from_slice(new_data);
 
         let written_bytes = new_data.len();
         Ok(written_bytes)

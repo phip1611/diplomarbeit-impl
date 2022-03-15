@@ -190,14 +190,16 @@ fn linux_bench_file_system_microbenchmark() {
         0x40000, // 256 KiB
     ];
     let file_sizes = [
-        0x4000,   // 16 KiB
         0x10000,  // 64 KiB
-        0x40000,  // 256 KiB
         0x100000, // 1 MiB
     ];
 
     for file_size in file_sizes {
         for buffer_size in buffer_sizes {
+            if buffer_size > file_size {
+                continue;
+            }
+
             let file = OpenOptions::new()
                 .create(true)
                 .truncate(true)
@@ -223,7 +225,7 @@ fn linux_bench_file_system_microbenchmark() {
                 let mut write_bench_after_each_fnc = || {
                     file.borrow_mut().seek(SeekFrom::Start(0)).unwrap();
                 };
-                let mut write_bench = BenchHelper::<_, 100, 1000>::new(|_| {
+                let mut write_bench = BenchHelper::<_>::new(|_| {
                     let mut file = file.borrow_mut();
                     let total_bytes_written = data_to_write
                         .as_slice()
@@ -249,7 +251,7 @@ fn linux_bench_file_system_microbenchmark() {
                 let mut read_bench_after_each_fnc = || {
                     file.borrow_mut().seek(SeekFrom::Start(0)).unwrap();
                 };
-                let mut read_bench = BenchHelper::<_, 100, 1000>::new(|_| {
+                let mut read_bench = BenchHelper::<_>::new(|_| {
                     let mut file = file.borrow_mut();
                     let total_bytes_read = read_buffer
                         .as_mut_slice()
