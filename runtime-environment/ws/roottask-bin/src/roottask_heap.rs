@@ -5,8 +5,9 @@
 use core::alloc::Layout;
 use libhrstd::sync::static_global_ptr::StaticGlobalPtr;
 use simple_chunk_allocator::{
+    heap,
+    heap_bitmap,
     GlobalChunkAllocator,
-    DEFAULT_CHUNK_SIZE,
 };
 
 // times chunk_size==256 => 24MiB
@@ -14,10 +15,9 @@ use simple_chunk_allocator::{
 // The benchmark itself requires lots of heap but also the in-mem file system
 // additionally, fragmentation makes this hard .. so yeah.. big heap required
 const CHUNK_AMOUNT: usize = 98304;
-static mut HEAP: simple_chunk_allocator::PageAligned<[u8; 25165824]> =
-    simple_chunk_allocator::heap!(DEFAULT_CHUNK_SIZE, CHUNK_AMOUNT);
+static mut HEAP: simple_chunk_allocator::PageAligned<[u8; 25165824]> = heap!(chunks = CHUNK_AMOUNT);
 static mut BITMAP: simple_chunk_allocator::PageAligned<[u8; 12288]> =
-    simple_chunk_allocator::heap_bitmap!(CHUNK_AMOUNT);
+    heap_bitmap!(chunks = CHUNK_AMOUNT);
 
 pub static HEAP_SIZE: usize = unsafe { HEAP.deref_const().len() };
 
