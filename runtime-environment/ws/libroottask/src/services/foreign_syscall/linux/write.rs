@@ -9,6 +9,15 @@ use alloc::rc::Rc;
 use core::fmt::Write;
 use libhrstd::libhedron::mem::PAGE_SIZE;
 use libhrstd::libhedron::UtcbDataException;
+use libhrstd::mem::PageAlignedBuf;
+
+// Nils: for the evaluation I should simulate a more realistic scenario.
+// This is that the Linux OS Personality and the FS-Service use an
+// shared page-aligned buffer. It should not work like this that the fs service
+// gets access to for example the stack or the heap of a Linux app directly
+// for security reasons
+static mut SIMULATED_WRITE_WINDOW: PageAlignedBuf<u8, 0x100000> =
+    PageAlignedBuf::<u8, 0x100000>::new(0);
 
 #[derive(Debug)]
 pub struct WriteSyscall {
@@ -82,9 +91,21 @@ impl LinuxSyscallImpl for WriteSyscall {
                 LinuxSyscallResult::new_success(self.count as u64)
             }
             fd => {
+                // simulate: copy to receive/send window
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        u_write_data.as_ptr(),
+                        SIMULATED_WRITE_WINDOW.as_mut_ptr(),
+                        u_write_data.len(),
+                    );
+                    let _ = core::ptr::read_volatile(SIMULATED_WRITE_WINDOW.as_ptr());
+                }
+
                 let written_bytes = libfileserver::FILESYSTEM
                     .lock()
-                    .write_file(process.pid(), (fd as u64).into(), u_write_data)
+                    .write_file(process.pid(), (fd as u64).into(), unsafe {
+                        &SIMULATED_WRITE_WINDOW[0..u_write_data.len()]
+                    })
                     .unwrap();
                 LinuxSyscallResult::new_success(written_bytes as u64)
             }
