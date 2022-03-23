@@ -15,7 +15,7 @@ pub struct BenchHelper<
     'a,
     BenchFncT: FnMut(u64) -> (),
     const WARMUP_ITERATIONS: u64 = 10_000,
-    const BENCH_ITERATIONS: u64 = 10_000,
+    const BENCH_ITERATIONS: u64 = 100_000,
 > {
     before_each_fn: Option<&'a mut dyn FnMut()>,
     bench_fn: BenchFncT,
@@ -170,6 +170,6 @@ mod tests {
     fn test_bench_const_generic_infer() {
         let mut counter = 0;
         let _ = BenchHelper::<_>::new(|i| counter = i).bench();
-        assert_eq!(counter, 10000 - 1);
+        assert_eq!(counter, 100000 - 1);
     }
 }
