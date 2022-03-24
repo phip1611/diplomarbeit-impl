@@ -53,7 +53,7 @@ capable of creating VMs, because my introduced mechanism is not in constrast to 
 See below for more details.
 - `git submodule update --init --recursive`
 - `make check`
-- `make -j $(nproc)`
+- `make`
 - `make run`
 
 ### High Level Overview
@@ -117,7 +117,7 @@ execute `git submodule update --init --recursive` again. I really have no clue w
 - `$ make check` \
   If everything is green, you are ready to go to the next step. Otherwise, please fix
   any problems. This should be trivial in most cases.
-- `$ make -j $(nproc)`
+- `$ make`
 - `$ make run` or `$ make run_nogui` \
   **I highly recommend to use QEMU 6.2 or above**, when executing `$ make run[_nogui]`! See notice in "required tooling"
   above. Otherwise, you may see "BOOTING FROM ROM..." for 20+ seconds, until something happens.
@@ -135,10 +135,12 @@ to `qemu_debugcon.txt`.
   I have no clue why this fails sometimes. If so, it probably works
   to `rm -rf <libc.musl|thesis-hedron-fork` and init the submodules again.
 - parallel make build (with jobs parameter) sometimes fails
+    - you should not provide `-j $(numproc)` manually because the Makefile itself already parallelizes
+      the sub invocations of Make-based projects
     - this happens because multiple Rust builds may trigger rustup to download missing components/toolchains. Rustup can
       only install stuff on a "first come, first serve"
       base. However, my Makefile supports a workaround which should enable a stable build all the time.
-    - just run again `$ make -j $(nproc)` or to be 100% safe `$ make`
+    - just run again `$ make`
     - the error will fix itself on the second build most likely
 - Hedron fails with Error 0x6 (Invalid Opcode) or QEMU fails with unsupported operation: \
   The compiler target for the roottask and other binaries is

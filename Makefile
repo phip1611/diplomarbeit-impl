@@ -18,6 +18,8 @@ PARALLEL_CARGO_RUSTUP_HACK=$(BUILD_DIR)/.cargo_rustup_check
 # See https://doc.rust-lang.org/cargo/reference/environment-variables.html
 export CARGO_TARGET_DIR=$(PWD)/target
 
+.PHONY: all check clean libc_musl microkernel run run_nogui runtime_environment roottask static_foreign_apps userland_tarball
+
 # "make" builds everything
 # userland tarball itself depends on "runtime_environment static_foreign_apps"
 all: microkernel roottask userland_tarball
@@ -34,7 +36,7 @@ microkernel: | $(BUILD_DIR)
 	mkdir -p "build"; \
 	cd "build"; \
 	cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..; \
-	$(MAKE) || exit 1; \
+	$(MAKE) -j $(shell numproc) || exit 1; \
 	cp "src/hypervisor.elf32" "../../$(BUILD_DIR)/hedron.elf32"
 
 # All artifacts of the Runtime Environment
@@ -57,7 +59,7 @@ libc_musl:
     # Install it locally with absolute paths. This is important so that during runtime
     # the musl compiler finds all header files etc.
 	cd "libc-musl" && ./configure "--prefix=$(MUSL_BUILD_DIR)"
-	cd "libc-musl" && $(MAKE)
+	cd "libc-musl" && $(MAKE) -j $(shell numproc)
 	mkdir -p "$(BUILD_DIR)/.musl"
 	cd "libc-musl" && $(MAKE) install
 	echo "Installed musl to: $(MUSL_BUILD_DIR)"
@@ -92,8 +94,6 @@ check:
 # connected via LAN and load files via TFTP from my laptop.
 networkboot:
 # TODO
-
-.PHONY: clean
 
 clean:
 	rm -rf $(BUILD_DIR) $(CARGO_TARGET_DIR)
