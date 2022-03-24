@@ -12,6 +12,8 @@ MUSL_GCC_DIR=$(MUSL_BUILD_DIR)/bin
 
 PARALLEL_CARGO_RUSTUP_HACK=$(BUILD_DIR)/.cargo_rustup_check
 
+QUIET = @
+
 # Use the same target dir for all Rust targets. Cargo is actually intended
 # to be used like this and it should not bring up any problems.
 # Bound to environment variable. Cargo checks this ENV var by default.
@@ -85,9 +87,9 @@ run_nogui:
 # Helps the user to check if all relevant stuff is installed on the system
 # and the project is ready to build.
 check:
-	.build_helpers/check_tooling.sh
-	.build_helpers/check_repo.sh
-	.build_helpers/check_machine.sh
+	$(QUIET).build_helpers/check_tooling.sh
+	$(QUIET).build_helpers/check_repo.sh
+	$(QUIET).build_helpers/check_machine.sh
 
 # Prepares the files for the network-boot. This is special to my
 # local setup on my developer machine, where remote computers are
