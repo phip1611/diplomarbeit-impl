@@ -137,9 +137,9 @@ to `qemu_debugcon.txt`.
 - parallel make build (with jobs parameter) sometimes fails
     - you should not provide `-j $(numproc)` manually because the Makefile itself already parallelizes
       the sub invocations of Make-based projects
-    - this happens because multiple Rust builds may trigger rustup to download missing components/toolchains. Rustup can
-      only install stuff on a "first come, first serve"
-      base. However, my Makefile supports a workaround which should enable a stable build all the time.
+    - the bug with parallel builds happens sometimes because multiple Rust builds may trigger rustup to download
+      missing components/toolchains. Rustup can only install stuff on a "first come, first serve"
+      base.
     - just run again `$ make`
     - the error will fix itself on the second build most likely
 - Hedron fails with Error 0x6 (Invalid Opcode) or QEMU fails with unsupported operation: \
