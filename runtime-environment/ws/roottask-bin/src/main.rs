@@ -111,6 +111,7 @@ fn roottask_rust_entry(hip_addr: u64, utcb_addr: u64) -> ! {
 
     // NOW READY TO START PROCESSES
     let userland = userland::InitialUserland::load(hip, &root_process);
+    // in "bootstrap" I hard-code the ELF file that should be started
     userland.bootstrap();
     log::info!("Userland bootstrapped");
 
