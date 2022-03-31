@@ -11,7 +11,8 @@ fn main() {
     let mut args = args().skip(1);
     let radius = args
         .next()
-        .map(|x| x.parse::<f64>().expect("illegal number"))
+        .map(|x| x.parse::<f64>().ok())
+        .flatten()
         .unwrap_or(42.0);
     println!("Circle");
     println!("  Radius       ={:6.2}cm", radius);
