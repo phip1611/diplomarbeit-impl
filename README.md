@@ -1,43 +1,14 @@
-# A Flexible System Call Layer For The Hedron Microhypervisor
+# A Policy-Free System-Call Layer For The Hedron Microhypervisor
 
 This repository is the practical work of my diplom (= bachelor + master in Germany) thesis project
 at [TU Dresden](https://tu-dresden.de) in cooperation with Cyberus Technology GmbH. This repository contains my custom runtime environment written in Rust as well as
-modifications to Hedron that enables a flexible system call layer. The flexible system call layer doesn't introduce a
+modifications to Hedron that enables a policy-free system-call layer. The system call layer doesn't introduce a
 policy in the kernel but provides only a mechanism. Similar to Hedron, my work only focus on x86_64 architecture.
 
-## Overview
+## Task and Thesis
 
-TODO Link to my diplom thesis TODO.
-
-The task of my diplom thesis was to create a flexible system call layer for Hedron. We at Cyberus want to enable
-Linux apps on Hedron to enable the high developer productivity with the well-known toolchains for writing
-Linux applications instead of requiring developers to use highly custom build setups to develop for Hedron. Thus we can
-write new Hedron-applications by writing new Linux applications. My mechanism is generic but the implementation
-only focus on Linux. However, it would work with programs compiled for other systems too.
-
-I've added a mechanism to Hedron, which enables to differ between "foreign apps" and "native apps".
-Native apps produce native system calls and each system call from a foreign app is a foreign system call.
-Hedron forwards foreign system calls to a portal in userspace. The userspace enforces a policy (emulates Linux)
-and replies to the system call.
-
-My work is special and unique in that regard, that I enable not only foreign but hybrid foreign applications
-under Hedron and its runtime environment. A hybrid foreign application is a foreign application with a hybrid
-part. The hybrid part contains Hedron-native system calls. Hedron knows how to differ between native/hybrid
-and foreign system calls from foreign applications. This way, all system calls get handled as expected.
-
-The binaries must not be modified to be compatible to Hedron. If the ELF file runs on Linux, it also runs
-under Hedron in my runtime environment. However, not all Linux system calls are supported (yet).
-
-This repository contains everything to fully bootstrap my development setup. It contain the modified
-version of Hedron, my runtime environment, and several static foreign apps. For simplicity, my work
-focus on statically linked Linux apps with musl.
-
-All apps (native and foreign ones) that my roottask may start are bundled in a Tar archive. The roottask
-receives this archive as Multiboot boot module. The program that gets bootstrapepd is hard-coded into
-the roottask. This file can be changed very easy in the roottask code.
-
-My work does not focus on virtualization. However, hybrid foreign apps (and native Hedron apps) are
-capable of creating VMs, because my introduced mechanism is not in constrast to that.
+My diplom thesis ("Diplomarbeit") can be found inside the repository (english language):
+[[PDF]](./diplom-thesis_unsigned.pdf). It includes the description of my task.
 
 ## Pointers To Interesting Code
 - My modifications to the system call handler at the bottom of `thesis-hedron-fork/src/syscall.cpp`.
