@@ -10,7 +10,8 @@ Similar to Hedron, my work only focus on x86_64 architecture.
 ## Task and Thesis
 
 My diplom thesis ("Diplomarbeit") can be found inside the repository (english language):
-[[PDF]](./diplom-thesis_unsigned.pdf). It includes the description of my task.
+[[PDF]](./diplom-thesis_unsigned.pdf). My thesis includes the description of my task. It is written in english but the
+task and the abstract are also provided in german. Don't wonder: Just scroll a bit further.
 
 ## Pointers To Interesting Code
 - My modifications to the system call handler at the bottom of `thesis-hedron-fork/src/syscall.cpp`.
