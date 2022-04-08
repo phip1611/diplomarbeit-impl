@@ -1,9 +1,11 @@
 # A Policy-Free System-Call Layer For The Hedron Microhypervisor
 
 This repository is the practical work of my diplom (= bachelor + master in Germany) thesis project
-at [TU Dresden](https://tu-dresden.de) in cooperation with Cyberus Technology GmbH. This repository contains my custom runtime environment written in Rust as well as
-modifications to Hedron that enables a policy-free system-call layer. The system call layer doesn't introduce a
-policy in the kernel but provides only a mechanism. Similar to Hedron, my work only focus on x86_64 architecture.
+at [TU Dresden](https://tu-dresden.de) in cooperation with Cyberus Technology GmbH. This repository contains my custom
+runtime environment written in Rust as well as modifications to Hedron that enables a policy-free system-call layer.
+It forwards foreign system calls, such as Linux system calls, to a user-space component ("OS personality") that
+emulates a policy. The system call layer doesn't introduce a policy in the kernel but provides only a mechanism.
+Similar to Hedron, my work only focus on x86_64 architecture.
 
 ## Task and Thesis
 
