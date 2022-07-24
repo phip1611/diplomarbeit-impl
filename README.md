@@ -108,6 +108,10 @@ Currently, Hedron doesn't boot on UEFI without the closed-source UEFI loader of 
 However, you can boot my project on real hardware that supports a legacy boot x86 boot flow (on UEFI systems the
 CSM mode should work as well). Type `make && make bootimage` and write `legacy_boot_x86.img` to a USB drive or a CD.
 
+The roottask will print information to the serial device (COM1 port) but not to the VGA framebuffer. Thus, you will
+only see output from Hedron on the screen so far. Currently, there is no nice mechanism to enable the roottask to
+print to a framebuffer.
+
 ### Build Troubleshooting
 - git submodule init fails: \
   I have no clue why this fails sometimes. If so, it probably works
