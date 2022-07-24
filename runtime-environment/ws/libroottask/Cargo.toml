@@ -22,4 +22,5 @@ runs_inside_qemu = "1.1"
 elf_rs = "0.2"
 # linux-libc-auxv = { path = "../../../../dev/libc-auxv" }
 linux-libc-auxv = "0.2"
-uart_16550 = "0.2"
+# pinned because of: https://github.com/phip1611/diplomarbeit-impl/issues/4
+uart_16550 = "=0.2.16"
