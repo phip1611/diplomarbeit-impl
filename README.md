@@ -97,12 +97,20 @@ execute `git submodule update --init --recursive` again. I really have no clue w
   above. Otherwise, you may see "BOOTING FROM ROM..." for 20+ seconds, until something happens.
 
 
-
 You should use `$ make run_nogui` on headless systems, such as when you are connected via SSH to a remote machine. The
 regular `make run` opens a GUI window with a VGA buffer for Hedron.
 
 All output from the roottask/the runtime environment gets printed to serial (which QEMU maps to stdout) and also
 to `qemu_debugcon.txt`.
+
+### Boot on Real Hardware
+Currently, Hedron doesn't boot on UEFI without the closed-source UEFI loader of Cyberus Technology GmbH.
+However, you can boot my project on real hardware that supports a legacy boot x86 boot flow (on UEFI systems the
+CSM mode should work as well). Type `make && make bootimage` and write `legacy_boot_x86.img` to a USB drive or a CD.
+
+The roottask will print information to the serial device (COM1 port) but not to the VGA framebuffer. Thus, you will
+only see output from Hedron on the screen so far. Currently, there is no nice mechanism to enable the roottask to
+print to a framebuffer.
 
 ### Build Troubleshooting
 - git submodule init fails: \

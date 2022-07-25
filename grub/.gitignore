@@ -1,0 +1,6 @@
+# the directory that becomes the ISO for the legacy
+# GRUB boot image
+/iso
+
+# generated aritfact
+*.img

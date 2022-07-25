@@ -20,7 +20,7 @@ QUIET = @
 # See https://doc.rust-lang.org/cargo/reference/environment-variables.html
 export CARGO_TARGET_DIR=$(PWD)/target
 
-.PHONY: all check clean libc_musl microkernel run run_nogui runtime_environment roottask static_foreign_apps userland_tarball
+.PHONY: all bootimage check clean libc_musl microkernel run run_nogui runtime_environment roottask static_foreign_apps userland_tarball
 
 # "make" builds everything
 # userland tarball itself depends on "runtime_environment static_foreign_apps"
@@ -91,11 +91,16 @@ check:
 	$(QUIET).build_helpers/check_repo.sh
 	$(QUIET).build_helpers/check_machine.sh
 
-# Prepares the files for the network-boot. This is special to my
-# local setup on my developer machine, where remote computers are
-# connected via LAN and load files via TFTP from my laptop.
-networkboot:
-# TODO
+# Creates a bootable image with GRUB 2 as bootloader that boots in a legacy
+# x86 boot environment. GRUB 2 is used to dispatch to Hedron via Multiboot 2.
+bootimage:
+	rm -rf grub/iso
+	mkdir -p grub/iso/boot/grub
+	cp grub/grub.cfg grub/iso/boot/grub/grub.cfg
+	cp $(BUILD_DIR)/hedron.elf32 grub/iso/hedron
+	cp $(BUILD_DIR)/roottask-bin grub/iso/roottask.elf
+	cp $(BUILD_DIR)/userland.tar grub/iso/userland.tar
+	grub-mkrescue -o grub/legacy_boot_x86.img grub/iso
 
 clean:
 	rm -rf $(BUILD_DIR) $(CARGO_TARGET_DIR)
